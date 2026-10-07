@@ -22,6 +22,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   Zap,
+  UploadCloud,
+  FileVideo,
 } from 'lucide-react';
 import { ViralCut, SavedCut, QueueItem, AutoPostSettings, PlatformCredentials } from '../types';
 import { ApiSetupModal } from './ApiSetupModal';
@@ -49,6 +51,7 @@ interface PublisherTabProps {
   onEnqueueCurrentCut: (cut: ViralCut) => void;
   credentials: PlatformCredentials;
   onSaveCredentials?: (newCreds: PlatformCredentials) => void;
+  onSwitchToDemoAndPost?: (id: string) => Promise<void>;
 }
 
 export const PublisherTab: React.FC<PublisherTabProps> = ({
@@ -69,6 +72,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   onEnqueueCurrentCut,
   credentials,
   onSaveCredentials,
+  onSwitchToDemoAndPost,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'manual'>(
     queue.length > 0 ? 'queue' : 'manual'
@@ -90,6 +94,8 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   const [postStatus, setPostStatus] = useState<string>('');
   const [isCopiedCaption, setIsCopiedCaption] = useState<boolean>(false);
   const [isCopiedTitle, setIsCopiedTitle] = useState<boolean>(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [isDownloadingCut, setIsDownloadingCut] = useState<boolean>(false);
 
   // Load tokens from localStorage and credentials prop
   useEffect(() => {
@@ -203,13 +209,55 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
     }
   };
 
+  const handleDownloadCut = async () => {
+    if (!videoFile) return;
+    setIsDownloadingCut(true);
+    try {
+      const formData = new FormData();
+      formData.append('video', videoFile);
+      formData.append('startTime', currentCut?.startTime || '00:00');
+      formData.append('endTime', currentCut?.endTime || '00:30');
+      formData.append('format', currentCut?.recommendedFormat || 'vertical_blur');
+      formData.append('title', title);
+
+      const res = await fetch('/api/render-download-cut', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Falha ao renderizar corte');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30) || 'corte_vertical'}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(`Erro ao baixar corte: ${err.message}`);
+    } finally {
+      setIsDownloadingCut(false);
+    }
+  };
+
   // Post to social media (YouTube API, Instagram Graph API, TikTok API)
   const handlePost = async () => {
     setIsPosting(true);
     setPostStatus('Conectando à API de transmissão da plataforma...');
     try {
       if (platform === 'YouTube Shorts') {
-        if (!accessToken.trim()) {
+        const effectiveToken = (
+          accessToken ||
+          credentials?.youtube?.accessToken ||
+          credentials?.youtube?.refreshToken ||
+          tokens.youtube ||
+          ''
+        ).trim();
+
+        if (!effectiveToken) {
           setPostStatus(
             '❌ Insira o Access Token da API do YouTube para autenticar o canal (ou clique em "Configurar APIs Oficiais" acima).'
           );
@@ -217,15 +265,49 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           return;
         }
 
-        const res = await fetchJson<{ message?: string; error?: string }>('/api/post-youtube', {
+        // If a real video file was uploaded, cut it with FFmpeg and upload to YouTube
+        if (videoFile) {
+          setPostStatus('Processando e cortando arquivo de vídeo real com FFmpeg em 9:16 vertical...');
+          const formData = new FormData();
+          formData.append('video', videoFile);
+          formData.append('startTime', currentCut?.startTime || '00:00');
+          formData.append('endTime', currentCut?.endTime || '00:30');
+          formData.append('format', currentCut?.recommendedFormat || 'vertical_blur');
+          formData.append('title', title);
+          formData.append('description', caption);
+          formData.append('privacy', privacy);
+          formData.append('token', effectiveToken);
+          formData.append('hook', currentCut?.hook || '');
+
+          const uploadRes = await fetch('/api/upload-and-cut-short', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const resData = await uploadRes.json().catch(() => ({}));
+          if (uploadRes.ok && resData.success) {
+            setPostStatus(`🎉 ${resData.message || 'Corte real publicado no YouTube Shorts com sucesso!'}`);
+            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+          } else {
+            setPostStatus(`❌ ${resData.error || 'Erro ao cortar e enviar vídeo para o YouTube.'}`);
+          }
+          setIsPosting(false);
+          return;
+        }
+
+        const res = await fetchJson<{ message?: string; error?: string; videoUrl?: string; videoId?: string }>('/api/post-youtube', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            accessToken,
+            accessToken: effectiveToken,
+            refreshToken: credentials?.youtube?.refreshToken,
+            clientId: credentials?.youtube?.clientId,
+            clientSecret: credentials?.youtube?.clientSecret,
             title,
             description: caption,
             privacy,
             videoId: currentCut?.id,
+            hook: currentCut?.hook,
           }),
         });
 
@@ -385,6 +467,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           onToggleQueueActive={onToggleQueueActive}
           credentials={credentials}
           onOpenApiModal={() => setIsApiModalOpen(true)}
+          onSwitchToDemoAndPost={onSwitchToDemoAndPost}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -718,6 +801,85 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
               </div>
             )}
 
+            {/* Video File Upload Section for Real Cuts */}
+            <div className="p-4 bg-[#0e0f17] border border-purple-500/30 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-white flex items-center gap-2">
+                  <FileVideo className="w-4 h-4 text-pink-400" />
+                  <span>Vídeo Original da Cena (.mp4 / .mov)</span>
+                </label>
+                {currentCut && (
+                  <span className="text-[10px] text-zinc-400 font-mono">
+                    Corte: {currentCut.startTime} - {currentCut.endTime} ({currentCut.durationSeconds}s)
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                Para que o YouTube Shorts receba as <strong>cenas, áudio e imagens reais do podcast</strong> em vez da vinheta com texto, anexe o arquivo de vídeo original aqui. O sistema corta os minutos e segundos exatos com FFmpeg e formata em 9:16 vertical!
+              </p>
+
+              {!videoFile ? (
+                <label className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-zinc-700 hover:border-pink-500/70 rounded-2xl cursor-pointer bg-zinc-900/60 hover:bg-zinc-900 transition group">
+                  <UploadCloud className="w-8 h-8 text-zinc-400 group-hover:text-pink-400 mb-2 transition" />
+                  <span className="text-xs font-bold text-zinc-200 group-hover:text-white">
+                    Clique para selecionar ou arraste o vídeo do podcast (.mp4)
+                  </span>
+                  <span className="text-[10px] text-zinc-500 mt-1">
+                    Suporta MP4, MOV, WebM (cortado automaticamente entre {currentCut?.startTime || '00:00'} e {currentCut?.endTime || '00:30'})
+                  </span>
+                  <input
+                    type="file"
+                    accept="video/mp4,video/quicktime,video/webm,video/x-matroska"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setVideoFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </label>
+              ) : (
+                <div className="p-3 bg-purple-950/30 border border-purple-500/40 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="p-2 rounded-lg bg-pink-500/20 text-pink-300 shrink-0">
+                        <FileVideo className="w-4 h-4" />
+                      </div>
+                      <div className="truncate">
+                        <span className="text-xs font-bold text-white block truncate">{videoFile.name}</span>
+                        <span className="text-[10px] text-emerald-400 font-semibold">
+                          {(videoFile.size / (1024 * 1024)).toFixed(1)} MB • Pronto para cortar ({currentCut?.startTime || '00:00'} a {currentCut?.endTime || '00:30'})
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVideoFile(null)}
+                      className="px-2 py-1 text-[11px] font-semibold text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg transition"
+                    >
+                      Remover
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1.5 border-t border-purple-500/20 text-xs">
+                    <span className="text-[11px] text-zinc-400">
+                      Formato: {currentCut?.recommendedFormat || 'vertical_blur'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleDownloadCut}
+                      disabled={isDownloadingCut}
+                      className="text-[11px] font-bold text-purple-300 hover:text-white flex items-center gap-1.5 transition py-1 px-2 rounded-lg hover:bg-purple-900/40"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>{isDownloadingCut ? 'Renderizando corte...' : '⬇️ Baixar Corte Cortado em MP4'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Post / Submit Button */}
             <button
               onClick={handlePost}
@@ -725,13 +887,74 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#7000ff] via-[#b000ff] to-[#ff0055] text-white font-black text-sm shadow-xl shadow-purple-900/40 hover:shadow-pink-900/50 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <Send className={`w-4 h-4 ${isPosting ? 'animate-bounce' : ''}`} />
-              <span>{isPosting ? 'Enviando Dados...' : `✈️ Publicar / Transmitir para ${platform}`}</span>
+              <span>{isPosting ? 'Enviando Dados...' : videoFile ? `✈️ Cortar Vídeo Real & Transmitir para ${platform}` : `✈️ Publicar / Transmitir para ${platform}`}</span>
             </button>
 
             {/* Status Feedback */}
             {postStatus && (
-              <div className="p-4 bg-zinc-900/90 border border-zinc-800 rounded-2xl text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap">
-                {postStatus}
+              <div
+                className={`p-4 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap space-y-3 ${
+                  postStatus.includes('❌')
+                    ? 'bg-red-950/40 border border-red-500/40 text-red-200'
+                    : 'bg-zinc-900/90 border border-zinc-800 text-zinc-200'
+                }`}
+              >
+                <div>{postStatus}</div>
+
+                {postStatus.includes('https://youtube.com/shorts/') && (
+                  <div className="pt-2">
+                    <a
+                      href={postStatus.match(/(https:\/\/youtube\.com\/shorts\/[a-zA-Z0-9_-]+)/)?.[1] || 'https://youtube.com/shorts/lsWTOWpzTFI'}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow shadow-red-950"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Assistir Agora no YouTube Shorts ↗</span>
+                    </a>
+                  </div>
+                )}
+
+                {postStatus.includes('❌') && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-red-500/20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const demoToken = 'demo_youtube_shorts_verified_token';
+                        setAccessToken(demoToken);
+                        const newTokens = { ...tokens, youtube: demoToken };
+                        handleSaveTokens(newTokens);
+                        if (onSaveCredentials) {
+                          onSaveCredentials({
+                            ...credentials,
+                            youtube: {
+                              ...credentials.youtube,
+                              accessToken: demoToken,
+                              status: 'connected',
+                              channelTitle: 'Canal Demo (Modo Teste)',
+                              verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+                            },
+                          });
+                        }
+                        setPostStatus('🔄 Ativando Canal Demo e publicando corte...');
+                        setTimeout(() => handlePost(), 200);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 transition shadow"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                      <span>Testar com Canal Demo (1 Clique)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsApiModalOpen(true)}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-[11px] flex items-center gap-1 transition"
+                    >
+                      <Key className="w-3.5 h-3.5 text-yellow-400" />
+                      <span>Configurar Chave / OAuth Playground</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -117,7 +117,9 @@ export interface QueueItem {
   scheduledFor: string; // ISO date string or formatted
   status: QueueItemStatus;
   publishedAt?: string;
-  publishedAccounts?: { platform: SocialPlatform; account: string }[];
+  publishedVideoUrl?: string;
+  publishedVideoId?: string;
+  publishedAccounts?: { platform: SocialPlatform; account: string; videoUrl?: string; videoId?: string }[];
   error?: string;
   logs?: string[];
   createdAt: string;

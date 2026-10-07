@@ -461,7 +461,8 @@ export default function App() {
 
     for (const p of item.platforms) {
       const token = credentials[p]?.accessToken;
-      if (!token || !token.trim()) {
+      const refreshToken = (credentials[p] as any)?.refreshToken;
+      if ((!token || !token.trim()) && (!refreshToken || !refreshToken.trim())) {
         logs.push(`⚠️ [${p.toUpperCase()}] Token não configurado em APIs & Conexões.`);
         continue;
       }
@@ -472,7 +473,10 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             platform: p,
-            token,
+            token: token || refreshToken,
+            refreshToken: (credentials[p] as any)?.refreshToken,
+            clientId: (credentials[p] as any)?.clientId,
+            clientSecret: (credentials[p] as any)?.clientSecret,
             title: item.cutTitle,
             caption: `${item.caption[p]}\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}`,
             privacy: autoPostSettings.defaultPrivacy,
@@ -483,7 +487,9 @@ export default function App() {
         if (res.ok && res.data.success) {
           hasSuccess = true;
           const account = res.data.account || 'Conta Conectada';
-          publishedAccounts.push({ platform: p, account });
+          const videoUrl = res.data.videoUrl;
+          const videoId = res.data.videoId;
+          publishedAccounts.push({ platform: p, account, videoUrl, videoId });
           logs.push(`✅ [${p.toUpperCase()}] ${res.data.message || 'Publicado com sucesso!'}`);
         } else {
           const err = res.data?.error || res.error || 'Erro na transmissão da rede social';
@@ -517,6 +523,27 @@ export default function App() {
     if (next) {
       await handlePostQueueItemNow(next.id);
     }
+  };
+
+  const handleSwitchToDemoAndPost = async (id: string) => {
+    const demoCreds: PlatformCredentials = {
+      ...credentials,
+      youtube: {
+        ...credentials.youtube,
+        accessToken: 'demo_youtube_shorts_verified_token',
+        clientId: 'demo-client-id.apps.googleusercontent.com',
+        clientSecret: 'demo-client-secret',
+        status: 'connected',
+        channelTitle: 'Canal YouTube (Modo Teste)',
+        customUrl: '@canal.demonstracao',
+        avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+        verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+      },
+    };
+    handleSaveCredentials(demoCreds);
+    setTimeout(() => {
+      handlePostQueueItemNow(id);
+    }, 150);
   };
 
   const handleToggleQueueActive = (active: boolean) => {
@@ -758,6 +785,7 @@ export default function App() {
                 onEnqueueCurrentCut={handleEnqueueSingleCut}
                 credentials={credentials}
                 onSaveCredentials={handleSaveCredentials}
+                onSwitchToDemoAndPost={handleSwitchToDemoAndPost}
               />
             )}
 

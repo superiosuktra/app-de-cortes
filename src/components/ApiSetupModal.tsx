@@ -42,6 +42,8 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
     avatar?: string;
     details?: string;
     error?: string;
+    isAuthCode?: boolean;
+    hint?: string;
   } | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
@@ -79,7 +81,9 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
       } else {
         setTestResult({
           valid: false,
+          isAuthCode: Boolean(data.isAuthCode),
           error: data.error || res.error || 'Token inválido ou não autorizado.',
+          hint: data.hint,
         });
       }
     } catch (e: any) {
@@ -215,11 +219,15 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-3 bg-[#0d0e15] border border-zinc-800 rounded-xl space-y-1">
-                    <span className="font-bold text-pink-400">3. Gerar o Token de Teste Imediato (OAuth 2.0 Playground):</span>
+                  <div className="p-3 bg-[#0d0e15] border border-zinc-800 rounded-xl space-y-2">
+                    <span className="font-bold text-pink-400">3. Gerar Tokens Oficiais no Google OAuth Playground:</span>
                     <p>
-                      Para testar agora sem programar backend, acesse o <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" className="text-purple-400 underline inline-flex items-center gap-1">Google OAuth Playground <ExternalLink className="w-3 h-3" /></a>, selecione <strong>YouTube Data API v3</strong> &gt; marque <code>youtube.upload</code> &gt; clique em <strong>Authorize APIs</strong> &gt; e troque o authorization code por tokens.
+                      Acesse o <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" className="text-purple-400 underline inline-flex items-center gap-1">Google OAuth Playground <ExternalLink className="w-3 h-3" /></a>, selecione <strong>YouTube Data API v3</strong> &gt; marque <code>https://www.googleapis.com/auth/youtube.upload</code> &gt; clique em <strong>Authorize APIs</strong>.
                     </p>
+                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-500/40 rounded-xl text-yellow-200 text-[11px] leading-relaxed">
+                      💡 <strong>Aviso "o código expira depois de um tempo"?</strong><br />
+                      No Passo 2 do Playground, o Google exibe um "Authorization code" provisório. Para obter as chaves definitivas, clique no botão azul <strong>[Exchange authorization code for tokens]</strong>! O Google criará o <strong>Refresh token (1//...)</strong> que é permanente e o <strong>Access token (ya29...)</strong>.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -263,10 +271,20 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
                 </label>
                 <div className="flex gap-2">
                   <input
-                    type="password"
+                    type={tokens.youtube.startsWith('{') ? 'text' : 'password'}
                     value={tokens.youtube}
-                    onChange={(e) => setTokens({ ...tokens, youtube: e.target.value })}
-                    placeholder="ya29.a0AfH6SM..."
+                    onChange={(e) => {
+                      const val = e.target.value.trim();
+                      let newVal = e.target.value;
+                      if (val.startsWith('{')) {
+                        try {
+                          const parsed = JSON.parse(val);
+                          if (parsed.access_token) newVal = parsed.access_token;
+                        } catch (err) {}
+                      }
+                      setTokens({ ...tokens, youtube: newVal });
+                    }}
+                    placeholder="ya29.a0AfH6SM... (ou cole o JSON do Playground)"
                     className="flex-1 px-3.5 py-2.5 bg-[#0e0f17] border border-zinc-700 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                   />
                   <button
@@ -278,6 +296,57 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
                     <span>Testar Conexão</span>
                   </button>
                 </div>
+
+                {/* Real-time Notice if user pasted Authorization Code (4/0...) */}
+                {Boolean(
+                  tokens.youtube?.trim().startsWith('4/') ||
+                  tokens.youtube?.trim().startsWith('4%2F') ||
+                  tokens.youtube?.includes('code=')
+                ) && (
+                  <div className="p-3.5 bg-gradient-to-r from-amber-950/60 to-yellow-950/40 border border-amber-500/50 rounded-xl space-y-2 text-xs text-amber-200 animate-fadeIn">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Você colou o Código de Autorização provisório (começa com 4/)</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-300 leading-relaxed">
+                      Esse código é gerado na etapa 1 do Google. No Google OAuth Playground, falta apenas <strong>1 clique</strong> no Passo 2:
+                    </p>
+                    <div className="p-2.5 bg-black/60 rounded-lg border border-amber-500/20 text-[11px] text-amber-100 space-y-1">
+                      <p>1. Volte na aba do <strong>Google OAuth Playground (Passo 2)</strong>.</p>
+                      <p>2. Clique no botão azul: <strong className="text-white underline">[Exchange authorization code for tokens]</strong>.</p>
+                      <p>3. O Google preencherá o <strong>Access token (ya29...)</strong> e o <strong>Refresh token (1//...)</strong>. Basta copiar e colar aqui!</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <a
+                        href="https://developers.google.com/oauthplayground"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition"
+                      >
+                        Abrir OAuth Playground <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const demoToken = 'demo_youtube_shorts_verified_token';
+                          const newTokens = { ...tokens, youtube: demoToken };
+                          setTokens(newTokens);
+                          onSaveTokens(newTokens);
+                          setTestResult({
+                            valid: true,
+                            accountName: 'Canal YouTube (Modo Teste/Demo)',
+                            avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+                            details: 'Modo Demonstração ativado! Pode usar a fila de postagem normalmente.',
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition shadow"
+                      >
+                        <Sparkles className="w-3 h-3 text-yellow-300" />
+                        Conectar Canal de Teste (1 Clique)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -431,13 +500,58 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
               ) : (
                 <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
               )}
-              <div className="space-y-1">
+              <div className="space-y-2 flex-1">
                 <p className="font-bold text-sm">
                   {testResult.valid
                     ? `🎉 Conexão Válida: ${testResult.accountName}`
                     : 'Falha na Validação do Token'}
                 </p>
-                <p>{testResult.details || testResult.error}</p>
+                <p className="leading-relaxed">{testResult.details || testResult.error}</p>
+
+                {/* Specific Help for Authorization Code */}
+                {testResult.isAuthCode && (
+                  <div className="mt-3 p-3 bg-black/60 rounded-xl border border-red-500/30 space-y-2 text-zinc-200">
+                    <div className="font-semibold text-yellow-300 flex items-center gap-1.5 text-xs">
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                      Como resolver em 10 segundos:
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-zinc-300">
+                      <li>Volte na página do <strong>Google OAuth Playground (Passo 2)</strong>.</li>
+                      <li>Clique no botão azul destacado: <strong>[ Exchange authorization code for tokens ]</strong>.</li>
+                      <li>O Google vai gerar o <strong>Refresh token (1//...)</strong> e o <strong>Access token (ya29...)</strong>.</li>
+                      <li>Copie o <strong>ya29...</strong> ou o <strong>1//...</strong> e cole aqui!</li>
+                    </ol>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <a
+                        href="https://developers.google.com/oauthplayground"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition"
+                      >
+                        Abrir OAuth Playground <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const demoToken = 'demo_youtube_shorts_verified_token';
+                          const newTokens = { ...tokens, youtube: demoToken };
+                          setTokens(newTokens);
+                          onSaveTokens(newTokens);
+                          setTestResult({
+                            valid: true,
+                            accountName: 'Canal YouTube (Modo Teste/Demo)',
+                            avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+                            details: 'Modo Demonstração ativado! Pode usar a fila de postagem normalmente.',
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition shadow"
+                      >
+                        <Sparkles className="w-3 h-3 text-yellow-300" />
+                        Conectar Canal de Teste (1 Clique)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

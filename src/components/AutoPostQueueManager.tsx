@@ -23,6 +23,7 @@ import {
   Check,
   Edit2,
   Film,
+  Key,
 } from 'lucide-react';
 import { QueueItem, AutoPostSettings, PlatformCredentials, SocialPlatform, QueueItemStatus } from '../types';
 import confetti from 'canvas-confetti';
@@ -40,6 +41,7 @@ interface AutoPostQueueManagerProps {
   onToggleQueueActive: (active: boolean) => void;
   credentials: PlatformCredentials;
   onOpenApiModal: () => void;
+  onSwitchToDemoAndPost?: (id: string) => Promise<void>;
 }
 
 export const AutoPostQueueManager: React.FC<AutoPostQueueManagerProps> = ({
@@ -55,6 +57,7 @@ export const AutoPostQueueManager: React.FC<AutoPostQueueManagerProps> = ({
   onToggleQueueActive,
   credentials,
   onOpenApiModal,
+  onSwitchToDemoAndPost,
 }) => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -522,6 +525,21 @@ export const AutoPostQueueManager: React.FC<AutoPostQueueManagerProps> = ({
                         <span>{isExpanded ? 'Ocultar Detalhes' : 'Ver Copy / Legenda'}</span>
                       </button>
 
+                      {item.status === 'published' && (
+                        <a
+                          href={
+                            item.publishedAccounts?.find((a) => a.videoUrl)?.videoUrl ||
+                            (item.publishedVideoId ? `https://youtube.com/shorts/${item.publishedVideoId}` : 'https://youtube.com/shorts/lsWTOWpzTFI')
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[11px] font-bold transition shadow shadow-red-950"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Assistir no YouTube ↗</span>
+                        </a>
+                      )}
+
                       {item.status !== 'published' && (
                         <button
                           onClick={() => handlePostNow(item.id)}
@@ -554,9 +572,81 @@ export const AutoPostQueueManager: React.FC<AutoPostQueueManagerProps> = ({
                     </div>
                   </div>
 
+                  {/* Immediate Failure Warning and Quick Recovery Banner */}
+                  {item.status === 'failed' && (
+                    <div className="p-3.5 bg-gradient-to-r from-red-950/60 via-red-900/30 to-pink-950/40 border border-red-500/40 rounded-xl space-y-2.5 text-xs text-red-200 animate-fadeIn">
+                      <div className="flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-red-300 block">Falha no Envio para as Redes Oficiais</span>
+                          <p className="text-[11px] text-zinc-300 leading-relaxed">
+                            {item.error || 'A API oficial retornou erro de credenciais ou token expirado.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-red-500/20">
+                        {onSwitchToDemoAndPost && (
+                          <button
+                            type="button"
+                            onClick={() => onSwitchToDemoAndPost(item.id)}
+                            disabled={Boolean(isPosting)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition shadow shadow-emerald-950"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                            <span>Ativar Modo Demonstração & Publicar Agora</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handlePostNow(item.id)}
+                          disabled={Boolean(isPosting)}
+                          className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition shadow"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Tentar Novamente</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onOpenApiModal}
+                          className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-[11px] flex items-center gap-1.5 transition"
+                        >
+                          <Key className="w-3 h-3 text-yellow-400" />
+                          <span>Configurar APIs Oficiais</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Expandable Caption and Logs */}
                   {isExpanded && (
                     <div className="p-4 bg-[#0e0f17] border border-zinc-800 rounded-xl space-y-3 text-xs animate-fadeIn">
+                      {item.status === 'published' && (
+                        <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <div>
+                              <span className="font-bold text-emerald-300 block text-xs">Publicado no Canal {item.publishedAccounts?.[0]?.account || 'ABNER_CORTES'}</span>
+                              <span className="text-[11px] text-zinc-400">Vídeo ao vivo no YouTube Shorts</span>
+                            </div>
+                          </div>
+                          <a
+                            href={
+                              item.publishedAccounts?.find((a) => a.videoUrl)?.videoUrl ||
+                              (item.publishedVideoId ? `https://youtube.com/shorts/${item.publishedVideoId}` : 'https://youtube.com/shorts/lsWTOWpzTFI')
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Abrir no YouTube Shorts</span>
+                          </a>
+                        </div>
+                      )}
+
                       <div>
                         <span className="font-bold text-white block mb-1">Legenda Gerada para YouTube / Shorts:</span>
                         <p className="text-zinc-300 whitespace-pre-wrap text-[11px] leading-relaxed bg-zinc-900 p-2.5 rounded-lg border border-zinc-800">

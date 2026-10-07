@@ -72,6 +72,8 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
       success: boolean;
       message: string;
       details?: any;
+      isAuthCode?: boolean;
+      hint?: string;
     };
   }>({});
   const [copiedScope, setCopiedScope] = useState<string | null>(null);
@@ -115,7 +117,12 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
       const res = await fetchJson<any>(`/api/verify-token/${platform}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.trim() }),
+        body: JSON.stringify({
+          token: token.trim(),
+          refreshToken: (creds[platform] as any).refreshToken,
+          clientId: (creds[platform] as any).clientId,
+          clientSecret: (creds[platform] as any).clientSecret || (creds[platform] as any).appSecret,
+        }),
       });
 
       const data = res.data || {};
@@ -168,6 +175,8 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
           [platform]: {
             success: false,
             message: data.error || res.error || 'Token inválido ou expirado.',
+            isAuthCode: Boolean(data.isAuthCode),
+            hint: data.hint,
           },
         }));
       }
@@ -284,7 +293,8 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
           setTimeout(() => setSaveFeedback(''), 3500);
         }
       } catch (err) {
-        alert('Arquivo de backup JSON inválido.');
+        setSaveFeedback('❌ Arquivo de backup JSON inválido.');
+        setTimeout(() => setSaveFeedback(''), 3500);
       }
     };
     reader.readAsText(file);
@@ -488,18 +498,38 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                   type={showTokens.youtube ? 'text' : 'password'}
                   value={creds.youtube.accessToken}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    let access = val;
+                    const rawVal = e.target.value;
+                    const val = rawVal.trim();
+                    let access = rawVal;
                     let refresh = creds.youtube.refreshToken || '';
-                    if (val.trim().startsWith('{')) {
+
+                    // Check if user pasted a string containing ya29 or 1//
+                    const yaMatch = val.match(/(ya29\.[a-zA-Z0-9_\-\.]+)/);
+                    const refreshMatch = val.match(/(1\/\/[a-zA-Z0-9_\-]+)/);
+
+                    if (yaMatch) {
+                      access = yaMatch[1];
+                      if (refreshMatch) {
+                        refresh = refreshMatch[1];
+                        setSaveFeedback('✨ Access Token (ya29...) e Refresh Token (1//...) extraídos com sucesso!');
+                      } else {
+                        setSaveFeedback('✨ Access Token do YouTube (ya29...) reconhecido!');
+                      }
+                    } else if (val.startsWith('1//') || (refreshMatch && !yaMatch)) {
+                      refresh = refreshMatch ? refreshMatch[1] : val;
+                      access = '';
+                      setSaveFeedback('⚠️ Esse código é o Refresh Token (1//...). Guardamos no campo verde abaixo! Para este campo, copie o "Access token" (ya29...) no OAuth Playground.');
+                    } else if (val.startsWith('4/') || val.startsWith('4%2F')) {
+                      setSaveFeedback('⚠️ Você colou um Código de Autorização temporário (4/0...). No OAuth Playground, clique no botão azul "Exchange authorization code for tokens" no Passo 2!');
+                    } else if (val.startsWith('{')) {
                       try {
-                        const parsed = JSON.parse(val.trim());
+                        const parsed = JSON.parse(val);
                         if (parsed.access_token) access = parsed.access_token;
                         if (parsed.refresh_token) refresh = parsed.refresh_token;
+                        setSaveFeedback('✨ JSON do OAuth Playground reconhecido! Tokens preenchidos com sucesso.');
                       } catch (err) {}
-                    } else if (val.trim().startsWith('1//')) {
-                      refresh = val.trim();
                     }
+
                     setCreds({
                       ...creds,
                       youtube: { ...creds.youtube, accessToken: access, refreshToken: refresh },
@@ -528,6 +558,87 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Guidance when user has Refresh Token (1//) but missing or invalid ya29 Access Token */}
+              {Boolean(
+                creds.youtube.refreshToken?.startsWith('1//') &&
+                (!creds.youtube.accessToken ||
+                  creds.youtube.accessToken.startsWith('1//') ||
+                  (!creds.youtube.accessToken.startsWith('ya29') && !creds.youtube.accessToken.startsWith('demo')))
+              ) && (
+                <div className="p-3.5 bg-gradient-to-r from-blue-950/70 via-indigo-950/60 to-purple-950/50 border border-blue-500/50 rounded-xl space-y-2 text-xs text-blue-200 animate-fadeIn">
+                  <div className="font-bold flex items-center gap-1.5 text-cyan-300">
+                    <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>Seu Refresh Token permanente (1//...) já está salvo com sucesso!</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">
+                    Para o YouTube autorizar o envio dos vídeos, falta apenas você copiar o <strong>Access Token (começa com ya29...)</strong>:
+                  </p>
+                  <div className="p-2.5 bg-black/60 rounded-lg border border-blue-500/20 text-[11px] text-blue-100 space-y-1">
+                    <p>1. No seu <strong>Google OAuth Playground (Passo 2)</strong>, localize o campo <strong>"Access token"</strong> (logo acima do Refresh Token).</p>
+                    <p>2. Copie o valor (começa com <code className="text-pink-300 font-mono">ya29...</code>) e cole no campo de <strong>Access Token</strong> acima.</p>
+                    <p>3. Clique em <strong>Testar</strong> para confirmar a conexão com seu canal!</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <a
+                      href="https://developers.google.com/oauthplayground"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition"
+                    >
+                      Abrir OAuth Playground <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleActivateDemoYouTube}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition shadow"
+                    >
+                      <Sparkles className="w-3 h-3 text-yellow-300" />
+                      Ativar Modo Demonstração (Testar Agora)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Real-time Guidance if user pasted an Authorization Code (4/0...) */}
+              {Boolean(
+                creds.youtube.accessToken?.trim().startsWith('4/') ||
+                creds.youtube.accessToken?.trim().startsWith('4%2F') ||
+                creds.youtube.accessToken?.includes('code=')
+              ) && (
+                <div className="p-3.5 bg-gradient-to-r from-amber-950/60 to-yellow-950/40 border border-amber-500/50 rounded-xl space-y-2 text-xs text-amber-200 animate-fadeIn">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Você colou o Código de Autorização provisório (começa com 4/)</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">
+                    Esse código é a etapa 1 do Google. Para transformá-lo nas chaves reais, falta <strong>apenas 1 clique</strong> no Google OAuth Playground:
+                  </p>
+                  <div className="p-2.5 bg-black/60 rounded-lg border border-amber-500/20 text-[11px] text-amber-100 space-y-1">
+                    <p>1. Volte na aba do <strong>Google OAuth Playground (Passo 2)</strong>.</p>
+                    <p>2. Clique no botão azul: <strong className="text-white underline">[Exchange authorization code for tokens]</strong>.</p>
+                    <p>3. O Google preencherá o <strong>Access token (ya29...)</strong> e o <strong>Refresh token (1//...)</strong>. Basta copiar um deles e colar aqui!</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <a
+                      href="https://developers.google.com/oauthplayground"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition"
+                    >
+                      Abrir OAuth Playground <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleActivateDemoYouTube}
+                      className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition shadow"
+                    >
+                      <Sparkles className="w-3 h-3 text-yellow-300" />
+                      Conectar Canal de Teste (1 Clique)
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Permanent Refresh Token Input */}
@@ -559,12 +670,30 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                     type="button"
                     onClick={async () => {
                       if (!creds.youtube.refreshToken?.trim()) {
-                        alert('Insira o Refresh Token (1//...) primeiro.');
+                        setSaveFeedback('⚠️ Insira o Refresh Token (1//...) primeiro.');
+                        setTimeout(() => setSaveFeedback(''), 4000);
                         return;
                       }
+
+                      // Helpful reminder if user wants auto server renewal
+                      if (!creds.youtube.clientSecret?.trim()) {
+                        setSaveFeedback(
+                          'ℹ️ Dica: Para renovação automática direta via servidor, configure o Client Secret. Ou use o Access Token gerado no OAuth Playground.'
+                        );
+                        setTimeout(() => setSaveFeedback(''), 5000);
+                      }
+
                       setSaveFeedback('🔄 Renovando token com o Google...');
                       try {
-                        const res = await fetchJson<any>('/api/refresh-token/youtube', { method: 'POST' });
+                        const res = await fetchJson<any>('/api/refresh-token/youtube', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            refreshToken: creds.youtube.refreshToken,
+                            clientId: creds.youtube.clientId,
+                            clientSecret: creds.youtube.clientSecret,
+                          }),
+                        });
                         if (res.ok && res.data.success) {
                           const updated = {
                             ...creds,
@@ -580,10 +709,12 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                           setSaveFeedback('✅ Token renovado com sucesso pelo Refresh Token!');
                           confetti({ particleCount: 30, spread: 50 });
                         } else {
-                          alert(res.data?.error || 'Erro ao renovar token.');
+                          setSaveFeedback(`❌ ${res.data?.error || 'Erro ao renovar token.'}`);
+                          setTimeout(() => setSaveFeedback(''), 6000);
                         }
                       } catch (e) {
-                        alert('Falha na renovação.');
+                        setSaveFeedback('❌ Falha na renovação do token.');
+                        setTimeout(() => setSaveFeedback(''), 4000);
                       }
                     }}
                     className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition flex items-center gap-1 shadow"
@@ -594,13 +725,29 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                 </div>
               </div>
               <p className="text-[11px] text-zinc-300">
-                🔒 <strong>Como não precisar renovar mais:</strong> No Passo 2 do Google OAuth Playground, copie o campo <strong>Refresh token</strong> (começa com <code>1//</code>) e cole aqui. Nosso servidor usará essa chave para renovar o acesso sozinho sempre que for publicar!
+                🔒 <strong>Como não precisar renovar mais:</strong> No Passo 2 do Google OAuth Playground, copie o campo <strong>Refresh token</strong> (começa com <code>1//</code>) e cole aqui. Nosso servidor salva tudo no disco do seu computador e não perde nunca!
               </p>
+            </div>
+
+            {/* Clear explanation of "O código expira depois de um tempo" */}
+            <div className="p-3 bg-purple-950/20 border border-purple-500/30 rounded-2xl space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-purple-300">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>O Google avisou que o código expira em pouco tempo?</span>
+              </div>
+              <div className="text-[11px] text-zinc-300 space-y-1.5 leading-relaxed">
+                <p>
+                  No Google OAuth Playground, o campo <strong>Authorization code</strong> (começa com <code>4/0...</code>) é apenas um código temporário de autorização.
+                </p>
+                <div className="p-2.5 bg-black/40 rounded-xl border border-purple-500/20 text-xs text-purple-200">
+                  👉 <strong>Como obter a chave que NUNCA expira:</strong> No Passo 2 do Playground, clique no botão azul <strong>[Exchange authorization code for tokens]</strong>. O Google exibirá o <strong>Refresh token (1//...)</strong> e o <strong>Access token (ya29...)</strong>. Basta copiar um deles e colar aqui!
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-zinc-400">OAuth Client ID (Opcional para app Web)</label>
+                <label className="text-[11px] font-semibold text-zinc-400">OAuth Client ID (Google Cloud Console)</label>
                 <input
                   type="text"
                   value={creds.youtube.clientId || ''}
@@ -616,7 +763,10 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-zinc-400">OAuth Client Secret (Opcional)</label>
+                <label className="text-[11px] font-semibold text-zinc-400 flex items-center justify-between">
+                  <span>OAuth Client Secret (Chave Secreta)</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">Necessário p/ renovação</span>
+                </label>
                 <input
                   type="password"
                   value={creds.youtube.clientSecret || ''}
@@ -709,7 +859,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
           {/* Diagnostic Status Feedback */}
           {testResults.youtube && (
             <div
-              className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+              className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                 testResults.youtube.success
                   ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
                   : 'bg-red-950/40 border-red-500/50 text-red-200'
@@ -720,9 +870,45 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
               ) : (
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
               )}
-              <div>
-                <p className="font-bold">{testResults.youtube.message}</p>
-                {testResults.youtube.details && <p className="text-[11px] text-zinc-300 mt-0.5">{testResults.youtube.details}</p>}
+              <div className="flex-1 space-y-2">
+                <p className="font-bold leading-snug">{testResults.youtube.message}</p>
+                {testResults.youtube.details && (
+                  <p className="text-[11px] text-zinc-300 mt-0.5">{testResults.youtube.details}</p>
+                )}
+
+                {/* Specific Help If User Pasted Authorization Code */}
+                {testResults.youtube.isAuthCode && (
+                  <div className="mt-2.5 p-3 bg-black/60 rounded-xl border border-red-500/30 space-y-2 text-zinc-200">
+                    <div className="font-semibold text-yellow-300 flex items-center gap-1.5 text-xs">
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                      Como resolver em 10 segundos:
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-zinc-300">
+                      <li>Volte na página do <strong>Google OAuth Playground (Passo 2)</strong>.</li>
+                      <li>Clique no botão azul destacado: <strong>[ Exchange authorization code for tokens ]</strong>.</li>
+                      <li>O Google vai gerar o <strong>Refresh token (1//...)</strong> e o <strong>Access token (ya29...)</strong>.</li>
+                      <li>Copie o <strong>ya29...</strong> ou o <strong>1//...</strong> e cole aqui!</li>
+                    </ol>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <a
+                        href="https://developers.google.com/oauthplayground"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition"
+                      >
+                        Abrir OAuth Playground <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleActivateDemoYouTube}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] inline-flex items-center gap-1 transition shadow"
+                      >
+                        <Sparkles className="w-3 h-3 text-yellow-300" />
+                        Conectar Canal de Teste (1 Clique)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

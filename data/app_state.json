@@ -1,0 +1,169 @@
+{
+  "credentials": {
+    "youtube": {
+      "accessToken": "ya29.a0AX07CmsveksWHEXyE43LZbF3LVYmqRrHd-MJs8FeDpo5zFagfxHKmjKQOGIIj2c2skfAD0n08YIudC5fGcGadslzcGWSUUUOHFANabb3kshXCd0T5iUSOWu6K6_8P5dqe7hEbJbx7qVucUUTTqtw3Ja_Qd5gJ1SS1vioBuD3cY5-PzNWeMVeXKrfwNzXNr6S48W6b7saCgYKAaASARESFQHGX2MiPf7R8RaF2P5Ud3dFdqOQbQ0206",
+      "clientId": "",
+      "clientSecret": "",
+      "status": "connected",
+      "channelTitle": "ABNER_CORTES",
+      "avatar": "https://i.ytimg.com/vi/lsWTOWpzTFI/hqdefault.jpg",
+      "verifiedAt": "2026-10-07 20:52",
+      "accountName": "ABNER_CORTES",
+      "customUrl": "@ABNER_CORTES",
+      "displayName": "ABNER_CORTES",
+      "refreshToken": ""
+    },
+    "instagram": {
+      "accessToken": "",
+      "businessAccountId": "",
+      "appId": "",
+      "appSecret": "",
+      "status": "disconnected",
+      "accountName": "",
+      "avatar": "",
+      "verifiedAt": ""
+    },
+    "tiktok": {
+      "accessToken": "",
+      "clientKey": "",
+      "clientSecret": "",
+      "status": "disconnected",
+      "displayName": "",
+      "avatar": "",
+      "verifiedAt": ""
+    }
+  },
+  "savedCuts": [
+    {
+      "id": "sample-cut-1",
+      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
+      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
+      "startTime": "00:15",
+      "endTime": "00:55",
+      "durationSeconds": 40,
+      "format": "vertical_crop",
+      "viralityScore": 98,
+      "caption": "A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\n#Shorts #Viral",
+      "hashtags": [
+        "Shorts",
+        "Neurociencia",
+        "Foco"
+      ],
+      "createdAt": "07/10/2026"
+    }
+  ],
+  "queue": [
+    {
+      "id": "sample-queue-1",
+      "cutId": "cut-demo-1",
+      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
+      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
+      "startTime": "00:15",
+      "endTime": "00:55",
+      "durationSeconds": 40,
+      "format": "vertical_crop",
+      "viralityScore": 98,
+      "hook": "O maior erro que as pessoas cometem é achar que motivação dura para sempre.",
+      "payoff": "Quem depende de sentir vontade nunca constrói nada grandioso.",
+      "caption": {
+        "youtube": "A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\nAssista até o fim para virar essa chave.",
+        "instagram": "Você ainda acredita que precisa de motivação todos os dias? Veja o que a neurociência diz sobre isso. 👇 Salve para lembrar!",
+        "tiktok": "Pare de cair nessa mentira sobre disciplina! 🤯 #dopamina #foco #produtividade #shorts"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Neurociencia",
+        "#Disciplina",
+        "#Mindset",
+        "#Viral"
+      ],
+      "platforms": [
+        "youtube",
+        "tiktok",
+        "instagram"
+      ],
+      "scheduledFor": "2026-10-07T19:09:50.376Z",
+      "status": "published",
+      "createdAt": "2026-10-07T18:49:50.376Z",
+      "error": "Erro YouTube API (401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "logs": [
+        "❌ [YOUTUBE] Erro YouTube API (401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "✅ [YOUTUBE] [Modo Demonstração] Publicação transmitida para YouTube Shorts no canal de teste com visibilidade \"public\".",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões."
+      ],
+      "publishedAt": "2026-10-07T19:46:51.358Z",
+      "publishedAccounts": [
+        {
+          "platform": "youtube",
+          "account": "Canal Demo (Modo Teste)"
+        }
+      ]
+    },
+    {
+      "id": "queue-cut-demo-2-1791403101897-0",
+      "cutId": "cut-demo-2",
+      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
+      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "cutTitle": "O ALGORITMO ROUBOU SUA MENTE 🚨",
+      "startTime": "00:50",
+      "endTime": "01:25",
+      "durationSeconds": 35,
+      "format": "vertical_blur",
+      "viralityScore": 96,
+      "hook": "Se você não dominar a sua mente logo pela manhã, o algoritmo vai dominar por você.",
+      "payoff": "Retome o controle da sua atenção antes que seja tarde.",
+      "caption": {
+        "youtube": "A primeira hora do seu dia decide o seu futuro. Não toque no celular ao acordar! ⚠️ #Shorts",
+        "instagram": "Quantas horas você perdeu nas redes hoje sem perceber? Assista e mude sua rotina matinal.",
+        "tiktok": "Isso é o que acontece com seu cérebro de manhã 😳 #foco #rotina #estudos"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Produtividade",
+        "#Dopamina",
+        "#HacksDeVida"
+      ],
+      "platforms": [
+        "youtube",
+        "instagram",
+        "tiktok"
+      ],
+      "scheduledFor": "2026-10-07T20:28:21.897Z",
+      "status": "published",
+      "createdAt": "2026-10-07T19:58:21.897Z",
+      "publishedAt": "2026-10-07T20:52:56.000Z",
+      "publishedVideoId": "lsWTOWpzTFI",
+      "publishedVideoUrl": "https://youtube.com/shorts/lsWTOWpzTFI",
+      "publishedAccounts": [
+        {
+          "platform": "youtube",
+          "account": "ABNER_CORTES",
+          "videoId": "lsWTOWpzTFI",
+          "videoUrl": "https://youtube.com/shorts/lsWTOWpzTFI"
+        }
+      ],
+      "logs": [
+        "✅ [YOUTUBE] Vídeo postado com sucesso no canal ABNER_CORTES!",
+        "🔗 [YOUTUBE] Link do Shorts: https://youtube.com/shorts/lsWTOWpzTFI",
+        "ℹ️ [STATUS] Transmitido e publicado com visibilidade Pública no YouTube Shorts."
+      ]
+    }
+  ],
+  "autoPostSettings": {
+    "autoEnqueueOnGenerate": false,
+    "isActive": true,
+    "intervalMinutes": 30,
+    "targetPlatforms": {
+      "youtube": true,
+      "instagram": true,
+      "tiktok": true
+    },
+    "defaultPrivacy": "public"
+  },
+  "lastUpdated": "2026-10-07T21:08:20.693Z"
+}

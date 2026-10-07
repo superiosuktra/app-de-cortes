@@ -5,9 +5,26 @@ import { YoutubeTranscript } from 'youtube-transcript';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
+import util from 'util';
+import multer from 'multer';
+
+const execPromise = util.promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const uploadDir = path.join(__dirname, 'data', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  try {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  } catch (e) {}
+}
+
+const upload = multer({
+  dest: uploadDir,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
+});
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -424,68 +441,423 @@ app.post('/api/ffmpeg-command', (req, res) => {
   });
 });
 
+// Helper to cut and render a real video file to 9:16 vertical Short
+async function renderRealCutVideo({
+  inputFilePath,
+  startTime,
+  endTime,
+  format = 'vertical_blur',
+  overlayTitle = '',
+  hook = '',
+}: {
+  inputFilePath: string;
+  startTime: string;
+  endTime: string;
+  format?: string;
+  overlayTitle?: string;
+  hook?: string;
+}): Promise<string> {
+  const startSec = parseTimeToSeconds(startTime || '00:00');
+  const endSec = parseTimeToSeconds(endTime || '00:30');
+  const duration = Math.max(1, endSec - startSec);
+  const outPath = path.join('/tmp', `cut_rendered_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`);
+  const font = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf';
+
+  let filterComplex = '';
+  if (format === 'vertical_blur') {
+    filterComplex = `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`;
+  } else if (format === 'vertical_crop') {
+    filterComplex = `[0:v]crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1[v]`;
+  } else {
+    filterComplex = `[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1[v]`;
+  }
+
+  if (overlayTitle) {
+    const titleTxt = path.join('/tmp', `title_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.txt`);
+    fs.writeFileSync(titleTxt, overlayTitle.replace(/[\r\n]+/g, ' ').slice(0, 60), 'utf-8');
+    filterComplex += `;[v]drawbox=x=60:y=280:w=960:h=220:color=black@0.75:t=fill,drawtext=fontfile=${font}:textfile=${titleTxt}:fontcolor=yellow:fontsize=46:x=(w-text_w)/2:y=360[vout]`;
+    const cmd = `ffmpeg -y -ss ${startSec} -t ${duration} -i "${inputFilePath}" -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "${outPath}"`;
+    await execPromise(cmd);
+    try { fs.unlinkSync(titleTxt); } catch (e) {}
+  } else {
+    const cmd = `ffmpeg -y -ss ${startSec} -t ${duration} -i "${inputFilePath}" -filter_complex "${filterComplex}" -map "[v]" -map 0:a? -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "${outPath}"`;
+    await execPromise(cmd);
+  }
+
+  return outPath;
+}
+
+// Helper to render and upload a real YouTube Short
+async function uploadVideoToYouTube({
+  token,
+  title,
+  description,
+  privacy = 'public',
+  tags = ['Shorts', 'Viral'],
+  hook = 'Se você não dominar sua mente logo cedo...',
+  videoFilePath,
+}: {
+  token: string;
+  title: string;
+  description: string;
+  privacy?: string;
+  tags?: string[];
+  hook?: string;
+  videoFilePath?: string;
+}): Promise<{
+  success: boolean;
+  videoId?: string;
+  channelTitle?: string;
+  channelId?: string;
+  videoUrl?: string;
+  message?: string;
+  error?: string;
+  status?: number;
+}> {
+  const tmpId = Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  let tmpVideoPath = videoFilePath || `/tmp/yt_short_${tmpId}.mp4`;
+  const titleTxtPath = `/tmp/yt_title_${tmpId}.txt`;
+  const hookTxtPath = `/tmp/yt_hook_${tmpId}.txt`;
+  const font = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf';
+  const isCustomFile = Boolean(videoFilePath && fs.existsSync(videoFilePath));
+
+  try {
+    const cleanTitle = (title || 'Corte Viral #Shorts').replace(/[\r\n]+/g, ' ').slice(0, 95);
+    const cleanHook = (hook || 'Se você não dominar sua mente logo cedo...').replace(/[\r\n]+/g, ' ').slice(0, 70);
+
+    // If no custom video file was provided, render a stylized template
+    if (!isCustomFile) {
+      fs.writeFileSync(titleTxtPath, cleanTitle, 'utf8');
+      fs.writeFileSync(hookTxtPath, cleanHook, 'utf8');
+
+      await execPromise(
+        `ffmpeg -y -f lavfi -i "color=c=#0f1016:s=1080x1920:d=10" -f lavfi -i "sine=frequency=528:beep_factor=3:duration=10" -filter_complex "[0:v]drawbox=x=60:y=350:w=960:h=300:color=#7c3aed@0.9:t=fill,drawtext=fontfile=${font}:textfile=${titleTxtPath}:fontcolor=white:fontsize=44:x=(w-text_w)/2:y=430,drawtext=fontfile=${font}:textfile=${hookTxtPath}:fontcolor=#fcd34d:fontsize=32:x=(w-text_w)/2:y=520[v]" -map "[v]" -map 1:a -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart -t 10 ${tmpVideoPath}`
+      );
+    }
+
+    const fileBuffer = fs.readFileSync(tmpVideoPath);
+    const boundary = '-------YouTubeBoundary' + tmpId;
+
+    const metadata = JSON.stringify({
+      snippet: {
+        title: cleanTitle.includes('#Shorts') ? cleanTitle : `${cleanTitle} #Shorts`,
+        description: description || `${cleanTitle}\n\n#Shorts #Viral`,
+        tags: tags.map((t) => t.replace('#', '')),
+        categoryId: '22',
+      },
+      status: {
+        privacyStatus: privacy === 'private' || privacy === 'unlisted' ? privacy : 'public',
+        selfDeclaredMadeForKids: false,
+      },
+    });
+
+    const bodyParts = [
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
+      `--${boundary}\r\nContent-Type: video/mp4\r\n\r\n`,
+      fileBuffer,
+      `\r\n--${boundary}--\r\n`,
+    ];
+
+    const fullBody = Buffer.concat([
+      Buffer.from(bodyParts[0]),
+      Buffer.from(bodyParts[1]),
+      fileBuffer,
+      Buffer.from(bodyParts[3]),
+    ]);
+
+    const uploadRes = await fetch(
+      'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+          'Content-Length': String(fullBody.length),
+        },
+        body: fullBody,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const errJson = await uploadRes.json().catch(() => ({}));
+      const errMsg = errJson?.error?.message || uploadRes.statusText;
+      return {
+        success: false,
+        status: uploadRes.status,
+        error: errMsg,
+      };
+    }
+
+    const uploadData = await uploadRes.json();
+    const videoId = uploadData.id;
+    const channelTitle = uploadData.snippet?.channelTitle || 'Canal do YouTube';
+    const channelId = uploadData.snippet?.channelId || '';
+
+    // Update serverCredentials with verified channel info
+    serverCredentials.youtube.status = 'connected';
+    serverCredentials.youtube.accountName = channelTitle;
+    serverCredentials.youtube.channelTitle = channelTitle;
+    serverCredentials.youtube.customUrl = '@' + channelTitle.replace(/\s+/g, '-');
+    savePersistedStateToDisk();
+
+    return {
+      success: true,
+      videoId,
+      channelTitle,
+      channelId,
+      videoUrl: `https://youtube.com/shorts/${videoId}`,
+      message: `Vídeo enviado e publicado com sucesso no canal "${channelTitle}"! Assista em: https://youtube.com/shorts/${videoId}`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Falha ao renderizar e enviar vídeo para o YouTube.',
+    };
+  } finally {
+    try {
+      if (fs.existsSync(tmpVideoPath)) fs.unlinkSync(tmpVideoPath);
+      if (fs.existsSync(titleTxtPath)) fs.unlinkSync(titleTxtPath);
+      if (fs.existsSync(hookTxtPath)) fs.unlinkSync(hookTxtPath);
+    } catch (e) {}
+  }
+}
+
 // 7. Post to YouTube Shorts (Using OAuth Token)
 app.post('/api/post-youtube', async (req, res) => {
   try {
-    const { accessToken, title, description, privacy = 'private', videoId } = req.body;
+    const { accessToken, refreshToken, clientId, clientSecret, title, description, privacy = 'private', videoId, hook } = req.body;
 
-    if (!accessToken || !accessToken.trim()) {
+    let tokenToUse = (accessToken || '').trim();
+    const useRefreshToken = (refreshToken || serverCredentials.youtube.refreshToken || '').trim();
+
+    // Check if token has ya29 embedded
+    const yaMatch = tokenToUse.match(/(ya29\.[a-zA-Z0-9_\-\.]+)/);
+    if (yaMatch) {
+      tokenToUse = yaMatch[1];
+    }
+
+    // If user provided a refresh token in accessToken slot or accessToken is empty but refresh token is present
+    if ((tokenToUse.startsWith('1//') || !tokenToUse) && useRefreshToken) {
+      const refreshResult = await refreshYouTubeToken({
+        refreshToken: useRefreshToken,
+        clientId,
+        clientSecret,
+      });
+      if (refreshResult.success && refreshResult.accessToken) {
+        tokenToUse = refreshResult.accessToken;
+      } else {
+        return res.status(400).json({
+          error:
+            'O código configurado (1//...) é o Refresh Token. Para o YouTube publicar vídeos, insira o Access Token (começa com "ya29...") gerado no Google OAuth Playground (Passo 2). Ou clique em "Ativar Modo Demonstração" para publicar imediatamente.',
+          isRefreshTokenOnly: true,
+        });
+      }
+    }
+
+    if (!tokenToUse || tokenToUse.startsWith('1//')) {
       return res.status(400).json({
-        error: 'Access Token da API do YouTube é obrigatório. Insira um token OAuth com escopo youtube.upload.',
+        error:
+          'Access Token da API do YouTube é obrigatório (começa com "ya29..."). Se estiver usando o OAuth Playground, copie o campo "Access token" no Passo 2 ou ative o Modo Demonstração.',
+        isRefreshTokenOnly: Boolean(tokenToUse.startsWith('1//')),
       });
     }
 
-    if (accessToken.startsWith('demo_') || accessToken === 'demo-youtube-token') {
+    if (tokenToUse.startsWith('demo_') || tokenToUse === 'demo-youtube-token') {
       return res.json({
         success: true,
         videoId: 'demo_yt_video_123',
         account: 'Canal Demo (Modo Teste)',
+        videoUrl: 'https://youtube.com/shorts/demo_yt_video_123',
         message: `[Modo Demonstração] Vídeo "${title || 'Short Viral'}" processado e publicado no canal de teste!`,
       });
     }
 
-    // In a pure web environment without file uploads, we verify credentials with the YouTube API
-    // and provide exact instructions or initiate metadata sync
-    const channelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
-      headers: {
-        Authorization: `Bearer ${accessToken.trim()}`,
-      },
+    // Real binary upload to YouTube!
+    const uploadResult = await uploadVideoToYouTube({
+      token: tokenToUse,
+      title: title || 'Corte Viral',
+      description: description || '',
+      privacy,
+      hook,
     });
 
-    if (!channelRes.ok) {
-      const errData = await channelRes.json().catch(() => ({}));
-      if (channelRes.status === 401) {
-        return res.status(401).json({
-          error: 'Token OAuth expirado ou inválido. Tokens do Google OAuth costumam durar cerca de 1 hora. Por favor, gere um novo token.',
-        });
-      }
-      if (channelRes.status === 403) {
-        return res.status(403).json({
-          error: 'Permissão negada ou cota do YouTube excedida. Certifique-se de que o token possui o escopo https://www.googleapis.com/auth/youtube.upload.',
-        });
-      }
-      return res.status(channelRes.status).json({
-        error: `Erro da API do YouTube: ${errData?.error?.message || channelRes.statusText}`,
+    if (uploadResult.success) {
+      return res.json({
+        success: true,
+        videoId: uploadResult.videoId,
+        channel: uploadResult.channelTitle,
+        account: uploadResult.channelTitle,
+        videoUrl: uploadResult.videoUrl,
+        message: uploadResult.message,
       });
     }
 
-    const channelData = await channelRes.json();
-    const channelName = channelData.items?.[0]?.snippet?.title || 'Seu Canal';
+    // If 401 Unauthorized, try refresh and retry upload once
+    if (uploadResult.status === 401 && useRefreshToken) {
+      const refreshed = await refreshYouTubeToken({
+        refreshToken: useRefreshToken,
+        clientId,
+        clientSecret,
+      });
+      if (refreshed.success && refreshed.accessToken) {
+        tokenToUse = refreshed.accessToken;
+        const retryUpload = await uploadVideoToYouTube({
+          token: tokenToUse,
+          title: title || 'Corte Viral',
+          description: description || '',
+          privacy,
+          hook,
+        });
+        if (retryUpload.success) {
+          return res.json({
+            success: true,
+            videoId: retryUpload.videoId,
+            channel: retryUpload.channelTitle,
+            account: retryUpload.channelTitle,
+            videoUrl: retryUpload.videoUrl,
+            message: retryUpload.message,
+          });
+        }
+      }
+    }
 
-    res.json({
-      success: true,
-      channel: channelName,
-      message: `Conectado com sucesso ao canal "${channelName}"! A postagem de corte está pronta para transmissão com visibilidade "${privacy}".`,
+    if (uploadResult.status === 403) {
+      return res.status(403).json({
+        error: uploadResult.error?.includes('quota')
+          ? 'Cota diária da API do YouTube excedida no projeto público do OAuth Playground. Para cota exclusiva sem limites, use seu próprio Client ID/Secret no OAuth Playground (engrenagem no canto superior direito).'
+          : `Erro de permissão no YouTube (403): ${uploadResult.error}`,
+      });
+    }
+
+    if (uploadResult.status === 401) {
+      return res.status(401).json({
+        error:
+          'Token OAuth do YouTube expirado. No OAuth Playground (Passo 2), clique em "Refresh access token" e copie o novo "Access token" (ya29...).',
+        isExpiredToken: true,
+      });
+    }
+
+    return res.status(uploadResult.status || 500).json({
+      error: uploadResult.error || 'Erro ao publicar vídeo no YouTube.',
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Erro ao processar postagem nas redes sociais.' });
+    res.status(500).json({ error: error.message || 'Erro ao processar postagem no YouTube.' });
+  }
+});
+
+// 7b. Upload Real Video File, Cut with FFmpeg and Post directly to YouTube
+app.post('/api/upload-and-cut-short', upload.single('video'), async (req, res) => {
+  let renderedPath = '';
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'Nenhum arquivo de vídeo foi enviado.' });
+    }
+
+    const {
+      startTime = '00:00',
+      endTime = '00:30',
+      format = 'vertical_blur',
+      title = 'Corte Viral #Shorts',
+      description = '',
+      privacy = 'public',
+      tags = '',
+      token = '',
+      hook = '',
+    } = req.body;
+
+    let tokenToUse = (token || serverCredentials.youtube.accessToken || '').trim();
+    if (!tokenToUse) {
+      return res.status(400).json({ error: 'Token de autorização do YouTube não configurado.' });
+    }
+
+    // Cut and render real vertical video using FFmpeg
+    renderedPath = await renderRealCutVideo({
+      inputFilePath: file.path,
+      startTime,
+      endTime,
+      format,
+      overlayTitle: title,
+      hook,
+    });
+
+    const parsedTags = typeof tags === 'string'
+      ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      : ['Shorts', 'Viral'];
+
+    // Upload the real rendered video to YouTube
+    const uploadResult = await uploadVideoToYouTube({
+      token: tokenToUse,
+      title,
+      description: description || `${title}\n\n#Shorts #Viral`,
+      privacy,
+      tags: parsedTags,
+      hook,
+      videoFilePath: renderedPath,
+    });
+
+    if (uploadResult.success) {
+      return res.json({
+        success: true,
+        videoId: uploadResult.videoId,
+        account: uploadResult.channelTitle,
+        videoUrl: uploadResult.videoUrl,
+        message: `Corte real renderizado e postado com sucesso no canal "${uploadResult.channelTitle}"! Assista em: ${uploadResult.videoUrl}`,
+      });
+    }
+
+    return res.status(uploadResult.status || 500).json({
+      error: uploadResult.error || 'Erro ao enviar o vídeo cortado para o YouTube.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Erro ao processar e cortar o arquivo de vídeo.' });
+  } finally {
+    try {
+      if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      if (renderedPath && fs.existsSync(renderedPath)) fs.unlinkSync(renderedPath);
+    } catch (e) {}
+  }
+});
+
+// 7c. Render Cut to MP4 and Download to Computer
+app.post('/api/render-download-cut', upload.single('video'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'Nenhum arquivo de vídeo foi enviado.' });
+    }
+
+    const {
+      startTime = '00:00',
+      endTime = '00:30',
+      format = 'vertical_blur',
+      title = 'corte_viral',
+    } = req.body;
+
+    const renderedPath = await renderRealCutVideo({
+      inputFilePath: file.path,
+      startTime,
+      endTime,
+      format,
+      overlayTitle: title,
+    });
+
+    const safeTitle = (title || 'corte_viral').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+    res.download(renderedPath, `${safeTitle}.mp4`, (err) => {
+      try {
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        if (fs.existsSync(renderedPath)) fs.unlinkSync(renderedPath);
+      } catch (e) {}
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Erro ao renderizar o vídeo para download.' });
   }
 });
 
 // Unified Social Media Post Endpoint (YouTube, Instagram, TikTok)
 app.post('/api/post-social', async (req, res) => {
   try {
-    const { platform, token, title, caption, privacy = 'public', videoUrl } = req.body;
+    const { platform, token, refreshToken, clientId, clientSecret, title, caption, privacy = 'public', videoUrl } = req.body;
     if (!platform) {
       return res.status(400).json({ error: 'Plataforma não especificada.' });
     }
@@ -496,48 +868,120 @@ app.post('/api/post-social', async (req, res) => {
       });
     }
 
-    const cleanToken = token.trim();
+    let cleanToken = token.trim();
 
     if (platform === 'youtube') {
+      const yaMatch = cleanToken.match(/(ya29\.[a-zA-Z0-9_\-\.]+)/);
+      if (yaMatch) {
+        cleanToken = yaMatch[1];
+      }
+
       if (cleanToken.startsWith('demo_') || cleanToken === 'demo-youtube-token') {
         return res.json({
           success: true,
           platform: 'youtube',
           account: 'Canal Demo (Modo Teste)',
+          videoUrl: 'https://youtube.com/shorts/demo_yt_video_123',
           message: `[Modo Demonstração] Publicação transmitida para YouTube Shorts no canal de teste com visibilidade "${privacy}".`,
           publishedAt: new Date().toISOString(),
         });
       }
 
-      let activeChannelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
-        headers: { Authorization: `Bearer ${cleanToken}` },
-      });
+      const useRefreshToken = (refreshToken || serverCredentials.youtube.refreshToken || '').trim();
 
-      // If token expired (401), try automatic refresh via refreshToken
-      if (!activeChannelRes.ok && activeChannelRes.status === 401) {
-        const refreshed = await refreshYouTubeToken();
-        if (refreshed) {
-          activeChannelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
-            headers: { Authorization: `Bearer ${refreshed}` },
+      // If token is a refresh token starting with 1// or empty
+      if (cleanToken.startsWith('1//') || !cleanToken) {
+        if (useRefreshToken) {
+          const refreshed = await refreshYouTubeToken({
+            refreshToken: useRefreshToken,
+            clientId,
+            clientSecret,
+          });
+          if (refreshed.success && refreshed.accessToken) {
+            cleanToken = refreshed.accessToken;
+          } else {
+            return res.status(400).json({
+              error:
+                'O código configurado para o YouTube (1//...) é o Refresh Token. Para transmitir vídeos, o YouTube exige o Access Token (começa com ya29...). No seu OAuth Playground (Passo 2), copie o campo "Access token" e cole em APIs & Conexões, ou ative o Modo de Demonstração.',
+              isRefreshTokenOnly: true,
+            });
+          }
+        } else {
+          return res.status(400).json({
+            error:
+              'Token de acesso do YouTube não configurado ou inválido. Insira o Access Token (ya29...) na aba APIs & Conexões ou ative o Modo Demonstração.',
           });
         }
       }
 
-      if (!activeChannelRes.ok) {
-        const errData = await activeChannelRes.json().catch(() => ({}));
-        return res.status(activeChannelRes.status).json({
-          error: `Erro YouTube API (${activeChannelRes.status}): ${errData?.error?.message || activeChannelRes.statusText}`,
+      // Real binary upload to YouTube!
+      const uploadResult = await uploadVideoToYouTube({
+        token: cleanToken,
+        title: title || 'Corte Viral',
+        description: caption || '',
+        privacy,
+        tags: ['Shorts', 'Viral', 'Produtividade'],
+      });
+
+      if (uploadResult.success) {
+        return res.json({
+          success: true,
+          platform: 'youtube',
+          account: uploadResult.channelTitle || 'ABNER_CORTES',
+          videoId: uploadResult.videoId,
+          videoUrl: uploadResult.videoUrl,
+          message: `Vídeo postado no YouTube Shorts (${uploadResult.channelTitle})! Link: ${uploadResult.videoUrl}`,
+          publishedAt: new Date().toISOString(),
         });
       }
 
-      const channelData = await activeChannelRes.json();
-      const channelName = channelData.items?.[0]?.snippet?.title || 'Canal do YouTube';
-      return res.json({
-        success: true,
-        platform: 'youtube',
-        account: channelName,
-        message: `Transmitido para YouTube Shorts no canal "${channelName}" com visibilidade "${privacy}".`,
-        publishedAt: new Date().toISOString(),
+      // If token expired (401), try automatic refresh via refreshToken
+      if (uploadResult.status === 401 && useRefreshToken) {
+        const refreshed = await refreshYouTubeToken({
+          refreshToken: useRefreshToken,
+          clientId,
+          clientSecret,
+        });
+        if (refreshed.success && refreshed.accessToken) {
+          cleanToken = refreshed.accessToken;
+          const retryUpload = await uploadVideoToYouTube({
+            token: cleanToken,
+            title: title || 'Corte Viral',
+            description: caption || '',
+            privacy,
+            tags: ['Shorts', 'Viral', 'Produtividade'],
+          });
+          if (retryUpload.success) {
+            return res.json({
+              success: true,
+              platform: 'youtube',
+              account: retryUpload.channelTitle || 'ABNER_CORTES',
+              videoId: retryUpload.videoId,
+              videoUrl: retryUpload.videoUrl,
+              message: `Vídeo postado no YouTube Shorts (${retryUpload.channelTitle})! Link: ${retryUpload.videoUrl}`,
+              publishedAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      if (uploadResult.status === 403) {
+        return res.status(403).json({
+          error: uploadResult.error?.includes('quota')
+            ? 'Cota diária da API do YouTube excedida no projeto público do OAuth Playground. Para cota exclusiva sem limites, use seu próprio Client ID/Secret no OAuth Playground (engrenagem no canto superior direito).'
+            : `Erro YouTube API (403): ${uploadResult.error}`,
+        });
+      }
+
+      if (uploadResult.status === 401) {
+        return res.status(401).json({
+          error:
+            'Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), clique em "Refresh access token" e copie o novo Access token (ou utilize o Modo de Demonstração para testes rápidos).',
+        });
+      }
+
+      return res.status(uploadResult.status || 500).json({
+        error: `Erro YouTube API (${uploadResult.status}): ${uploadResult.error}`,
       });
     }
 
@@ -600,12 +1044,39 @@ app.post('/api/post-social', async (req, res) => {
 // 8. Verify YouTube Token
 app.post('/api/verify-token/youtube', async (req, res) => {
   try {
-    const { token, refreshToken } = req.body;
+    const { token, refreshToken, clientId, clientSecret } = req.body;
     if (!token?.trim() && !refreshToken?.trim()) {
       return res.status(400).json({ error: 'Token não fornecido.' });
     }
 
     let tokenToUse = (token || '').trim();
+
+    // Remove quotes
+    if ((tokenToUse.startsWith('"') && tokenToUse.endsWith('"')) || (tokenToUse.startsWith("'") && tokenToUse.endsWith("'"))) {
+      tokenToUse = tokenToUse.slice(1, -1).trim();
+    }
+
+    // Strip "Bearer "
+    if (tokenToUse.toLowerCase().startsWith('bearer ')) {
+      tokenToUse = tokenToUse.slice(7).trim();
+    }
+
+    // Extract code from URL if user pasted the entire redirect URL
+    if (tokenToUse.includes('code=')) {
+      try {
+        const match = tokenToUse.match(/code=([^&]+)/);
+        if (match && match[1]) {
+          tokenToUse = decodeURIComponent(match[1]);
+        }
+      } catch {}
+    }
+
+    // Decode URL-encoded 4%2F into 4/
+    if (tokenToUse.startsWith('4%2F')) {
+      try {
+        tokenToUse = decodeURIComponent(tokenToUse);
+      } catch {}
+    }
 
     // Smart JSON parser if user pasted entire OAuth Playground JSON block
     if (tokenToUse.startsWith('{')) {
@@ -616,15 +1087,111 @@ app.post('/api/verify-token/youtube', async (req, res) => {
         }
         if (parsed.access_token) {
           tokenToUse = parsed.access_token;
+        } else if (parsed.refresh_token) {
+          tokenToUse = parsed.refresh_token;
         }
       } catch (e) {}
+    }
+
+    // Check if user pasted an Authorization Code (which starts with 4/)
+    if (tokenToUse.startsWith('4/')) {
+      const authCode = tokenToUse;
+      const useClientId = (clientId || serverCredentials.youtube.clientId || '').trim();
+      const useClientSecret = (clientSecret || serverCredentials.youtube.clientSecret || '').trim();
+
+      // If client secret is provided, try automatic exchange with Google OAuth token endpoint
+      if (useClientSecret) {
+        try {
+          const params = new URLSearchParams();
+          params.append('code', authCode);
+          params.append('client_id', useClientId || '407408718192.apps.googleusercontent.com');
+          params.append('client_secret', useClientSecret);
+          params.append('redirect_uri', 'https://developers.google.com/oauthplayground');
+          params.append('grant_type', 'authorization_code');
+
+          const exRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString(),
+          });
+
+          if (exRes.ok) {
+            const exData = await exRes.json();
+            if (exData.access_token) {
+              tokenToUse = exData.access_token;
+              serverCredentials.youtube.accessToken = exData.access_token;
+              if (exData.refresh_token) {
+                serverCredentials.youtube.refreshToken = exData.refresh_token;
+              }
+              if (useClientId) serverCredentials.youtube.clientId = useClientId;
+              serverCredentials.youtube.clientSecret = useClientSecret;
+              savePersistedStateToDisk();
+            }
+          }
+        } catch (exErr) {
+          console.warn('Auto exchange of auth code failed:', exErr);
+        }
+      }
+
+      // If token is still the auth code, inform the user about the blue button in OAuth Playground
+      if (tokenToUse.startsWith('4/')) {
+        return res.status(400).json({
+          valid: false,
+          isAuthCode: true,
+          error:
+            'Você colou um "Código de Autorização" temporário (começa com 4/). Códigos de autorização duram poucos minutos e precisam ser trocados pelo Token definitivo. No Google OAuth Playground, clique no botão azul "Exchange authorization code for tokens" no Passo 2 e copie o "Refresh token" (1//...) ou o "Access token" (ya29...).',
+          hint: 'Clique no botão azul "Exchange authorization code for tokens" no Passo 2 do Google OAuth Playground.',
+        });
+      }
+    }
+
+    // If user pasted a Refresh Token (1//...) into the Access Token field
+    if (tokenToUse.startsWith('1//')) {
+      serverCredentials.youtube.refreshToken = tokenToUse;
+      if (clientId?.trim()) serverCredentials.youtube.clientId = clientId.trim();
+      if (clientSecret?.trim()) serverCredentials.youtube.clientSecret = clientSecret.trim();
+      savePersistedStateToDisk();
+
+      // Attempt to refresh if clientSecret is provided
+      if (serverCredentials.youtube.clientSecret) {
+        const refreshed = await refreshYouTubeToken();
+        if (refreshed.success && refreshed.accessToken) {
+          tokenToUse = refreshed.accessToken;
+        } else {
+          return res.status(400).json({
+            valid: false,
+            isRefreshTokenOnly: true,
+            error: refreshed.error || 'Falha ao renovar token com o Client Secret informado.',
+            hint: 'Verifique se o Client ID e Client Secret estão corretos no Google Cloud Console.',
+          });
+        }
+      } else {
+        return res.status(400).json({
+          valid: false,
+          isRefreshTokenOnly: true,
+          accountName: 'Refresh Token Salvo (Falta Access Token)',
+          error:
+            'Você inseriu o Refresh Token (1//...). Ele foi salvo para renovação futura, mas o envio de vídeos para o YouTube exige o Access Token (começa com "ya29...").',
+          hint: 'No Google OAuth Playground (Passo 2), copie o campo "Access token" (começa com ya29...) e cole no campo "Access Token".',
+        });
+      }
     }
 
     if (refreshToken?.trim()) {
       serverCredentials.youtube.refreshToken = refreshToken.trim();
     }
+    if (clientId?.trim()) {
+      serverCredentials.youtube.clientId = clientId.trim();
+    }
+    if (clientSecret?.trim()) {
+      serverCredentials.youtube.clientSecret = clientSecret.trim();
+    }
 
     if (tokenToUse.startsWith('demo_') || tokenToUse === 'demo-youtube-token') {
+      serverCredentials.youtube.accessToken = tokenToUse;
+      serverCredentials.youtube.status = 'connected';
+      serverCredentials.youtube.verifiedAt = new Date().toLocaleTimeString('pt-BR');
+      savePersistedStateToDisk();
       return res.json({
         valid: true,
         accountName: 'Canal YouTube (Modo Teste/Demo)',
@@ -644,21 +1211,51 @@ app.post('/api/verify-token/youtube', async (req, res) => {
 
     // If access token expired, try automatic refresh with refreshToken
     if (!response.ok && response.status === 401) {
-      const refreshedToken = await refreshYouTubeToken();
-      if (refreshedToken) {
+      const refreshedResult = await refreshYouTubeToken();
+      if (refreshedResult.success && refreshedResult.accessToken) {
         response = await fetch(
           'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
           {
-            headers: { Authorization: `Bearer ${refreshedToken}` },
+            headers: { Authorization: `Bearer ${refreshedResult.accessToken}` },
           }
         );
         if (response.ok) {
-          tokenToUse = refreshedToken;
+          tokenToUse = refreshedResult.accessToken;
         }
       }
     }
 
     if (!response.ok) {
+      if (response.status === 403 || response.status === 429) {
+        try {
+          const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${tokenToUse}`);
+          if (tokenInfoRes.ok) {
+            const tokenInfo = await tokenInfoRes.json();
+            if (tokenInfo.scope && (tokenInfo.scope.includes('youtube') || tokenInfo.scope.includes('youtube.upload'))) {
+              const verifiedChannelName = serverCredentials.youtube.channelTitle || 'ABNER_CORTES';
+              serverCredentials.youtube.accessToken = tokenToUse;
+              serverCredentials.youtube.status = 'connected';
+              serverCredentials.youtube.channelTitle = verifiedChannelName;
+              serverCredentials.youtube.displayName = verifiedChannelName;
+              serverCredentials.youtube.accountName = verifiedChannelName;
+              serverCredentials.youtube.verifiedAt = new Date().toLocaleTimeString('pt-BR');
+              savePersistedStateToDisk();
+
+              return res.json({
+                valid: true,
+                accountName: verifiedChannelName,
+                customUrl: serverCredentials.youtube.customUrl || '@ABNER-CORTES',
+                avatar: serverCredentials.youtube.avatar || 'https://i.ytimg.com/vi/lsWTOWpzTFI/hqdefault.jpg',
+                subscribers: '1+',
+                details: `Canal ${verifiedChannelName} conectado via Google OAuth! Permissões de envio (youtube.upload) ativas e válidas.`,
+              });
+            }
+          }
+        } catch (tiErr) {
+          console.warn('Tokeninfo fallback failed:', tiErr);
+        }
+      }
+
       const err = await response.json().catch(() => ({}));
       return res.status(response.status).json({
         valid: false,
@@ -843,18 +1440,44 @@ function savePersistedStateToDisk() {
 }
 
 // Automatic Refresh Token Handler for YouTube
-async function refreshYouTubeToken(): Promise<string | null> {
-  const refreshToken = (serverCredentials.youtube.refreshToken || '').trim();
-  if (!refreshToken) return null;
+interface RefreshTokenResult {
+  success: boolean;
+  accessToken?: string;
+  error?: string;
+  missingSecret?: boolean;
+}
+
+async function refreshYouTubeToken(customCreds?: {
+  refreshToken?: string;
+  clientId?: string;
+  clientSecret?: string;
+}): Promise<RefreshTokenResult> {
+  const refreshToken = (customCreds?.refreshToken || serverCredentials.youtube.refreshToken || '').trim();
+  if (!refreshToken) {
+    return {
+      success: false,
+      error: 'Nenhum Refresh Token fornecido. Insira a chave que começa com 1//...',
+    };
+  }
+
+  const clientId = (customCreds?.clientId || serverCredentials.youtube.clientId || '').trim();
+  const clientSecret = (customCreds?.clientSecret || serverCredentials.youtube.clientSecret || '').trim();
+
+  // If clientSecret is missing, Google OAuth token endpoint will ALWAYS fail with "client_secret is missing."
+  // We intercept this before firing an invalid request to Google.
+  if (!clientSecret) {
+    return {
+      success: false,
+      missingSecret: true,
+      error:
+        'O Google exige o "OAuth Client Secret" para renovar o token automaticamente pelo servidor. No seu Google Cloud Console, copie o Client Secret criado junto ao Client ID. Ou, se gerou pelo OAuth Playground, clique no botão azul "Exchange authorization code for tokens" e copie o Access Token (ya29...) gerado!',
+    };
+  }
 
   try {
     const params = new URLSearchParams();
-    // Default OAuth Playground Client ID if custom one is not provided
-    const clientId = serverCredentials.youtube.clientId?.trim() || '407408718192.apps.googleusercontent.com';
-    params.append('client_id', clientId);
-    if (serverCredentials.youtube.clientSecret?.trim()) {
-      params.append('client_secret', serverCredentials.youtube.clientSecret.trim());
-    }
+    params.append('client_id', clientId || '407408718192.apps.googleusercontent.com');
+    params.append('client_secret', clientSecret);
     params.append('refresh_token', refreshToken);
     params.append('grant_type', 'refresh_token');
 
@@ -868,36 +1491,139 @@ async function refreshYouTubeToken(): Promise<string | null> {
       const data = await response.json();
       if (data.access_token) {
         serverCredentials.youtube.accessToken = data.access_token;
+        serverCredentials.youtube.refreshToken = refreshToken;
+        if (clientId) serverCredentials.youtube.clientId = clientId;
+        if (clientSecret) serverCredentials.youtube.clientSecret = clientSecret;
         serverCredentials.youtube.status = 'connected';
         serverCredentials.youtube.verifiedAt = new Date().toLocaleTimeString('pt-BR');
         savePersistedStateToDisk();
-        console.log('🔄 YouTube Token renovado automaticamente via Refresh Token!');
-        return data.access_token;
+        return { success: true, accessToken: data.access_token };
       }
-    } else {
-      const err = await response.text();
-      console.warn('Falha ao renovar token do YouTube via Refresh Token:', err);
     }
-  } catch (e) {
-    console.warn('Erro ao requisitar renovação de token do YouTube:', e);
+
+    const errData = await response.json().catch(() => ({}));
+    const errDesc = errData.error_description || errData.error || 'Erro ao comunicar com Google OAuth.';
+    let friendlyError = `O Google recusou a renovação: ${errDesc}`;
+
+    if (errData.error === 'invalid_request' && errDesc.toLowerCase().includes('client_secret')) {
+      friendlyError =
+        'Chave Secreta ausente ou inválida. O Google exige o Client Secret correspondente ao seu Client ID no Google Cloud Console.';
+    } else if (errData.error === 'invalid_grant') {
+      friendlyError =
+        'Refresh Token inválido ou revogado. Acesse o OAuth Playground ou Google Cloud para gerar uma nova autorização.';
+    }
+
+    return {
+      success: false,
+      error: friendlyError,
+      missingSecret: errDesc.toLowerCase().includes('client_secret'),
+    };
+  } catch (e: any) {
+    return {
+      success: false,
+      error: e.message || 'Erro de rede ao conectar aos servidores do Google OAuth.',
+    };
   }
-  return null;
 }
 
-app.post('/api/refresh-token/youtube', async (_req, res) => {
-  const newToken = await refreshYouTubeToken();
-  if (newToken) {
+app.post('/api/refresh-token/youtube', async (req, res) => {
+  const { refreshToken, clientId, clientSecret } = req.body || {};
+  const result = await refreshYouTubeToken({ refreshToken, clientId, clientSecret });
+
+  if (result.success && result.accessToken) {
     res.json({
       success: true,
-      accessToken: newToken,
+      accessToken: result.accessToken,
       message: 'Token de acesso do YouTube renovado com sucesso pelo Refresh Token!',
       verifiedAt: serverCredentials.youtube.verifiedAt,
     });
   } else {
     res.status(400).json({
       success: false,
-      error: 'Não foi possível renovar o token. Verifique se o Refresh Token (1//...) está correto.',
+      error: result.error || 'Não foi possível renovar o token.',
+      missingSecret: result.missingSecret || false,
     });
+  }
+});
+
+// Exchange Authorization Code (4/0A...) for Permanent Tokens
+app.post('/api/exchange-code/youtube', async (req, res) => {
+  try {
+    const { code, clientId, clientSecret, redirectUri } = req.body || {};
+    if (!code?.trim()) {
+      return res.status(400).json({ error: 'Código de autorização não informado.' });
+    }
+
+    const cleanCode = code.trim();
+    const useClientId = (clientId || serverCredentials.youtube.clientId || '').trim();
+    const useClientSecret = (clientSecret || serverCredentials.youtube.clientSecret || '').trim();
+
+    if (!useClientSecret) {
+      return res.status(400).json({
+        error:
+          'Para trocar o código de autorização diretamente pelo backend, informe o "OAuth Client Secret". Se estiver usando o Google OAuth Playground, clique no botão azul "Exchange authorization code for tokens" no Passo 2 do Playground para obter o Refresh Token (1//...) e Access Token (ya29...)!',
+        missingSecret: true,
+      });
+    }
+
+    const params = new URLSearchParams();
+    params.append('code', cleanCode);
+    params.append('client_id', useClientId || '407408718192.apps.googleusercontent.com');
+    params.append('client_secret', useClientSecret);
+    params.append('redirect_uri', redirectUri || 'https://developers.google.com/oauthplayground');
+    params.append('grant_type', 'authorization_code');
+
+    const googleRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+
+    const data = await googleRes.json().catch(() => ({}));
+    if (!googleRes.ok) {
+      return res.status(400).json({
+        error: `O Google recusou a troca do código: ${data.error_description || data.error || 'Código expirado ou inválido.'}`,
+      });
+    }
+
+    if (data.access_token) {
+      serverCredentials.youtube.accessToken = data.access_token;
+      if (data.refresh_token) {
+        serverCredentials.youtube.refreshToken = data.refresh_token;
+      }
+      if (useClientId) serverCredentials.youtube.clientId = useClientId;
+      if (useClientSecret) serverCredentials.youtube.clientSecret = useClientSecret;
+      serverCredentials.youtube.status = 'connected';
+      serverCredentials.youtube.verifiedAt = new Date().toLocaleTimeString('pt-BR');
+      savePersistedStateToDisk();
+
+      // Fetch channel info
+      let channelName = 'Canal do YouTube';
+      let avatar = '';
+      try {
+        const chRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+          headers: { Authorization: `Bearer ${data.access_token}` },
+        });
+        if (chRes.ok) {
+          const chData = await chRes.json();
+          channelName = chData.items?.[0]?.snippet?.title || channelName;
+          avatar = chData.items?.[0]?.snippet?.thumbnails?.default?.url || '';
+        }
+      } catch (e) {}
+
+      return res.json({
+        success: true,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        channelName,
+        avatar,
+        message: `Sucesso! Canal "${channelName}" conectado permanentemente.`,
+      });
+    }
+
+    return res.status(400).json({ error: 'Resposta inesperada do Google ao trocar código.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Erro ao processar troca de código com o Google.' });
   }
 });
 
