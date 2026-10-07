@@ -15,6 +15,7 @@ import {
   Type,
   Bookmark,
   ExternalLink,
+  Zap,
 } from 'lucide-react';
 import { VideoInfo, ViralCut, VideoFormat, SavedCut } from '../types';
 import { ShortsPhonePreview } from './ShortsPhonePreview';
@@ -29,6 +30,7 @@ interface EditorTabProps {
   setSelectedCut: (cut: ViralCut | null) => void;
   onSaveCut: (cut: SavedCut) => void;
   onNavigateToPublish: (cut: ViralCut) => void;
+  onEnqueueCut?: (cut: ViralCut) => void;
 }
 
 function parseTimeToSeconds(timeStr: string): number {
@@ -56,6 +58,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   setSelectedCut,
   onSaveCut,
   onNavigateToPublish,
+  onEnqueueCut,
 }) => {
   const [startTime, setStartTime] = useState<string>('00:15');
   const [endTime, setEndTime] = useState<string>('01:00');
@@ -363,6 +366,41 @@ export const EditorTab: React.FC<EditorTabProps> = ({
                 {isSaved ? <Check className="w-4 h-4 text-emerald-400" /> : <Bookmark className="w-4 h-4 text-pink-400" />}
                 <span>{isSaved ? 'Salvo na Biblioteca!' : 'Salvar Corte na Biblioteca'}</span>
               </button>
+
+              {onEnqueueCut && (
+                <button
+                  onClick={() => {
+                    const cutToEnqueue: ViralCut = selectedCut || {
+                      id: `cut-${Date.now()}`,
+                      title: overlayTitle,
+                      startTime,
+                      endTime,
+                      startSeconds: startSec,
+                      endSeconds: endSec,
+                      durationSeconds: duration,
+                      viralityScore: 94,
+                      hook: customHook || overlayTitle,
+                      payoff: 'Conclusão forte',
+                      neuromarketingTrigger: 'Curiosidade',
+                      viralityAnalysis: 'Trecho personalizado no editor 9:16',
+                      recommendedFormat: format,
+                      caption: {
+                        youtube: `${overlayTitle}\n\nAssista até o fim para entender! #Shorts`,
+                        instagram: `${overlayTitle}\n\nComente sua opinião abaixo! 👇`,
+                        tiktok: `${overlayTitle} 🤯 #fyp #viral`,
+                      },
+                      hashtags: ['Shorts', 'Viral', 'Podcasts', 'Motivação'],
+                    };
+                    onEnqueueCut(cutToEnqueue);
+                    confetti({ particleCount: 40, spread: 50 });
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-3 rounded-xl bg-purple-900/60 hover:bg-purple-900/90 border border-purple-500/40 text-purple-200 hover:text-white text-xs font-bold transition shadow-sm"
+                  title="Adicionar este corte diretamente à fila de postagem automática"
+                >
+                  <Zap className="w-4 h-4 text-yellow-400" />
+                  <span>+ Fila de Auto-Post</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {

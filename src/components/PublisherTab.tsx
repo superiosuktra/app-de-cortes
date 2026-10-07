@@ -21,9 +21,11 @@ import {
   Key,
   ShieldCheck,
   CheckCircle2,
+  Zap,
 } from 'lucide-react';
-import { ViralCut, SavedCut } from '../types';
+import { ViralCut, SavedCut, QueueItem, AutoPostSettings, PlatformCredentials } from '../types';
 import { ApiSetupModal } from './ApiSetupModal';
+import { AutoPostQueueManager } from './AutoPostQueueManager';
 import { fetchJson } from '../utils/api';
 import confetti from 'canvas-confetti';
 
@@ -34,6 +36,18 @@ interface PublisherTabProps {
   savedCuts: SavedCut[];
   onDeleteSavedCut: (id: string) => void;
   onLoadSavedCut: (cut: SavedCut) => void;
+  queue: QueueItem[];
+  autoPostSettings: AutoPostSettings;
+  onUpdateAutoPostSettings: (settings: Partial<AutoPostSettings>) => void;
+  onUpdateQueueItem: (id: string, updates: Partial<QueueItem>) => void;
+  onDeleteQueueItem: (id: string) => void;
+  onClearCompletedQueue: () => void;
+  onClearAllQueue: () => void;
+  onPostQueueItemNow: (id: string) => Promise<void>;
+  onTriggerNextQueueNow: () => Promise<void>;
+  onToggleQueueActive: (active: boolean) => void;
+  onEnqueueCurrentCut: (cut: ViralCut) => void;
+  credentials: PlatformCredentials;
 }
 
 export const PublisherTab: React.FC<PublisherTabProps> = ({
@@ -41,7 +55,22 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   savedCuts,
   onDeleteSavedCut,
   onLoadSavedCut,
+  queue,
+  autoPostSettings,
+  onUpdateAutoPostSettings,
+  onUpdateQueueItem,
+  onDeleteQueueItem,
+  onClearCompletedQueue,
+  onClearAllQueue,
+  onPostQueueItemNow,
+  onTriggerNextQueueNow,
+  onToggleQueueActive,
+  onEnqueueCurrentCut,
+  credentials,
 }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'queue' | 'manual'>(
+    queue.length > 0 ? 'queue' : 'manual'
+  );
   const [platform, setPlatform] = useState<string>('YouTube Shorts');
   const [tone, setTone] = useState<string>('Magnético & Viral');
   const [title, setTitle] = useState<string>('Esse Momento Mudou Tudo #Shorts');
@@ -264,8 +293,71 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="space-y-6 animate-fadeIn">
+      {/* Sub-tab Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-2 bg-[#12131d] border border-zinc-800 rounded-2xl">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveSubTab('queue')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition ${
+              activeSubTab === 'queue'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-pink-900/30'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-yellow-300" />
+            <span>⚡ Fila de Postagem Automática</span>
+            {queue.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-white/20 text-white">
+                {queue.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('manual')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition ${
+              activeSubTab === 'manual'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-pink-900/30'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+            }`}
+          >
+            <Share2 className="w-4 h-4 text-purple-300" />
+            <span>📝 Publicação Manual & Legendas</span>
+            {currentCut && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-zinc-800 text-zinc-300">
+                1 Selecionado
+              </span>
+            )}
+          </button>
+        </div>
+
+        <button
+          onClick={() => setIsApiModalOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-semibold transition"
+        >
+          <Key className="w-3.5 h-3.5 text-yellow-400" />
+          <span>Configurar APIs Oficiais</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'queue' ? (
+        <AutoPostQueueManager
+          queue={queue}
+          settings={autoPostSettings}
+          onUpdateSettings={onUpdateAutoPostSettings}
+          onUpdateItem={onUpdateQueueItem}
+          onDeleteItem={onDeleteQueueItem}
+          onClearCompleted={onClearCompletedQueue}
+          onClearAll={onClearAllQueue}
+          onPostItemNow={onPostQueueItemNow}
+          onTriggerNextNow={onTriggerNextQueueNow}
+          onToggleQueueActive={onToggleQueueActive}
+          credentials={credentials}
+          onOpenApiModal={() => setIsApiModalOpen(true)}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Column: Publisher Controls (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
@@ -284,13 +376,19 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsApiModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-900/60 to-pink-900/60 hover:from-purple-800/80 hover:to-pink-800/80 border border-purple-500/40 text-purple-200 hover:text-white text-xs font-bold transition shadow-sm"
-                >
-                  <Key className="w-3.5 h-3.5 text-yellow-400" />
-                  <span>Configurar APIs Oficiais</span>
-                </button>
+                {currentCut && (
+                  <button
+                    onClick={() => {
+                      onEnqueueCurrentCut(currentCut);
+                      confetti({ particleCount: 40, spread: 50 });
+                      setActiveSubTab('queue');
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-900/60 hover:bg-purple-900/90 border border-purple-500/40 text-purple-200 hover:text-white text-xs font-bold transition shadow-sm"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                    <span>+ Adicionar à Fila</span>
+                  </button>
+                )}
 
                 {currentCut && (
                   <div className="px-2.5 py-1 rounded-lg bg-zinc-800 text-[11px] font-mono text-zinc-300">
@@ -673,8 +771,8 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
             </div>
           )}
         </div>
-
       </div>
+      )}
 
       {/* Official APIs Setup Modal */}
       <ApiSetupModal

@@ -7,6 +7,8 @@ interface HeaderProps {
   cutsCount: number;
   savedCount: number;
   connectedApisCount?: number;
+  queueCount?: number;
+  isQueueActive?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   cutsCount,
   savedCount,
+  queueCount = 0,
+  isQueueActive = false,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#0e0f14]/90 backdrop-blur-md border-b border-zinc-800/80 shadow-2xl">
@@ -111,7 +115,16 @@ export const Header: React.FC<HeaderProps> = ({
               <Share2 className="w-4 h-4 text-purple-300" />
               <span className="hidden md:inline">4. Publicar & Legendas</span>
               <span className="md:hidden">Publicar</span>
-              {savedCount > 0 && (
+              {queueCount > 0 && (
+                <span
+                  title={`${queueCount} vídeo(s) na fila de postagem ${isQueueActive ? '(Fila ativa)' : '(Fila pausada)'}`}
+                  className="flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isQueueActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  <span>Fila: {queueCount}</span>
+                </span>
+              )}
+              {savedCount > 0 && queueCount === 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 text-white font-bold">
                   {savedCount}
                 </span>

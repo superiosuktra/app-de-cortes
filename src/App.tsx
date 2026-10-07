@@ -5,11 +5,26 @@ import { AnalyzeTab } from './components/AnalyzeTab';
 import { EditorTab } from './components/EditorTab';
 import { PublisherTab } from './components/PublisherTab';
 import { ConnectionSettings } from './components/ConnectionSettings';
-import { VideoInfo, ViralCut, SavedCut, PlatformCredentials } from './types';
-import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key } from 'lucide-react';
+import { VideoInfo, ViralCut, SavedCut, PlatformCredentials, QueueItem, AutoPostSettings, SocialPlatform } from './types';
+import { fetchJson } from './utils/api';
+import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key, Zap } from 'lucide-react';
 
 const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v1';
 const STORAGE_CREDENTIALS_KEY = 'viral_shorts_full_credentials_v1';
+const STORAGE_QUEUE_KEY = 'viral_shorts_autopost_queue_v1';
+const STORAGE_QUEUE_SETTINGS_KEY = 'viral_shorts_autopost_settings_v1';
+
+const DEFAULT_AUTO_POST_SETTINGS: AutoPostSettings = {
+  autoEnqueueOnGenerate: true,
+  isActive: true,
+  intervalMinutes: 30,
+  targetPlatforms: {
+    youtube: true,
+    instagram: true,
+    tiktok: true,
+  },
+  defaultPrivacy: 'public',
+};
 
 const INITIAL_CREDENTIALS: PlatformCredentials = {
   youtube: {
@@ -102,8 +117,10 @@ export default function App() {
   ]);
   const [selectedCut, setSelectedCut] = useState<ViralCut | null>(viralCuts[0]);
   const [savedCuts, setSavedCuts] = useState<SavedCut[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [autoPostSettings, setAutoPostSettings] = useState<AutoPostSettings>(DEFAULT_AUTO_POST_SETTINGS);
 
-  // Load saved cuts and credentials from localStorage
+  // Load saved cuts, queue, settings and credentials from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_SAVED_CUTS_KEY);
@@ -127,6 +144,47 @@ export default function App() {
             createdAt: new Date().toLocaleDateString('pt-BR'),
           },
         ]);
+      }
+
+      // Load queue
+      const storedQueue = localStorage.getItem(STORAGE_QUEUE_KEY);
+      if (storedQueue) {
+        setQueue(JSON.parse(storedQueue));
+      } else {
+        // Initial sample queued item so user immediately discovers the auto-post queue
+        const sampleScheduled = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        setQueue([
+          {
+            id: 'sample-queue-1',
+            cutId: 'cut-demo-1',
+            videoTitle: 'Flow Podcast: Inteligência Emocional e Neurociência',
+            videoUrl: 'https://www.youtube.com/watch?v=y7G5J2_7c5w',
+            cutTitle: 'A ILUSÃO DA MOTIVAÇÃO 🧠',
+            startTime: '00:15',
+            endTime: '00:55',
+            durationSeconds: 40,
+            format: 'vertical_crop',
+            viralityScore: 98,
+            hook: 'O maior erro que as pessoas cometem é achar que motivação dura para sempre.',
+            payoff: 'Quem depende de sentir vontade nunca constrói nada grandioso.',
+            caption: {
+              youtube: 'A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\nAssista até o fim para virar essa chave.',
+              instagram: 'Você ainda acredita que precisa de motivação todos os dias? Veja o que a neurociência diz sobre isso. 👇 Salve para lembrar!',
+              tiktok: 'Pare de cair nessa mentira sobre disciplina! 🤯 #dopamina #foco #produtividade #shorts',
+            },
+            hashtags: ['#Shorts', '#Neurociencia', '#Disciplina', '#Mindset', '#Viral'],
+            platforms: ['youtube', 'tiktok', 'instagram'],
+            scheduledFor: sampleScheduled,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      }
+
+      // Load auto post settings
+      const storedQueueSettings = localStorage.getItem(STORAGE_QUEUE_SETTINGS_KEY);
+      if (storedQueueSettings) {
+        setAutoPostSettings(JSON.parse(storedQueueSettings));
       }
 
       const storedCreds = localStorage.getItem(STORAGE_CREDENTIALS_KEY);
@@ -158,6 +216,216 @@ export default function App() {
       console.warn('Failed to save credentials to localStorage:', e);
     }
   };
+
+  // Queue Management Functions
+  const handleEnqueueCuts = (cutsToEnqueue: ViralCut[], options?: { immediateFirst?: boolean }) => {
+    const now = Date.now();
+    const intervalMs = (autoPostSettings.intervalMinutes || 30) * 60 * 1000;
+
+    const activePlatforms: SocialPlatform[] = [];
+    if (autoPostSettings.targetPlatforms.youtube) activePlatforms.push('youtube');
+    if (autoPostSettings.targetPlatforms.instagram) activePlatforms.push('instagram');
+    if (autoPostSettings.targetPlatforms.tiktok) activePlatforms.push('tiktok');
+    if (activePlatforms.length === 0) activePlatforms.push('youtube');
+
+    // Base time: after last pending item, or starting now/soon
+    const pending = queue.filter((q) => q.status === 'pending');
+    let baseTime = now;
+    if (pending.length > 0) {
+      const lastScheduled = Math.max(...pending.map((p) => new Date(p.scheduledFor).getTime()));
+      if (lastScheduled > now) {
+        baseTime = lastScheduled;
+      }
+    }
+
+    const newItems: QueueItem[] = cutsToEnqueue.map((cut, idx) => {
+      const offsetIndex = options?.immediateFirst ? idx : idx + 1;
+      const scheduledTime = new Date(baseTime + offsetIndex * intervalMs);
+      return {
+        id: `queue-${cut.id}-${Date.now()}-${idx}`,
+        cutId: cut.id,
+        videoTitle: videoInfo?.title || 'Vídeo Fonte',
+        videoUrl: videoUrl,
+        cutTitle: cut.title,
+        startTime: cut.startTime,
+        endTime: cut.endTime,
+        durationSeconds: cut.durationSeconds,
+        format: cut.recommendedFormat,
+        viralityScore: cut.viralityScore,
+        hook: cut.hook,
+        payoff: cut.payoff,
+        caption: cut.caption,
+        hashtags: cut.hashtags,
+        platforms: activePlatforms,
+        scheduledFor: scheduledTime.toISOString(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+    });
+
+    const updatedQueue = [...queue, ...newItems];
+    setQueue(updatedQueue);
+    try {
+      localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updatedQueue));
+    } catch (e) {
+      console.warn('Failed to save queue to localStorage:', e);
+    }
+  };
+
+  const handleEnqueueSingleCut = (cut: ViralCut) => {
+    handleEnqueueCuts([cut]);
+  };
+
+  const handleUpdateAutoPostSettings = (newSettings: Partial<AutoPostSettings>) => {
+    setAutoPostSettings((prev) => {
+      const updated = { ...prev, ...newSettings };
+      try {
+        localStorage.setItem(STORAGE_QUEUE_SETTINGS_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save auto post settings:', e);
+      }
+      return updated;
+    });
+  };
+
+  const handleUpdateQueueItem = (id: string, updates: Partial<QueueItem>) => {
+    setQueue((prevQueue) => {
+      const updated = prevQueue.map((i) => (i.id === id ? { ...i, ...updates } : i));
+      try {
+        localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save queue item:', e);
+      }
+      return updated;
+    });
+  };
+
+  const handleDeleteQueueItem = (id: string) => {
+    setQueue((prevQueue) => {
+      const updated = prevQueue.filter((i) => i.id !== id);
+      try {
+        localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to delete queue item:', e);
+      }
+      return updated;
+    });
+  };
+
+  const handleClearCompletedQueue = () => {
+    setQueue((prevQueue) => {
+      const updated = prevQueue.filter((i) => i.status !== 'published');
+      try {
+        localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to clear completed queue:', e);
+      }
+      return updated;
+    });
+  };
+
+  const handleClearAllQueue = () => {
+    setQueue([]);
+    try {
+      localStorage.removeItem(STORAGE_QUEUE_KEY);
+    } catch (e) {
+      console.warn('Failed to clear queue:', e);
+    }
+  };
+
+  // Immediate or Automated Post Execution for a Queue Item
+  const handlePostQueueItemNow = async (id: string) => {
+    const item = queue.find((q) => q.id === id);
+    if (!item) return;
+
+    handleUpdateQueueItem(id, { status: 'posting' });
+
+    const logs: string[] = [];
+    const publishedAccounts: { platform: SocialPlatform; account: string }[] = [];
+    let hasSuccess = false;
+    let lastError = '';
+
+    for (const p of item.platforms) {
+      const token = credentials[p]?.accessToken;
+      if (!token || !token.trim()) {
+        logs.push(`⚠️ [${p.toUpperCase()}] Token não configurado em APIs & Conexões.`);
+        continue;
+      }
+
+      try {
+        const res = await fetchJson<any>('/api/post-social', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: p,
+            token,
+            title: item.cutTitle,
+            caption: `${item.caption[p]}\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}`,
+            privacy: autoPostSettings.defaultPrivacy,
+            videoUrl: item.videoUrl,
+          }),
+        });
+
+        if (res.ok && res.data.success) {
+          hasSuccess = true;
+          const account = res.data.account || 'Conta Conectada';
+          publishedAccounts.push({ platform: p, account });
+          logs.push(`✅ [${p.toUpperCase()}] ${res.data.message || 'Publicado com sucesso!'}`);
+        } else {
+          const err = res.data?.error || res.error || 'Erro na transmissão da rede social';
+          lastError = err;
+          logs.push(`❌ [${p.toUpperCase()}] ${err}`);
+        }
+      } catch (err: any) {
+        lastError = err.message;
+        logs.push(`❌ [${p.toUpperCase()}] Erro de conexão: ${err.message}`);
+      }
+    }
+
+    if (hasSuccess) {
+      handleUpdateQueueItem(id, {
+        status: 'published',
+        publishedAt: new Date().toISOString(),
+        publishedAccounts,
+        logs: [...(item.logs || []), ...logs],
+      });
+    } else {
+      handleUpdateQueueItem(id, {
+        status: 'failed',
+        error: lastError || 'Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.',
+        logs: [...(item.logs || []), ...logs],
+      });
+    }
+  };
+
+  const handleTriggerNextQueueNow = async () => {
+    const next = queue.find((q) => q.status === 'pending');
+    if (next) {
+      await handlePostQueueItemNow(next.id);
+    }
+  };
+
+  const handleToggleQueueActive = (active: boolean) => {
+    handleUpdateAutoPostSettings({ isActive: active });
+  };
+
+  // Background Auto-Post Worker Engine
+  useEffect(() => {
+    if (!autoPostSettings.isActive) return;
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const dueItem = queue.find(
+        (item) => item.status === 'pending' && new Date(item.scheduledFor).getTime() <= now
+      );
+
+      if (dueItem) {
+        handlePostQueueItemNow(dueItem.id);
+      }
+    }, 15000);
+
+    return () => clearInterval(timer);
+  }, [queue, autoPostSettings.isActive, credentials]);
 
   // Save cuts to localStorage
   const handleSaveCut = (newCut: SavedCut) => {
@@ -229,6 +497,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         cutsCount={viralCuts.length}
         savedCount={savedCuts.length}
+        queueCount={queue.filter((q) => q.status === 'pending').length}
+        isQueueActive={autoPostSettings.isActive}
       />
 
       {/* Main Content Area */}
@@ -330,6 +600,12 @@ export default function App() {
                 viralCuts={viralCuts}
                 setViralCuts={setViralCuts}
                 onOpenCutInEditor={handleOpenCutInEditor}
+                autoPostSettings={autoPostSettings}
+                onUpdateAutoPostSettings={handleUpdateAutoPostSettings}
+                onEnqueueCuts={handleEnqueueCuts}
+                onEnqueueSingleCut={handleEnqueueSingleCut}
+                onNavigateToPublish={() => setActiveTab('publish')}
+                queueCount={queue.filter((q) => q.status === 'pending').length}
               />
             )}
 
@@ -342,6 +618,7 @@ export default function App() {
                 setSelectedCut={setSelectedCut}
                 onSaveCut={handleSaveCut}
                 onNavigateToPublish={handleNavigateToPublish}
+                onEnqueueCut={handleEnqueueSingleCut}
               />
             )}
 
@@ -351,6 +628,18 @@ export default function App() {
                 savedCuts={savedCuts}
                 onDeleteSavedCut={handleDeleteSavedCut}
                 onLoadSavedCut={handleLoadSavedCut}
+                queue={queue}
+                autoPostSettings={autoPostSettings}
+                onUpdateAutoPostSettings={handleUpdateAutoPostSettings}
+                onUpdateQueueItem={handleUpdateQueueItem}
+                onDeleteQueueItem={handleDeleteQueueItem}
+                onClearCompletedQueue={handleClearCompletedQueue}
+                onClearAllQueue={handleClearAllQueue}
+                onPostQueueItemNow={handlePostQueueItemNow}
+                onTriggerNextQueueNow={handleTriggerNextQueueNow}
+                onToggleQueueActive={handleToggleQueueActive}
+                onEnqueueCurrentCut={handleEnqueueSingleCut}
+                credentials={credentials}
               />
             )}
 

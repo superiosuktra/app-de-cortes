@@ -14,9 +14,12 @@ import {
   HelpCircle,
   Brain,
   Hash,
+  CheckCircle2,
+  Share2,
 } from 'lucide-react';
-import { VideoInfo, ViralCut } from '../types';
+import { VideoInfo, ViralCut, AutoPostSettings } from '../types';
 import { fetchJson } from '../utils/api';
+import confetti from 'canvas-confetti';
 
 interface AnalyzeTabProps {
   videoUrl: string;
@@ -30,6 +33,12 @@ interface AnalyzeTabProps {
   viralCuts: ViralCut[];
   setViralCuts: (cuts: ViralCut[]) => void;
   onOpenCutInEditor: (cut: ViralCut) => void;
+  autoPostSettings?: AutoPostSettings;
+  onUpdateAutoPostSettings?: (newSettings: Partial<AutoPostSettings>) => void;
+  onEnqueueCuts?: (cuts: ViralCut[]) => void;
+  onEnqueueSingleCut?: (cut: ViralCut) => void;
+  onNavigateToPublish?: () => void;
+  queueCount?: number;
 }
 
 const PRESET_VIDEOS = [
@@ -62,6 +71,12 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
   viralCuts,
   setViralCuts,
   onOpenCutInEditor,
+  autoPostSettings,
+  onUpdateAutoPostSettings,
+  onEnqueueCuts,
+  onEnqueueSingleCut,
+  onNavigateToPublish,
+  queueCount = 0,
 }) => {
   const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState<boolean>(false);
@@ -69,6 +84,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [copiedCutId, setCopiedCutId] = useState<string | null>(null);
   const [transcriptNotice, setTranscriptNotice] = useState<string>('');
+  const [queueNotice, setQueueNotice] = useState<{ count: number; message: string } | null>(null);
 
   // Fetch video info when url changes or on blur
   const handleFetchVideoInfo = async (urlToFetch: string = videoUrl) => {
@@ -159,6 +175,16 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
       if (res.ok && data?.cuts && data.cuts.length > 0) {
         setViralCuts(data.cuts);
         setStatusMessage(`✅ Sucesso! ${data.cuts.length} cortes virais identificados com métricas de retenção.`);
+
+        // Auto-Post Queue Integration
+        if (autoPostSettings?.autoEnqueueOnGenerate && onEnqueueCuts) {
+          onEnqueueCuts(data.cuts);
+          setQueueNotice({
+            count: data.cuts.length,
+            message: `🚀 ${data.cuts.length} cortes foram adicionados à Fila de Postagem Automática (intervalo de ${autoPostSettings.intervalMinutes} min)!`,
+          });
+          confetti({ particleCount: 50, spread: 65, origin: { y: 0.6 } });
+        }
       } else {
         setStatusMessage(`Erro na análise: ${data?.error || res.error || 'A IA não retornou cortes válidos.'}`);
       }
@@ -320,6 +346,86 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
               />
             </div>
 
+            {/* Auto-Post Queue Toggle Card (User Request) */}
+            <div className="p-4 bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-pink-950/40 border border-purple-500/40 rounded-2xl space-y-2.5 shadow-md">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoPostSettings?.autoEnqueueOnGenerate ?? true}
+                  onChange={(e) =>
+                    onUpdateAutoPostSettings?.({ autoEnqueueOnGenerate: e.target.checked })
+                  }
+                  className="w-4 h-4 mt-0.5 rounded accent-pink-500 cursor-pointer"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-white flex items-center gap-1">
+                      <Zap className="w-3.5 h-3.5 text-yellow-300" />
+                      Fila de Postagem Automática
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/40">
+                      AUTO-POST
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 mt-1 leading-snug">
+                    Ao gerar os vídeos, já entra direto em uma fila para postar automático no YouTube Shorts, Reels e TikTok.
+                  </p>
+                </div>
+              </label>
+
+              {autoPostSettings?.autoEnqueueOnGenerate && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-purple-500/30 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-zinc-300">
+                    <Clock className="w-3 h-3 text-purple-400" />
+                    <span>Intervalo:</span>
+                    <select
+                      value={autoPostSettings.intervalMinutes}
+                      onChange={(e) =>
+                        onUpdateAutoPostSettings?.({ intervalMinutes: Number(e.target.value) })
+                      }
+                      className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 rounded-lg text-white font-semibold text-[11px] focus:outline-none focus:border-purple-500"
+                    >
+                      <option value={15}>15 min</option>
+                      <option value={30}>30 min</option>
+                      <option value={60}>1 hora</option>
+                      <option value={120}>2 horas</option>
+                      <option value={240}>4 horas</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                    <span className={`w-2 h-2 rounded-full ${autoPostSettings.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                    <span className={autoPostSettings.isActive ? 'text-emerald-300' : 'text-amber-300'}>
+                      {autoPostSettings.isActive ? 'Fila Ativa' : 'Fila Pausada'}
+                    </span>
+                    {queueCount > 0 && (
+                      <span className="ml-1 px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300">
+                        {queueCount} na fila
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Queue Notification Success Banner */}
+            {queueNotice && (
+              <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl text-xs text-emerald-200 flex items-center justify-between gap-2 shadow-lg animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="leading-snug">{queueNotice.message}</span>
+                </div>
+                {onNavigateToPublish && (
+                  <button
+                    onClick={onNavigateToPublish}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 transition shadow-md"
+                  >
+                    Ver Fila ({queueCount}) →
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Primary Action Button */}
             <button
               onClick={handleRunAnalysis}
@@ -349,11 +455,29 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                 Recomendações de Cortes da IA
               </h3>
             </div>
-            {viralCuts.length > 0 && (
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-fuchsia-950/60 border border-fuchsia-500/30 text-fuchsia-300">
-                {viralCuts.length} Cortes Magnéticos
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {viralCuts.length > 0 && onEnqueueCuts && (
+                <button
+                  onClick={() => {
+                    onEnqueueCuts(viralCuts);
+                    setQueueNotice({
+                      count: viralCuts.length,
+                      message: `🚀 Todos os ${viralCuts.length} cortes foram adicionados à Fila de Postagem Automática!`,
+                    });
+                    confetti({ particleCount: 50, spread: 60 });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-900/60 hover:bg-purple-900/90 border border-purple-500/40 text-purple-200 hover:text-white text-xs font-bold transition shadow-sm"
+                >
+                  <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                  <span>Enfileirar Todos ({viralCuts.length})</span>
+                </button>
+              )}
+              {viralCuts.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-fuchsia-950/60 border border-fuchsia-500/30 text-fuchsia-300">
+                  {viralCuts.length} Cortes Magnéticos
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Cuts Empty State */}
@@ -477,6 +601,24 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                     <span>Abrir no Editor & Cortar</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
+
+                  {onEnqueueSingleCut && (
+                    <button
+                      onClick={() => {
+                        onEnqueueSingleCut(cut);
+                        setQueueNotice({
+                          count: 1,
+                          message: `⚡ Corte "${cut.title}" adicionado à Fila de Postagem Automática!`,
+                        });
+                        confetti({ particleCount: 30, spread: 50 });
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-purple-500/40 bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 hover:text-white text-xs font-bold transition shadow-sm"
+                      title="Adicionar este corte à Fila de Auto-Post"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                      <span className="hidden sm:inline">+ Fila</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => handleCopyCaption(cut)}

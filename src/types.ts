@@ -89,3 +89,48 @@ export interface PlatformCredentials {
     status: 'connected' | 'disconnected' | 'error';
   };
 }
+
+export type QueueItemStatus = 'pending' | 'posting' | 'published' | 'failed' | 'paused';
+export type SocialPlatform = 'youtube' | 'instagram' | 'tiktok';
+
+export interface QueueItem {
+  id: string;
+  cutId: string;
+  videoTitle: string;
+  videoUrl: string;
+  cutTitle: string;
+  startTime: string;
+  endTime: string;
+  durationSeconds: number;
+  format: VideoFormat;
+  viralityScore: number;
+  hook: string;
+  payoff?: string;
+  caption: {
+    youtube: string;
+    instagram: string;
+    tiktok: string;
+  };
+  hashtags: string[];
+  platforms: SocialPlatform[];
+  scheduledFor: string; // ISO date string or formatted
+  status: QueueItemStatus;
+  publishedAt?: string;
+  publishedAccounts?: { platform: SocialPlatform; account: string }[];
+  error?: string;
+  logs?: string[];
+  createdAt: string;
+}
+
+export interface AutoPostSettings {
+  autoEnqueueOnGenerate: boolean; // Automate queueing upon video generation
+  isActive: boolean; // Running / Paused
+  intervalMinutes: number; // Interval between consecutive posts (e.g., 30)
+  targetPlatforms: {
+    youtube: boolean;
+    instagram: boolean;
+    tiktok: boolean;
+  };
+  defaultPrivacy: 'public' | 'unlisted' | 'private';
+}
+
