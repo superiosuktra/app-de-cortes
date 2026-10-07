@@ -12,6 +12,15 @@ import {
   Sparkles,
   BookOpen,
 } from 'lucide-react';
+import {
+  LEGAL_APP_NAME,
+  LEGAL_CONTACT_EMAIL,
+  LEGAL_UPDATED_AT_PT,
+  PRIVACY_POLICY_PT_HTML,
+  PRIVACY_POLICY_PT_TEXT,
+  TERMS_OF_SERVICE_PT_HTML,
+  TERMS_OF_SERVICE_PT_TEXT,
+} from '../legalContent';
 
 interface LegalPagesModalProps {
   isOpen: boolean;
@@ -25,7 +34,7 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
   defaultTab = 'privacy',
 }) => {
   const [activeTab, setActiveTab] = useState<'privacy' | 'terms' | 'hosting'>(defaultTab);
-  const [language, setLanguage] = useState<'en' | 'pt'>('en');
+  const [language, setLanguage] = useState<'en' | 'pt'>('pt');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -48,11 +57,23 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
   const handleDownloadHtml = (type: 'privacy' | 'terms') => {
     const isPrivacy = type === 'privacy';
     const filename = isPrivacy ? 'privacy-policy.html' : 'terms-of-service.html';
-    const title = isPrivacy ? 'Privacy Policy - ViralShorts Studio AI' : 'Terms of Service - ViralShorts Studio AI';
-    const bodyContent = isPrivacy ? PRIVACY_POLICY_EN_HTML : TERMS_OF_SERVICE_EN_HTML;
+    const title = isPrivacy
+      ? language === 'en'
+        ? `Privacy Policy - ${LEGAL_APP_NAME}`
+        : `Política de Privacidade - ${LEGAL_APP_NAME}`
+      : language === 'en'
+      ? `Terms of Service - ${LEGAL_APP_NAME}`
+      : `Termos de Serviço - ${LEGAL_APP_NAME}`;
+    const bodyContent = isPrivacy
+      ? language === 'en'
+        ? PRIVACY_POLICY_EN_HTML
+        : PRIVACY_POLICY_PT_HTML
+      : language === 'en'
+      ? TERMS_OF_SERVICE_EN_HTML
+      : TERMS_OF_SERVICE_PT_HTML;
 
     const fullHtml = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -144,12 +165,12 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
 </head>
 <body>
   <div class="wrapper">
-    <div class="badge">Official Legal Document</div>
-    <h1>${isPrivacy ? 'Privacy Policy' : 'Terms of Service'}</h1>
-    <div class="subtitle">ViralShorts Studio AI • Last Updated: October 2026</div>
+    <div class="badge">${language === 'en' ? 'Legal Document' : 'Documento Legal'}</div>
+    <h1>${isPrivacy ? (language === 'en' ? 'Privacy Policy' : 'Política de Privacidade') : language === 'en' ? 'Terms of Service' : 'Termos de Serviço'}</h1>
+    <div class="subtitle">${LEGAL_APP_NAME} • ${language === 'en' ? 'Last Updated: October 7, 2026' : `Última atualização: ${LEGAL_UPDATED_AT_PT}`}</div>
     ${bodyContent}
     <footer>
-      © 2026 ViralShorts Studio AI. All rights reserved.
+      © 2026 ${LEGAL_APP_NAME}.
     </footer>
   </div>
 </body>
@@ -186,7 +207,7 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
                 Central de Páginas Legais (TikTok, Google & Meta)
               </h3>
               <p className="text-xs text-zinc-400">
-                Textos aprovados pelo compliance internacional para cadastro no TikTok for Developers
+                Textos de referência para publicar Política de Privacidade e Termos de Serviço.
               </p>
             </div>
           </div>
@@ -332,7 +353,7 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
               </div>
 
               <h4 className="text-sm font-black text-white uppercase tracking-wider">
-                Como resolver em 2 minutos (100% Grátis & Aprovado pelo TikTok):
+              Como resolver em 2 minutos (100% grátis):
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -421,7 +442,7 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
                   Opção 3: Notion / Carrd Público
                 </span>
                 <p className="text-zinc-400">
-                  Você também pode criar uma página gratuita no <strong>Notion</strong>, colar o texto da Política de Privacidade e dos Termos de Serviço, e clicar em <strong>&quot;Share to Web&quot; (Compartilhar na Web)</strong>. O TikTok aceita páginas públicas do Notion tranquilamente!
+                  Você também pode criar uma página gratuita no <strong>Notion</strong>, colar o texto da Política de Privacidade e dos Termos de Serviço, e clicar em <strong>&quot;Share to Web&quot; (Compartilhar na Web)</strong> para gerar links públicos.
                 </p>
               </div>
             </div>
@@ -432,11 +453,10 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
                   <h4 className="text-base font-bold text-white">
                     {language === 'en'
                       ? 'Privacy Policy for ViralShorts Studio AI'
-                      : 'Política de Privacidade do ViralShorts Studio AI'}
+                      : `Política de Privacidade do ${LEGAL_APP_NAME}`}
                   </h4>
                   <p className="text-[11px] text-zinc-400">
-                    Application Name: <strong>ViralShorts Studio AI</strong> • Contact:{' '}
-                    <strong>erick.moreiradefensoria@gmail.com</strong>
+                    Application Name: <strong>{LEGAL_APP_NAME}</strong> • Contact: <strong>{LEGAL_CONTACT_EMAIL}</strong>
                   </p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] bg-purple-950 text-purple-300 font-bold border border-purple-800/40">
@@ -463,10 +483,11 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
                   <h4 className="text-base font-bold text-white">
                     {language === 'en'
                       ? 'Terms of Service for ViralShorts Studio AI'
-                      : 'Termos de Serviço do ViralShorts Studio AI'}
+                      : `Termos de Serviço do ${LEGAL_APP_NAME}`}
                   </h4>
                   <p className="text-[11px] text-zinc-400">
-                    Application Name: <strong>ViralShorts Studio AI</strong> • Effective: October 2026
+                    Application Name: <strong>{LEGAL_APP_NAME}</strong> •{' '}
+                    {language === 'en' ? 'Last Updated: October 7, 2026' : `Última atualização: ${LEGAL_UPDATED_AT_PT}`}
                   </p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] bg-purple-950 text-purple-300 font-bold border border-purple-800/40">
@@ -493,7 +514,7 @@ export const LegalPagesModal: React.FC<LegalPagesModalProps> = ({
         <div className="px-6 py-4 border-t border-zinc-800 bg-[#161725] flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] text-zinc-400">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span>Documentos em conformidade com as diretrizes do TikTok for Developers (2026).</span>
+            <span>Revise os documentos com suporte jurídico antes de uso em produção.</span>
           </div>
 
           <button
@@ -538,9 +559,9 @@ const PRIVACY_POLICY_EN_HTML = `
     <li>Users may request full deletion of their session data by contacting the developer email below.</li>
   </ul>
 
-  <h2>4. Compliance with Platform Guidelines</h2>
+  <h2>4. Third-Party Platform Terms</h2>
   <p>
-    Our Service strictly complies with the <a href="https://developers.tiktok.com/doc/terms-of-service" target="_blank" style="color: #60a5fa;">TikTok Developer Terms of Service</a>, <a href="https://developers.google.com/youtube/terms/developer-policies" target="_blank" style="color: #60a5fa;">YouTube API Services Developer Policies</a>, and <a href="https://developers.facebook.com/terms" target="_blank" style="color: #60a5fa;">Meta Platform Terms</a>.
+    Your use of TikTok, YouTube, Instagram/Meta and other integrations is also subject to each platform's own terms and policies.
   </p>
 
   <h2>5. Contact Information</h2>
@@ -553,33 +574,6 @@ const PRIVACY_POLICY_EN_HTML = `
   </p>
 `;
 
-const PRIVACY_POLICY_PT_HTML = `
-  <h2>1. Visão Geral e Compromisso com a Privacidade</h2>
-  <p>
-    O ViralShorts Studio AI ("o Aplicativo", "nós") respeita a privacidade de criadores de conteúdo e usuários. Esta Política de Privacidade descreve como as informações são coletadas, utilizadas e protegidas ao usar nosso editor de cortes e integrações de publicação (incluindo TikTok, YouTube e Instagram).
-  </p>
-
-  <h2>2. Uso da API do TikTok (Content Posting API)</h2>
-  <p>
-    Ao autorizar o Aplicativo com sua conta do TikTok for Developers, solicitamos permissões estritamente necessárias para o upload de vídeos:
-  </p>
-  <ul>
-    <li><strong>video.upload:</strong> Usado exclusivamente para fazer upload do clipe 9:16 cortado e aprovado por você.</li>
-    <li><strong>video.publish:</strong> Usado para publicar o vídeo no seu feed do TikTok junto com o título e legendas que você definiu.</li>
-    <li><strong>user.info.basic:</strong> Usado apenas para exibir o nome do seu canal e avatar no painel de configurações para confirmar a conta de destino.</li>
-  </ul>
-
-  <h2>3. Armazenamento e Exclusão de Dados</h2>
-  <p>
-    Seus tokens de acesso OAuth são salvos localmente no armazenamento seguro do seu navegador. Você pode desconectar ou excluir todas as credenciais a qualquer momento na aba de Configurações do app. Não vendemos e não compartilhamos nenhum dado com terceiros.
-  </p>
-
-  <h2>4. Contato do Desenvolvedor</h2>
-  <p>
-    <strong>Responsável:</strong> Erick Moreira<br>
-    <strong>E-mail:</strong> <a href="mailto:erick.moreiradefensoria@gmail.com" style="color: #60a5fa;">erick.moreiradefensoria@gmail.com</a>
-  </p>
-`;
 
 const TERMS_OF_SERVICE_EN_HTML = `
   <h2>1. Acceptance of Terms</h2>
@@ -614,29 +608,6 @@ const TERMS_OF_SERVICE_EN_HTML = `
   </p>
 `;
 
-const TERMS_OF_SERVICE_PT_HTML = `
-  <h2>1. Aceitação dos Termos</h2>
-  <p>
-    Ao acessar ou utilizar o ViralShorts Studio AI ("o Serviço"), você concorda em cumprir integralmente estes Termos de Serviço.
-  </p>
-
-  <h2>2. Descrição do Serviço</h2>
-  <p>
-    O ViralShorts Studio AI fornece ferramentas para criadores analisarem transcrições, editarem cortes verticais 9:16, gerarem títulos e legendas magnéticas e publicarem clipes no TikTok, YouTube e Instagram.
-  </p>
-
-  <h2>3. Direitos e Responsabilidades do Usuário</h2>
-  <p>
-    O usuário mantém a total propriedade sobre seus vídeos. O usuário é o único responsável por garantir que o conteúdo não viola direitos autorais de terceiros nem as Diretrizes da Comunidade do TikTok ou YouTube.
-  </p>
-
-  <h2>4. Contato</h2>
-  <p>
-    <strong>Desenvolvedor:</strong> Erick Moreira<br>
-    <strong>E-mail:</strong> <a href="mailto:erick.moreiradefensoria@gmail.com" style="color: #60a5fa;">erick.moreiradefensoria@gmail.com</a>
-  </p>
-`;
-
 const PRIVACY_POLICY_EN_TEXT = `PRIVACY POLICY - ViralShorts Studio AI
 Last Updated: October 2026
 
@@ -659,20 +630,6 @@ We do not sell, rent, lease, or monetize your personal credentials or tokens to 
 Developer: Erick Moreira
 Email: erick.moreiradefensoria@gmail.com`;
 
-const PRIVACY_POLICY_PT_TEXT = `POLÍTICA DE PRIVACIDADE - ViralShorts Studio AI
-Última Atualização: Outubro de 2026
-
-1. Visão Geral
-O ViralShorts Studio AI respeita a privacidade dos criadores de conteúdo. Esta Política descreve o tratamento de dados ao usar o editor e integrações com TikTok, YouTube e Instagram.
-
-2. Uso da API do TikTok
-- video.upload: Fazer upload dos cortes aprovados pelo criador.
-- video.publish: Publicar o clipe no feed com o título e legendas configuradas.
-- user.info.basic: Exibir o nome do canal no painel de configurações.
-
-3. Contato
-Desenvolvedor: Erick Moreira
-E-mail: erick.moreiradefensoria@gmail.com`;
 
 const TERMS_OF_SERVICE_EN_TEXT = `TERMS OF SERVICE - ViralShorts Studio AI
 Last Updated: October 2026
@@ -689,16 +646,3 @@ Users retain full ownership of their original media content and represent that t
 4. Contact
 Developer: Erick Moreira
 Email: erick.moreiradefensoria@gmail.com`;
-
-const TERMS_OF_SERVICE_PT_TEXT = `TERMOS DE SERVIÇO - ViralShorts Studio AI
-Última Atualização: Outubro de 2026
-
-1. Aceitação dos Termos
-Ao utilizar o ViralShorts Studio AI, você concorda com estes termos.
-
-2. Descrição do Serviço
-Ferramenta para análise, corte vertical 9:16 e publicação automatizada nas redes sociais.
-
-3. Contato
-Desenvolvedor: Erick Moreira
-E-mail: erick.moreiradefensoria@gmail.com`;

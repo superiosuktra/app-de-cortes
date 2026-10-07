@@ -7,6 +7,13 @@ import { PublisherTab } from './components/PublisherTab';
 import { ConnectionSettings } from './components/ConnectionSettings';
 import { VideoInfo, ViralCut, SavedCut, PlatformCredentials } from './types';
 import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key } from 'lucide-react';
+import {
+  LEGAL_APP_NAME,
+  LEGAL_CONTACT_EMAIL,
+  LEGAL_UPDATED_AT_PT,
+  PRIVACY_POLICY_PT_SECTIONS,
+  TERMS_OF_SERVICE_PT_SECTIONS,
+} from './legalContent';
 
 const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v1';
 const STORAGE_CREDENTIALS_KEY = 'viral_shorts_full_credentials_v1';
@@ -34,9 +41,11 @@ const INITIAL_CREDENTIALS: PlatformCredentials = {
 };
 
 export default function App() {
+  const getLegalViewFromPath = (pathname: string): 'privacy' | 'terms' | null =>
+    pathname === '/privacy' ? 'privacy' : pathname === '/terms' ? 'terms' : null;
   const initialPath = typeof window !== 'undefined' ? window.location.pathname : '';
   const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(
-    initialPath === '/privacy' ? 'privacy' : initialPath === '/terms' ? 'terms' : null
+    getLegalViewFromPath(initialPath)
   );
   const [activeTab, setActiveTab] = useState<'trending' | 'analyze' | 'editor' | 'publish' | 'settings'>('trending');
   const [credentials, setCredentials] = useState<PlatformCredentials>(INITIAL_CREDENTIALS);
@@ -104,6 +113,15 @@ export default function App() {
   const [savedCuts, setSavedCuts] = useState<SavedCut[]>([]);
 
   // Load saved cuts and credentials from localStorage
+  useEffect(() => {
+    const syncLegalViewWithLocation = () => {
+      setLegalView(getLegalViewFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', syncLegalViewWithLocation);
+    return () => window.removeEventListener('popstate', syncLegalViewWithLocation);
+  }, []);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_SAVED_CUTS_KEY);
@@ -221,6 +239,14 @@ export default function App() {
     setActiveTab('editor');
   };
 
+  const navigateToAppTab = (tab: 'trending' | 'analyze' | 'editor' | 'publish' | 'settings') => {
+    setLegalView(null);
+    setActiveTab(tab);
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0b0c12] text-zinc-100 flex flex-col selection:bg-[#ff0055] selection:text-white">
       {/* Global Header & Nav */}
@@ -238,13 +264,13 @@ export default function App() {
             <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
               <div>
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-950/60 border border-purple-800/40 text-purple-300 uppercase tracking-wider">
-                  Documento Oficial Obrigatório
+                  Documentação Legal
                 </span>
                 <h2 className="text-2xl font-black text-white mt-2">
-                  {legalView === 'privacy' ? 'Política de Privacidade (Privacy Policy)' : 'Termos de Serviço (Terms of Service)'}
+                  {legalView === 'privacy' ? 'Política de Privacidade' : 'Termos de Serviço'}
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
-                  URL Oficial: <code className="text-yellow-300">{window.location.origin}/{legalView}</code>
+                  URL pública: <code className="text-yellow-300">{window.location.origin}/{legalView}</code>
                 </p>
               </div>
 
@@ -261,52 +287,52 @@ export default function App() {
 
             {legalView === 'privacy' ? (
               <div className="space-y-4 text-xs text-zinc-300 leading-relaxed">
-                <h3 className="text-sm font-bold text-white">Privacy Policy for ViralShorts Studio AI</h3>
-                <p className="text-[11px] text-zinc-500">Effective Date: October 2026</p>
+                <h3 className="text-sm font-bold text-white">Política de Privacidade — {LEGAL_APP_NAME}</h3>
+                <p className="text-[11px] text-zinc-500">Última atualização: {LEGAL_UPDATED_AT_PT}</p>
 
-                <div className="p-3 bg-purple-950/20 border border-purple-800/30 rounded-xl space-y-1">
-                  <h4 className="font-bold text-purple-300">TikTok Content Posting API Compliance</h4>
-                  <p>
-                    ViralShorts Studio AI requires authorization to upload user-selected videos to TikTok via the official Content Posting API. We access only the permissions you explicitly grant: <code>video.upload</code>, <code>video.publish</code>, and <code>user.info.basic</code>.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <h4 className="font-bold text-white">1. Information We Access and Collect</h4>
-                  <p>We receive temporary OAuth access tokens strictly to publish short clips that you edit and approve in our web interface. We access your display name and avatar solely to show your connected channel status in the dashboard.</p>
-                </div>
-
-                <div className="space-y-1">
-                  <h4 className="font-bold text-white">2. No Selling of Data</h4>
-                  <p>We do not sell, rent, or commercialize your personal information, tokens, or video media to any third party or data broker.</p>
-                </div>
-
-                <div className="space-y-1">
-                  <h4 className="font-bold text-white">3. Data Retention and Deletion</h4>
-                  <p>OAuth tokens are stored securely in your browser and private session. You may revoke access at any time in TikTok settings or by clearing your keys under the "APIs & Conexões" tab in this application. For data deletion requests, contact: <strong>erick.moreiradefensoria@gmail.com</strong>.</p>
-                </div>
+                {PRIVACY_POLICY_PT_SECTIONS.map((section) => (
+                  <div key={section.title} className="space-y-1">
+                    <h4 className="font-bold text-white">{section.title}</h4>
+                    {section.paragraphs.map((paragraph, index) => (
+                      <p key={`${section.title}-paragraph-${index}`}>{paragraph}</p>
+                    ))}
+                    {section.bullets && section.bullets.length > 0 && (
+                      <ul className="list-disc pl-5 space-y-1">
+                        {section.bullets.map((bullet) => (
+                          <li key={`${section.title}-${bullet}`}>{bullet}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
 
                 <div className="pt-4 border-t border-zinc-800 text-[11px] text-zinc-400">
-                  Developer Contact: Erick Moreira • Email: erick.moreiradefensoria@gmail.com
+                  Contato: {LEGAL_CONTACT_EMAIL}
                 </div>
               </div>
             ) : (
               <div className="space-y-4 text-xs text-zinc-300 leading-relaxed">
-                <h3 className="text-sm font-bold text-white">Terms of Service for ViralShorts Studio AI</h3>
-                <p className="text-[11px] text-zinc-500">Effective Date: October 2026</p>
+                <h3 className="text-sm font-bold text-white">Termos de Serviço — {LEGAL_APP_NAME}</h3>
+                <p className="text-[11px] text-zinc-500">Última atualização: {LEGAL_UPDATED_AT_PT}</p>
 
-                <div className="space-y-1">
-                  <h4 className="font-bold text-white">1. Acceptance of Terms</h4>
-                  <p>By using ViralShorts Studio AI, you agree to these Terms of Service. You are responsible for ensuring that all video clips and media you process adhere to applicable copyright laws and platform community guidelines.</p>
-                </div>
-
-                <div className="space-y-1">
-                  <h4 className="font-bold text-white">2. Third-Party Platform Terms</h4>
-                  <p>Your use of TikTok, YouTube, and Instagram integrations is governed by the respective terms of service of each platform.</p>
-                </div>
+                {TERMS_OF_SERVICE_PT_SECTIONS.map((section) => (
+                  <div key={section.title} className="space-y-1">
+                    <h4 className="font-bold text-white">{section.title}</h4>
+                    {section.paragraphs.map((paragraph, index) => (
+                      <p key={`${section.title}-paragraph-${index}`}>{paragraph}</p>
+                    ))}
+                    {section.bullets && section.bullets.length > 0 && (
+                      <ul className="list-disc pl-5 space-y-1">
+                        {section.bullets.map((bullet) => (
+                          <li key={`${section.title}-${bullet}`}>{bullet}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
 
                 <div className="pt-4 border-t border-zinc-800 text-[11px] text-zinc-400">
-                  Developer Contact: Erick Moreira • Email: erick.moreiradefensoria@gmail.com
+                  Contato: {LEGAL_CONTACT_EMAIL}
                 </div>
               </div>
             )}
@@ -376,48 +402,52 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-6 text-zinc-400">
-            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => { setLegalView(null); setActiveTab('trending'); }}>
+            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => navigateToAppTab('trending')}>
               <Compass className="w-3.5 h-3.5 text-purple-400" />
               Tendências
             </span>
-            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => { setLegalView(null); setActiveTab('analyze'); }}>
+            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => navigateToAppTab('analyze')}>
               <Sparkles className="w-3.5 h-3.5 text-pink-400" />
               Detecção IA
             </span>
-            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => { setLegalView(null); setActiveTab('editor'); }}>
+            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => navigateToAppTab('editor')}>
               <Scissors className="w-3.5 h-3.5 text-yellow-400" />
               Editor 9:16
             </span>
-            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => { setLegalView(null); setActiveTab('publish'); }}>
+            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => navigateToAppTab('publish')}>
               <Share2 className="w-3.5 h-3.5 text-blue-400" />
               Publicação
             </span>
-            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => { setLegalView(null); setActiveTab('settings'); }}>
+            <span className="flex items-center gap-1.5 hover:text-white transition cursor-pointer" onClick={() => navigateToAppTab('settings')}>
               <Key className="w-3.5 h-3.5 text-pink-400" />
               APIs & Conexões
             </span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-zinc-500">
-            <button
-              onClick={() => {
+            <a
+              href="/privacy"
+              onClick={(event) => {
+                event.preventDefault();
                 setLegalView('privacy');
                 window.history.pushState({}, '', '/privacy');
               }}
               className="hover:text-purple-400 underline transition"
             >
               Política de Privacidade (/privacy)
-            </button>
+            </a>
             <span>•</span>
-            <button
-              onClick={() => {
+            <a
+              href="/terms"
+              onClick={(event) => {
+                event.preventDefault();
                 setLegalView('terms');
                 window.history.pushState({}, '', '/terms');
               }}
               className="hover:text-purple-400 underline transition"
             >
               Termos de Serviço (/terms)
-            </button>
+            </a>
           </div>
         </div>
       </footer>
