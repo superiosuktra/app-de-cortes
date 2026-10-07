@@ -224,6 +224,37 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
                 </div>
               </div>
 
+              {/* One-Click Demo Mode Option */}
+              <div className="p-3.5 bg-red-950/30 border border-red-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                    Deseja apenas testar a ferramenta agora?
+                  </span>
+                  <p className="text-[11px] text-zinc-400">
+                    Ative a conexão de demonstração com 1 clique para testar cortes e fila sem Google Cloud.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const demoToken = 'demo_youtube_shorts_verified_token';
+                    const newTokens = { ...tokens, youtube: demoToken };
+                    setTokens(newTokens);
+                    onSaveTokens(newTokens);
+                    setTestResult({
+                      valid: true,
+                      accountName: 'Canal YouTube (Modo Teste/Demo)',
+                      avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+                      details: 'Modo Demonstração ativado! Pode usar a fila de postagem normalmente.',
+                    });
+                  }}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-red-600 to-pink-600 hover:opacity-90 text-white text-xs font-bold rounded-lg transition shrink-0"
+                >
+                  Ativar Teste (1 Clique)
+                </button>
+              </div>
+
               {/* Token Input & Test Box */}
               <div className="p-4 bg-[#161726] border border-zinc-700/80 rounded-2xl space-y-3">
                 <label className="text-xs font-bold text-white flex items-center justify-between">
@@ -414,10 +445,11 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-zinc-800 bg-[#161725] flex items-center justify-between">
-          <p className="text-[11px] text-zinc-400">
-            🔒 Os tokens são salvos com segurança no seu navegador.
-          </p>
+        <div className="px-6 py-4 border-t border-zinc-800 bg-[#161725] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-medium">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>🔒 Armazenamento Permanente: Configura apenas 1 vez. Fica salvo no navegador e na fila automática!</span>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={onClose}

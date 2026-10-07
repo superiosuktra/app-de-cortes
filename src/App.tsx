@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { TrendingTab } from './components/TrendingTab';
 import { AnalyzeTab } from './components/AnalyzeTab';
@@ -8,6 +8,7 @@ import { ConnectionSettings } from './components/ConnectionSettings';
 import { VideoInfo, ViralCut, SavedCut, PlatformCredentials, QueueItem, AutoPostSettings, SocialPlatform } from './types';
 import { fetchJson } from './utils/api';
 import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key, Zap } from 'lucide-react';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v1';
 const STORAGE_CREDENTIALS_KEY = 'viral_shorts_full_credentials_v1';
@@ -119,8 +120,11 @@ export default function App() {
   const [savedCuts, setSavedCuts] = useState<SavedCut[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [autoPostSettings, setAutoPostSettings] = useState<AutoPostSettings>(DEFAULT_AUTO_POST_SETTINGS);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const initialLoadDone = useRef<boolean>(false);
 
-  // Load saved cuts, queue, settings and credentials from localStorage
+  // Load saved cuts, queue, settings and credentials from localStorage AND disk backend
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_SAVED_CUTS_KEY);
@@ -187,26 +191,136 @@ export default function App() {
         setAutoPostSettings(JSON.parse(storedQueueSettings));
       }
 
+      // Load credentials and unify with tokens storage
       const storedCreds = localStorage.getItem(STORAGE_CREDENTIALS_KEY);
+      const storedTokens = localStorage.getItem('viral_shorts_platform_tokens_v1');
+      let mergedCreds: PlatformCredentials = INITIAL_CREDENTIALS;
       if (storedCreds) {
-        const parsed = JSON.parse(storedCreds);
-        setCredentials(parsed);
-        // Sync with backend
-        fetch('/api/settings/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credentials: parsed }),
-        }).catch(() => {});
+        try {
+          mergedCreds = { ...INITIAL_CREDENTIALS, ...JSON.parse(storedCreds) };
+        } catch (e) {
+          console.warn('Failed to parse stored credentials:', e);
+        }
       }
+      if (storedTokens) {
+        try {
+          const t = JSON.parse(storedTokens);
+          if (t.youtube && !mergedCreds.youtube?.accessToken) {
+            mergedCreds.youtube = { ...mergedCreds.youtube, accessToken: t.youtube, status: 'connected' };
+          }
+          if (t.instagram && !mergedCreds.instagram?.accessToken) {
+            mergedCreds.instagram = { ...mergedCreds.instagram, accessToken: t.instagram, status: 'connected' };
+          }
+          if (t.tiktok && !mergedCreds.tiktok?.accessToken) {
+            mergedCreds.tiktok = { ...mergedCreds.tiktok, accessToken: t.tiktok, status: 'connected' };
+          }
+        } catch (e) {
+          console.warn('Failed to parse stored tokens:', e);
+        }
+      }
+      setCredentials(mergedCreds);
+
+      // Fetch persistent backend storage to restore state across restarts/browsers
+      fetch('/api/storage/state')
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.success && res.state) {
+            if (res.state.lastUpdated) {
+              setLastSavedAt(res.state.lastUpdated);
+            }
+            if (Array.isArray(res.state.savedCuts) && res.state.savedCuts.length > 0) {
+              setSavedCuts(res.state.savedCuts);
+            }
+            if (Array.isArray(res.state.queue) && res.state.queue.length > 0) {
+              setQueue(res.state.queue);
+            }
+            if (res.state.autoPostSettings) {
+              setAutoPostSettings(res.state.autoPostSettings);
+            }
+            if (res.state.credentials) {
+              setCredentials((prev) => ({
+                ...prev,
+                ...res.state.credentials,
+                youtube: { ...prev.youtube, ...res.state.credentials.youtube },
+                instagram: { ...prev.instagram, ...res.state.credentials.instagram },
+                tiktok: { ...prev.tiktok, ...res.state.credentials.tiktok },
+              }));
+            }
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          initialLoadDone.current = true;
+        });
+
+      // Sync with backend
+      fetch('/api/settings/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentials: mergedCreds }),
+      }).catch(() => {});
     } catch (e) {
       console.warn('Failed to load storage items:', e);
+      initialLoadDone.current = true;
     }
   }, []);
+
+  // Automatic Background Persistence to Disk and LocalStorage
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    try {
+      localStorage.setItem(STORAGE_SAVED_CUTS_KEY, JSON.stringify(savedCuts));
+    } catch (e) {}
+
+    const timer = setTimeout(() => {
+      setIsSaving(true);
+      fetch('/api/storage/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials }),
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.success) {
+            setLastSavedAt(res.lastUpdated || new Date().toISOString());
+          }
+        })
+        .catch((e) => console.warn('Auto-save error:', e))
+        .finally(() => setIsSaving(false));
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [savedCuts, queue, autoPostSettings, credentials]);
+
+  const handleForceSync = () => {
+    setIsSaving(true);
+    fetch('/api/storage/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials }),
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success) {
+          setLastSavedAt(res.lastUpdated || new Date().toISOString());
+        }
+      })
+      .catch((e) => console.warn('Manual sync error:', e))
+      .finally(() => setIsSaving(false));
+  };
 
   const handleSaveCredentials = (newCreds: PlatformCredentials) => {
     setCredentials(newCreds);
     try {
       localStorage.setItem(STORAGE_CREDENTIALS_KEY, JSON.stringify(newCreds));
+      // Keep alternate tokens key also in sync
+      const tokensObj = {
+        youtube: newCreds.youtube?.accessToken || '',
+        instagram: newCreds.instagram?.accessToken || '',
+        tiktok: newCreds.tiktok?.accessToken || '',
+      };
+      localStorage.setItem('viral_shorts_platform_tokens_v1', JSON.stringify(tokensObj));
+
       fetch('/api/settings/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -499,6 +613,9 @@ export default function App() {
         savedCount={savedCuts.length}
         queueCount={queue.filter((q) => q.status === 'pending').length}
         isQueueActive={autoPostSettings.isActive}
+        lastSavedAt={lastSavedAt}
+        isSaving={isSaving}
+        onManualSync={handleForceSync}
       />
 
       {/* Main Content Area */}
@@ -640,6 +757,7 @@ export default function App() {
                 onToggleQueueActive={handleToggleQueueActive}
                 onEnqueueCurrentCut={handleEnqueueSingleCut}
                 credentials={credentials}
+                onSaveCredentials={handleSaveCredentials}
               />
             )}
 
@@ -710,6 +828,9 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* PWA Offline Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }

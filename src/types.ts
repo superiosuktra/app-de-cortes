@@ -61,6 +61,7 @@ export interface SavedCut {
 export interface PlatformCredentials {
   youtube: {
     accessToken: string;
+    refreshToken?: string;
     clientId?: string;
     clientSecret?: string;
     channelTitle?: string;

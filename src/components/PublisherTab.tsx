@@ -48,6 +48,7 @@ interface PublisherTabProps {
   onToggleQueueActive: (active: boolean) => void;
   onEnqueueCurrentCut: (cut: ViralCut) => void;
   credentials: PlatformCredentials;
+  onSaveCredentials?: (newCreds: PlatformCredentials) => void;
 }
 
 export const PublisherTab: React.FC<PublisherTabProps> = ({
@@ -67,6 +68,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   onToggleQueueActive,
   onEnqueueCurrentCut,
   credentials,
+  onSaveCredentials,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'manual'>(
     queue.length > 0 ? 'queue' : 'manual'
@@ -89,19 +91,25 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   const [isCopiedCaption, setIsCopiedCaption] = useState<boolean>(false);
   const [isCopiedTitle, setIsCopiedTitle] = useState<boolean>(false);
 
-  // Load tokens from localStorage
+  // Load tokens from localStorage and credentials prop
   useEffect(() => {
     try {
       const stored = localStorage.getItem(TOKENS_STORAGE_KEY);
+      let loadedTokens = { youtube: '', instagram: '', tiktok: '' };
       if (stored) {
-        const parsed = JSON.parse(stored);
-        setTokens(parsed);
-        if (parsed.youtube) setAccessToken(parsed.youtube);
+        loadedTokens = JSON.parse(stored);
       }
+      if (credentials) {
+        if (credentials.youtube?.accessToken) loadedTokens.youtube = credentials.youtube.accessToken;
+        if (credentials.instagram?.accessToken) loadedTokens.instagram = credentials.instagram.accessToken;
+        if (credentials.tiktok?.accessToken) loadedTokens.tiktok = credentials.tiktok.accessToken;
+      }
+      setTokens(loadedTokens);
+      if (loadedTokens.youtube) setAccessToken(loadedTokens.youtube);
     } catch (e) {
       console.warn('Failed to load platform tokens:', e);
     }
-  }, []);
+  }, [credentials]);
 
   const handleSaveTokens = (newTokens: { youtube: string; instagram: string; tiktok: string }) => {
     setTokens(newTokens);
@@ -112,6 +120,28 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
       localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(newTokens));
     } catch (e) {
       console.warn('Failed to save platform tokens:', e);
+    }
+
+    if (onSaveCredentials && credentials) {
+      const updatedCreds: PlatformCredentials = {
+        ...credentials,
+        youtube: {
+          ...credentials.youtube,
+          accessToken: newTokens.youtube,
+          status: newTokens.youtube ? 'connected' : credentials.youtube?.status || 'disconnected',
+        },
+        instagram: {
+          ...credentials.instagram,
+          accessToken: newTokens.instagram,
+          status: newTokens.instagram ? 'connected' : credentials.instagram?.status || 'disconnected',
+        },
+        tiktok: {
+          ...credentials.tiktok,
+          accessToken: newTokens.tiktok,
+          status: newTokens.tiktok ? 'connected' : credentials.tiktok?.status || 'disconnected',
+        },
+      };
+      onSaveCredentials(updatedCreds);
     }
   };
 
@@ -557,6 +587,11 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                   </button>
                 </div>
 
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/30 border border-purple-500/20 rounded-xl text-[11px] text-purple-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>🔒 Salvo permanentemente no navegador. Você conecta uma única vez!</span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-zinc-400">Visibilidade Inicial</label>
@@ -611,6 +646,11 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                   </button>
                 </div>
 
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/30 border border-purple-500/20 rounded-xl text-[11px] text-purple-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>🔒 Salvo permanentemente no navegador. Você conecta uma única vez!</span>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-semibold text-zinc-400 flex items-center justify-between">
                     <span>Meta Page Access Token (Instagram Content Publish)</span>
@@ -648,6 +688,11 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                   >
                     Como Obter Token?
                   </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/30 border border-purple-500/20 rounded-xl text-[11px] text-purple-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>🔒 Salvo permanentemente no navegador. Você conecta uma única vez!</span>
                 </div>
 
                 <div className="space-y-1.5">

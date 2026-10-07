@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { YoutubeTranscript } from 'youtube-transcript';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -434,6 +435,15 @@ app.post('/api/post-youtube', async (req, res) => {
       });
     }
 
+    if (accessToken.startsWith('demo_') || accessToken === 'demo-youtube-token') {
+      return res.json({
+        success: true,
+        videoId: 'demo_yt_video_123',
+        account: 'Canal Demo (Modo Teste)',
+        message: `[Modo Demonstração] Vídeo "${title || 'Short Viral'}" processado e publicado no canal de teste!`,
+      });
+    }
+
     // In a pure web environment without file uploads, we verify credentials with the YouTube API
     // and provide exact instructions or initiate metadata sync
     const channelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
@@ -489,18 +499,38 @@ app.post('/api/post-social', async (req, res) => {
     const cleanToken = token.trim();
 
     if (platform === 'youtube') {
-      const channelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
-        headers: { Authorization: `Bearer ${cleanToken}` },
-      });
-
-      if (!channelRes.ok) {
-        const errData = await channelRes.json().catch(() => ({}));
-        return res.status(channelRes.status).json({
-          error: `Erro YouTube API (${channelRes.status}): ${errData?.error?.message || channelRes.statusText}`,
+      if (cleanToken.startsWith('demo_') || cleanToken === 'demo-youtube-token') {
+        return res.json({
+          success: true,
+          platform: 'youtube',
+          account: 'Canal Demo (Modo Teste)',
+          message: `[Modo Demonstração] Publicação transmitida para YouTube Shorts no canal de teste com visibilidade "${privacy}".`,
+          publishedAt: new Date().toISOString(),
         });
       }
 
-      const channelData = await channelRes.json();
+      let activeChannelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+        headers: { Authorization: `Bearer ${cleanToken}` },
+      });
+
+      // If token expired (401), try automatic refresh via refreshToken
+      if (!activeChannelRes.ok && activeChannelRes.status === 401) {
+        const refreshed = await refreshYouTubeToken();
+        if (refreshed) {
+          activeChannelRes = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+            headers: { Authorization: `Bearer ${refreshed}` },
+          });
+        }
+      }
+
+      if (!activeChannelRes.ok) {
+        const errData = await activeChannelRes.json().catch(() => ({}));
+        return res.status(activeChannelRes.status).json({
+          error: `Erro YouTube API (${activeChannelRes.status}): ${errData?.error?.message || activeChannelRes.statusText}`,
+        });
+      }
+
+      const channelData = await activeChannelRes.json();
       const channelName = channelData.items?.[0]?.snippet?.title || 'Canal do YouTube';
       return res.json({
         success: true,
@@ -570,17 +600,63 @@ app.post('/api/post-social', async (req, res) => {
 // 8. Verify YouTube Token
 app.post('/api/verify-token/youtube', async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token?.trim()) {
+    const { token, refreshToken } = req.body;
+    if (!token?.trim() && !refreshToken?.trim()) {
       return res.status(400).json({ error: 'Token não fornecido.' });
     }
 
-    const response = await fetch(
+    let tokenToUse = (token || '').trim();
+
+    // Smart JSON parser if user pasted entire OAuth Playground JSON block
+    if (tokenToUse.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(tokenToUse);
+        if (parsed.refresh_token) {
+          serverCredentials.youtube.refreshToken = parsed.refresh_token;
+        }
+        if (parsed.access_token) {
+          tokenToUse = parsed.access_token;
+        }
+      } catch (e) {}
+    }
+
+    if (refreshToken?.trim()) {
+      serverCredentials.youtube.refreshToken = refreshToken.trim();
+    }
+
+    if (tokenToUse.startsWith('demo_') || tokenToUse === 'demo-youtube-token') {
+      return res.json({
+        valid: true,
+        accountName: 'Canal YouTube (Modo Teste/Demo)',
+        customUrl: '@canal.demonstracao',
+        avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+        subscribers: '15.4K',
+        details: 'Modo Demonstração ativo! Toda a fila automática pode ser testada sem configuração do Google Cloud.',
+      });
+    }
+
+    let response = await fetch(
       'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
       {
-        headers: { Authorization: `Bearer ${token.trim()}` },
+        headers: { Authorization: `Bearer ${tokenToUse}` },
       }
     );
+
+    // If access token expired, try automatic refresh with refreshToken
+    if (!response.ok && response.status === 401) {
+      const refreshedToken = await refreshYouTubeToken();
+      if (refreshedToken) {
+        response = await fetch(
+          'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
+          {
+            headers: { Authorization: `Bearer ${refreshedToken}` },
+          }
+        );
+        if (response.ok) {
+          tokenToUse = refreshedToken;
+        }
+      }
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -697,12 +773,183 @@ app.post('/api/verify-token/tiktok', async (req, res) => {
   }
 });
 
-// 11. In-memory Credentials Store & Synchronizer
-let serverCredentials = {
-  youtube: { accessToken: '', clientId: '', clientSecret: '', status: 'disconnected', channelTitle: '', avatar: '', verifiedAt: '' },
-  instagram: { accessToken: '', businessAccountId: '', appId: '', appSecret: '', status: 'disconnected', accountName: '', avatar: '', verifiedAt: '' },
-  tiktok: { accessToken: '', clientKey: '', clientSecret: '', status: 'disconnected', displayName: '', avatar: '', verifiedAt: '' },
+// 11. Persistent Credentials & Full State Store (Auto-saved on disk - No manual backup needed)
+const DATA_DIR = path.join(__dirname, 'data');
+const STATE_FILE = path.join(DATA_DIR, 'app_state.json');
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (e) {
+    console.warn('Could not create data dir:', e);
+  }
+}
+
+interface PersistedState {
+  credentials: {
+    youtube: any;
+    instagram: any;
+    tiktok: any;
+  };
+  savedCuts: any[];
+  queue: any[];
+  autoPostSettings: any;
+  lastUpdated: string;
+}
+
+const DEFAULT_STATE: PersistedState = {
+  credentials: {
+    youtube: { accessToken: '', refreshToken: '', clientId: '', clientSecret: '', status: 'disconnected', channelTitle: '', avatar: '', verifiedAt: '' },
+    instagram: { accessToken: '', businessAccountId: '', appId: '', appSecret: '', status: 'disconnected', accountName: '', avatar: '', verifiedAt: '' },
+    tiktok: { accessToken: '', clientKey: '', clientSecret: '', status: 'disconnected', displayName: '', avatar: '', verifiedAt: '' },
+  },
+  savedCuts: [],
+  queue: [],
+  autoPostSettings: null,
+  lastUpdated: new Date().toISOString(),
 };
+
+function loadPersistedState(): PersistedState {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const content = fs.readFileSync(STATE_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      return {
+        credentials: { ...DEFAULT_STATE.credentials, ...(parsed.credentials || {}) },
+        savedCuts: Array.isArray(parsed.savedCuts) ? parsed.savedCuts : [],
+        queue: Array.isArray(parsed.queue) ? parsed.queue : [],
+        autoPostSettings: parsed.autoPostSettings || null,
+        lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+      };
+    }
+  } catch (err) {
+    console.warn('Could not read state file, using defaults:', err);
+  }
+  return { ...DEFAULT_STATE };
+}
+
+let appState = loadPersistedState();
+let serverCredentials = appState.credentials;
+
+function savePersistedStateToDisk() {
+  try {
+    appState.credentials = serverCredentials;
+    appState.lastUpdated = new Date().toISOString();
+    fs.writeFileSync(STATE_FILE, JSON.stringify(appState, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to persist app state to disk:', err);
+  }
+}
+
+// Automatic Refresh Token Handler for YouTube
+async function refreshYouTubeToken(): Promise<string | null> {
+  const refreshToken = (serverCredentials.youtube.refreshToken || '').trim();
+  if (!refreshToken) return null;
+
+  try {
+    const params = new URLSearchParams();
+    // Default OAuth Playground Client ID if custom one is not provided
+    const clientId = serverCredentials.youtube.clientId?.trim() || '407408718192.apps.googleusercontent.com';
+    params.append('client_id', clientId);
+    if (serverCredentials.youtube.clientSecret?.trim()) {
+      params.append('client_secret', serverCredentials.youtube.clientSecret.trim());
+    }
+    params.append('refresh_token', refreshToken);
+    params.append('grant_type', 'refresh_token');
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.access_token) {
+        serverCredentials.youtube.accessToken = data.access_token;
+        serverCredentials.youtube.status = 'connected';
+        serverCredentials.youtube.verifiedAt = new Date().toLocaleTimeString('pt-BR');
+        savePersistedStateToDisk();
+        console.log('🔄 YouTube Token renovado automaticamente via Refresh Token!');
+        return data.access_token;
+      }
+    } else {
+      const err = await response.text();
+      console.warn('Falha ao renovar token do YouTube via Refresh Token:', err);
+    }
+  } catch (e) {
+    console.warn('Erro ao requisitar renovação de token do YouTube:', e);
+  }
+  return null;
+}
+
+app.post('/api/refresh-token/youtube', async (_req, res) => {
+  const newToken = await refreshYouTubeToken();
+  if (newToken) {
+    res.json({
+      success: true,
+      accessToken: newToken,
+      message: 'Token de acesso do YouTube renovado com sucesso pelo Refresh Token!',
+      verifiedAt: serverCredentials.youtube.verifiedAt,
+    });
+  } else {
+    res.status(400).json({
+      success: false,
+      error: 'Não foi possível renovar o token. Verifique se o Refresh Token (1//...) está correto.',
+    });
+  }
+});
+
+// Full App State Endpoints for 100% Automatic Backup & Synchronization
+app.get('/api/storage/state', (_req, res) => {
+  res.json({
+    success: true,
+    state: appState,
+    autoSaveActive: true,
+    lastUpdated: appState.lastUpdated,
+  });
+});
+
+app.post('/api/storage/state', (req, res) => {
+  try {
+    const { savedCuts, queue, autoPostSettings, credentials } = req.body;
+    if (Array.isArray(savedCuts)) {
+      appState.savedCuts = savedCuts;
+    }
+    if (Array.isArray(queue)) {
+      appState.queue = queue;
+    }
+    if (autoPostSettings) {
+      appState.autoPostSettings = autoPostSettings;
+    }
+    if (credentials) {
+      if (credentials.youtube) serverCredentials.youtube = { ...serverCredentials.youtube, ...credentials.youtube };
+      if (credentials.instagram) serverCredentials.instagram = { ...serverCredentials.instagram, ...credentials.instagram };
+      if (credentials.tiktok) serverCredentials.tiktok = { ...serverCredentials.tiktok, ...credentials.tiktok };
+      appState.credentials = serverCredentials;
+    }
+    savePersistedStateToDisk();
+    res.json({
+      success: true,
+      message: 'Dados salvos automaticamente com sucesso no disco persistente.',
+      lastUpdated: appState.lastUpdated,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Erro ao persistir dados.' });
+  }
+});
+
+app.get('/api/storage/status', (_req, res) => {
+  res.json({
+    autoSaveActive: true,
+    persistentStorage: true,
+    lastUpdated: appState.lastUpdated,
+    savedCutsCount: appState.savedCuts.length,
+    queueCount: appState.queue.length,
+    storagePath: STATE_FILE,
+  });
+});
 
 app.get('/api/settings/credentials', (_req, res) => {
   // Return credentials with secrets masked for security
@@ -723,7 +970,7 @@ app.get('/api/settings/credentials', (_req, res) => {
       clientSecret: serverCredentials.tiktok.clientSecret ? '••••••••' : '',
     },
   };
-  res.json({ credentials: safeCreds, rawAvailable: true });
+  res.json({ credentials: safeCreds, rawAvailable: true, autoSaveActive: true });
 });
 
 app.post('/api/settings/credentials', (req, res) => {
@@ -738,8 +985,9 @@ app.post('/api/settings/credentials', (req, res) => {
     if (credentials.tiktok) {
       serverCredentials.tiktok = { ...serverCredentials.tiktok, ...credentials.tiktok };
     }
+    savePersistedStateToDisk();
   }
-  res.json({ success: true, message: 'Credenciais sincronizadas com sucesso no backend.' });
+  res.json({ success: true, message: 'Credenciais sincronizadas e gravadas com sucesso no disco persistente.' });
 });
 
 app.post('/api/settings/credentials/clear', (req, res) => {
@@ -753,7 +1001,8 @@ app.post('/api/settings/credentials/clear', (req, res) => {
       tiktok: { accessToken: '', clientKey: '', clientSecret: '', status: 'disconnected', displayName: '', avatar: '', verifiedAt: '' },
     };
   }
-  res.json({ success: true, message: 'Credenciais redefinidas.' });
+  savePersistedStateToDisk();
+  res.json({ success: true, message: 'Credenciais redefinidas e removidas do disco persistente.' });
 });
 
 // 12. Privacy Policy & Terms of Service Standalone Pages for TikTok & Google Review
