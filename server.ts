@@ -1433,7 +1433,7 @@ function savePersistedStateToDisk() {
   try {
     appState.credentials = serverCredentials;
     appState.lastUpdated = new Date().toISOString();
-    fs.writeFileSync(STATE_FILE, JSON.stringify(appState, null, 2), 'utf-8');
+    fs.promises.writeFile(STATE_FILE, JSON.stringify(appState, null, 2), 'utf-8').catch(err => console.error('Erro assíncrono ao salvar estado:', err));
   } catch (err) {
     console.error('Failed to persist app state to disk:', err);
   }
@@ -2109,3 +2109,33 @@ async function setupServer() {
 setupServer().catch((err) => {
   console.error('Failed to start server:', err);
 });
+
+
+// --- Adicionado: Rotina Automática de Limpeza de Arquivos Temporários (/tmp) ---
+setInterval(() => {
+  try {
+    const tmpDir = '/tmp';
+    if (fs.existsSync(tmpDir)) {
+      const files = fs.readdirSync(tmpDir);
+      const now = Date.now();
+      
+      files.forEach(file => {
+        // Verifica prefixos comuns usados pelo app
+        if (file.startsWith('cut_rendered_') || file.startsWith('title_') || 
+            file.startsWith('yt_') || file.endsWith('.mp4') || file.endsWith('.txt')) {
+          
+          const filePath = path.join(tmpDir, file);
+          const stats = fs.statSync(filePath);
+          
+          // Se o arquivo for mais antigo que 1 hora (3600000 ms), removemos
+          if (now - stats.mtimeMs > 1000 * 60 * 60) {
+            fs.unlinkSync(filePath);
+            console.log(`Lixo temporário removido com sucesso: ${filePath}`);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Erro na rotina de limpeza de arquivos /tmp:', err);
+  }
+}, 1000 * 60 * 60); // Executa a cada 1 hora
