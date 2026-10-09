@@ -115,23 +115,51 @@ export const CURATED_TRENDING_VIDEOS: TrendingVideo[] = [
 
 export const FORMAT_OPTIONS = [
   {
-    id: 'vertical_crop',
-    label: 'Vertical 9:16 - Recorte Central',
-    badge: 'Mais Popular',
-    desc: 'Corta as laterais mantendo o centro do vídeo preenchendo 100% da tela do smartphone.',
+    id: 'split_screen',
+    label: 'Split Screen (2 Câmeras Empilhadas)',
+    badge: '🔥 O Mais Viral (Podcasts)',
+    desc: 'Empilha duas câmeras verticais (Convidado em cima e Host embaixo). Ambos os participantes ficam visíveis sem cortar ninguém ao meio.',
+    aspect: '9/16',
+  },
+  {
+    id: 'speaker_left',
+    label: 'Foco no Apresentador (Câmera Esquerda)',
+    badge: 'Host / Apresentador',
+    desc: 'Enquadra perfeitamente quem está sentado do lado esquerdo da mesa de podcast.',
+    aspect: '9/16',
+  },
+  {
+    id: 'speaker_right',
+    label: 'Foco no Convidado (Câmera Direita)',
+    badge: 'Convidado Especial',
+    desc: 'Enquadra perfeitamente quem está sentado do lado direito da mesa de podcast.',
     aspect: '9/16',
   },
   {
     id: 'vertical_blur',
-    label: 'Vertical 9:16 - Fundo Desfocado',
-    badge: 'Estilo Podcast',
-    desc: 'Mantém o vídeo original no centro com um fundo duplicado e desfocado elegante nas barras superior e inferior.',
+    label: 'Vertical 9:16 - Fundo Desfocado Cinemático',
+    badge: '100% Seguro',
+    desc: 'Mantém o vídeo original 16:9 completo no centro com fundo desfocado elegante nas barras superior e inferior.',
+    aspect: '9/16',
+  },
+  {
+    id: 'speaker_center',
+    label: 'Foco Central (Solo / Monólogo)',
+    badge: 'Monólogo',
+    desc: 'Enquadramento vertical centralizado para vídeos individuais, aulas ou palestras.',
+    aspect: '9/16',
+  },
+  {
+    id: 'vertical_crop',
+    label: 'Vertical 9:16 - Recorte Central Clássico',
+    badge: 'Padrão',
+    desc: 'Corta as laterais mantendo o centro do vídeo preenchendo toda a tela do smartphone.',
     aspect: '9/16',
   },
   {
     id: 'original',
-    label: 'Original 16:9 - Horizontal',
-    badge: 'Widescreen',
+    label: 'Original 16:9 - Widescreen',
+    badge: 'Horizontal',
     desc: 'Mantém a proporção horizontal original do YouTube sem cortes ou distorções.',
     aspect: '16/9',
   },
@@ -141,5 +169,36 @@ export const FORMAT_OPTIONS = [
     badge: 'Instagram Feed',
     desc: 'Formato clássico 1:1 perfeito para carrosséis e posts de feed no Instagram ou LinkedIn.',
     aspect: '1/1',
+  },
+] as const;
+
+export const SUBTITLE_THEMES = [
+  {
+    id: 'hormozi',
+    name: 'Alex Hormozi',
+    color: '#FACC15', // Yellow
+    accent: '#000000',
+    desc: 'Texto branco em caixa alta com palavras de choque destacadas em amarelo e borda preta grossa.',
+  },
+  {
+    id: 'beast',
+    name: 'MrBeast',
+    color: '#22C55E', // Green
+    accent: '#000000',
+    desc: 'Verde neon vibrante com alta saturação e ganchos dinâmicos de retenção acelerada.',
+  },
+  {
+    id: 'cyberpunk',
+    name: 'Cyberpunk Neon',
+    color: '#EC4899', // Pink / Magenta
+    accent: '#7C3AED',
+    desc: 'Fúcsia e roxo de alto contraste para vídeos de tecnologia, IA e mistério.',
+  },
+  {
+    id: 'clean',
+    name: 'Clean Minimal',
+    color: '#FFFFFF', // White
+    accent: '#18181B',
+    desc: 'Branco elegante com sombra suave e estilo discreto para negócios e finanças.',
   },
 ] as const;

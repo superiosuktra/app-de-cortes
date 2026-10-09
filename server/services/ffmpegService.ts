@@ -37,9 +37,9 @@ export function getYtdlpPath(): string {
 }
 
 /**
- * Escapes a string to be safely written into a temporary text file for FFmpeg drawtext
+ * Escapes a string to be safely written into a temporary text file or filter for FFmpeg
  */
-function sanitizeTextContent(text: string, maxLength: number = 80): string {
+function sanitizeTextContent(text: string, maxLength: number = 70): string {
   return (text || '')
     .replace(/[\r\n\t]+/g, ' ')
     .replace(/["'\\]/g, '')
@@ -47,8 +47,52 @@ function sanitizeTextContent(text: string, maxLength: number = 80): string {
     .slice(0, maxLength);
 }
 
+function formatSecondsToMMSS(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(s / 60);
+  const remS = s % 60;
+  return `${m.toString().padStart(2, '0')}:${remS.toString().padStart(2, '0')}`;
+}
+
 /**
- * Downloads a precise slice directly from a YouTube video
+ * Builds high-quality FFmpeg filter complexes based on viral clipping platform standards (Opus Clip / Klap)
+ */
+export function buildLayoutFilter(format: string = 'split_screen'): string {
+  switch (format) {
+    case 'split_screen':
+      // Dual-camera stacked layout: Top = Guest (right side), Bottom = Host (left side) with subtle divider
+      return `[0:v]crop=trunc(ih*9/16/2)*2:ih:trunc(iw*0.52/2)*2:0,scale=1080:960:flags=lanczos[top];[0:v]crop=trunc(ih*9/16/2)*2:ih:trunc(iw*0.08/2)*2:0,scale=1080:960:flags=lanczos[bottom];[top][bottom]vstack=inputs=2,drawbox=x=0:y=956:w=1080:h=8:color=white@0.5:t=fill,setsar=1[v]`;
+
+    case 'speaker_left':
+      // Focused on host / left seated person in podcasts
+      return `[0:v]crop=trunc(ih*9/16/2)*2:ih:trunc(iw*0.08/2)*2:0,scale=1080:1920:flags=lanczos,setsar=1[v]`;
+
+    case 'speaker_right':
+      // Focused on guest / right seated person in podcasts
+      return `[0:v]crop=trunc(ih*9/16/2)*2:ih:trunc(iw*0.52/2)*2:0,scale=1080:1920:flags=lanczos,setsar=1[v]`;
+
+    case 'speaker_center':
+    case 'vertical_crop':
+      // Centered 9:16 crop for solo speakers or monologues
+      return `[0:v]crop=trunc(ih*9/16/2)*2:ih:(in_w-out_w)/2:0,scale=1080:1920:flags=lanczos,setsar=1[v]`;
+
+    case 'square':
+      // 1:1 Social Feed
+      return `[0:v]crop=min(iw\\,ih):min(iw\\,ih),scale=1080:1080:flags=lanczos,setsar=1[v]`;
+
+    case 'original':
+      // 16:9 Widescreen with sharp Lanczos scaling
+      return `[0:v]scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v]`;
+
+    case 'vertical_blur':
+    default:
+      // Cinematic blur fit: 16:9 in center, dark blurred background top and bottom
+      return `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5,drawbox=x=0:y=0:w=1080:h=1920:color=black@0.4:t=fill[bg];[0:v]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`;
+  }
+}
+
+/**
+ * Downloads a precise slice directly from a YouTube video in pristine 1080p Full HD
  */
 export async function downloadYouTubeSlice({
   videoUrl,
@@ -66,7 +110,7 @@ export async function downloadYouTubeSlice({
   const ytdlpBinary = getYtdlpPath();
   const nodePath = process.execPath;
 
-  console.log(`[YouTube Downloader] Baixando trecho (${startTime} -> ${endTime}) de ${videoUrl}`);
+  console.log(`[YouTube Downloader] Baixando trecho em alta definição 1080p (${startTime} -> ${endTime}) de ${videoUrl}`);
 
   const args = [
     '--no-playlist',
@@ -79,6 +123,9 @@ export async function downloadYouTubeSlice({
     `node:${nodePath}`,
     '--ffmpeg-location',
     ffmpegDir,
+    // Explicitly demand 1080p / highest available video and audio streams
+    '-f',
+    'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
     '--download-sections',
     `*${startTime}-${endTime}`,
     videoUrl,
@@ -86,9 +133,8 @@ export async function downloadYouTubeSlice({
     outBase,
   ];
 
-  await execFilePromise(ytdlpBinary, args, { timeout: 120000 });
+  await execFilePromise(ytdlpBinary, args, { timeout: 150000 });
 
-  // yt-dlp may output .mp4, .mp4.webm, or .webm
   if (fs.existsSync(outBase)) {
     return outBase;
   }
@@ -103,7 +149,7 @@ export async function downloadYouTubeSlice({
     }
   }
 
-  throw new Error('Falha ao baixar o trecho do vídeo com yt-dlp. Verifique a URL do vídeo.');
+  throw new Error('Falha ao baixar o trecho do vídeo com yt-dlp em alta qualidade. Verifique a URL do vídeo.');
 }
 
 /**
@@ -113,7 +159,7 @@ export async function downloadAndProcessYouTubeCut({
   videoUrl,
   startTime,
   endTime,
-  format = 'vertical_blur',
+  format = 'split_screen',
   overlayTitle = '',
   hook = '',
 }: {
@@ -128,12 +174,10 @@ export async function downloadAndProcessYouTubeCut({
   try {
     rawSlicePath = await downloadYouTubeSlice({ videoUrl, startTime, endTime });
 
-    // The downloaded slice is already timed from 00:00 to duration
     const startSec = parseTimeToSeconds(startTime || '00:00');
     const endSec = parseTimeToSeconds(endTime || '00:30');
     const duration = Math.max(1, endSec - startSec);
 
-    // Now render the slice using local FFmpeg
     const renderedPath = await renderRealCutVideo({
       inputFilePath: rawSlicePath,
       startTime: '00:00',
@@ -153,21 +197,14 @@ export async function downloadAndProcessYouTubeCut({
   }
 }
 
-function formatSecondsToMMSS(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(s / 60);
-  const remS = s % 60;
-  return `${m.toString().padStart(2, '0')}:${remS.toString().padStart(2, '0')}`;
-}
-
 /**
- * Renders a video cut to vertical 9:16 Short format using FFmpeg
+ * Renders a video cut to vertical 9:16 Short format using FFmpeg with visually lossless settings
  */
 export async function renderRealCutVideo({
   inputFilePath,
   startTime,
   endTime,
-  format = 'vertical_blur',
+  format = 'split_screen',
   overlayTitle = '',
   hook = '',
 }: {
@@ -187,31 +224,26 @@ export async function renderRealCutVideo({
   const fontPath = getSystemFont();
   const ffmpegCmd = getFfmpegPath();
 
-  let filterComplex = '';
-  if (format === 'vertical_blur') {
-    filterComplex = `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`;
-  } else if (format === 'vertical_crop') {
-    filterComplex = `[0:v]crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1[v]`;
-  } else {
-    // Pad original to 9:16
-    filterComplex = `[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1[v]`;
-  }
+  let filterComplex = buildLayoutFilter(format);
 
+  // Hormozi / Submagic style headline hook and subtitles overlay
   if (overlayTitle) {
-    const safeTitle = sanitizeTextContent(overlayTitle, 60).replace(/[':\\]/g, ' ').replace(/\s+/g, ' ').trim();
+    const safeTitle = sanitizeTextContent(overlayTitle, 55).replace(/[':\\]/g, ' ').replace(/\s+/g, ' ').trim();
     let fontArg = '';
     if (fontPath) {
       const escapedFont = fontPath.replace(/\\/g, '/').replace(':', '\\\\:');
       fontArg = `fontfile='${escapedFont}':`;
     }
 
-    filterComplex += `;[v]drawbox=x=60:y=280:w=960:h=220:color=black@0.75:t=fill,drawtext=${fontArg}text='${safeTitle}':fontcolor=yellow:fontsize=46:x=(w-text_w)/2:y=360[vout]`;
+    // Top Headline Box (Safe zone: y=200 to y=380, high contrast black background + yellow text)
+    filterComplex += `;[v]drawbox=x=50:y=210:w=980:h=180:color=black@0.85:t=fill,drawbox=x=50:y=210:w=980:h=180:color=yellow@0.8:t=4,drawtext=${fontArg}text='${safeTitle}':fontcolor=yellow:fontsize=48:borderw=3:bordercolor=black:x=(w-text_w)/2:y=270[vout]`;
 
-    const cmd = `"${ffmpegCmd}" -y -ss ${startSec} -t ${duration} -i "${inputFilePath}" -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "${outPath}"`;
-    await execPromise(cmd, { timeout: 120000 });
+    // Visually lossless high-bitrate encoding: CRF 18, 6.5 Mbps video, 192 kbps studio audio
+    const cmd = `"${ffmpegCmd}" -y -ss ${startSec} -t ${duration} -i "${inputFilePath}" -filter_complex "${filterComplex}" -map "[vout]" -map 0:a? -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -b:v 6500k -maxrate 9000k -bufsize 14000k -c:a aac -b:a 192k -movflags +faststart "${outPath}"`;
+    await execPromise(cmd, { timeout: 150000 });
   } else {
-    const cmd = `"${ffmpegCmd}" -y -ss ${startSec} -t ${duration} -i "${inputFilePath}" -filter_complex "${filterComplex}" -map "[v]" -map 0:a? -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart "${outPath}"`;
-    await execPromise(cmd, { timeout: 120000 });
+    const cmd = `"${ffmpegCmd}" -y -ss ${startSec} -t ${duration} -i "${inputFilePath}" -filter_complex "${filterComplex}" -map "[v]" -map 0:a? -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -b:v 6500k -maxrate 9000k -bufsize 14000k -c:a aac -b:a 192k -movflags +faststart "${outPath}"`;
+    await execPromise(cmd, { timeout: 150000 });
   }
 
   if (!fs.existsSync(outPath) || fs.statSync(outPath).size === 0) {
@@ -222,13 +254,13 @@ export async function renderRealCutVideo({
 }
 
 /**
- * Generates an FFmpeg command for export or local user execution
+ * Generates an FFmpeg command for export or local user execution with Opus Clip / Klap layouts
  */
 export function generateFfmpegCommand({
   videoUrl,
   startTime,
   endTime,
-  format,
+  format = 'split_screen',
   title,
 }: {
   videoUrl: string;
@@ -241,22 +273,14 @@ export function generateFfmpegCommand({
   const endSec = parseTimeToSeconds(endTime || '00:45');
   const duration = Math.max(1, endSec - startSec);
 
-  let vfOrFilter = '';
-  if (format === 'vertical_crop') {
-    vfOrFilter = `-vf "crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1"`;
-  } else if (format === 'vertical_blur') {
-    vfOrFilter = `-filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]" -map "[v]" -map 0:a?`;
-  } else {
-    vfOrFilter = `-c:v copy`;
-  }
-
+  const layoutFilter = buildLayoutFilter(format);
   const safeTitle = (title || 'corte_viral').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
-  const outputFile = `${safeTitle}_${startSec}s-${endSec}s.mp4`;
+  const outputFile = `${safeTitle}_${startSec}s-${endSec}s_1080p.mp4`;
 
   const isWindows = process.platform === 'win32';
   const rmCmd = isWindows ? 'del raw.mp4' : 'rm raw.mp4';
 
-  const fullCommand = `yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --download-sections "*${startTime}-${endTime}" "${videoUrl}" -o "raw.mp4" && ffmpeg -i "raw.mp4" ${vfOrFilter} -c:a aac -b:a 128k -movflags +faststart "${outputFile}" && ${rmCmd}`;
+  const fullCommand = `yt-dlp -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" --download-sections "*${startTime}-${endTime}" "${videoUrl}" -o "raw.mp4" && ffmpeg -i "raw.mp4" -filter_complex "${layoutFilter}" -map "[v]" -map 0:a? -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -b:v 6500k -c:a aac -b:a 192k -movflags +faststart "${outputFile}" && ${rmCmd}`;
 
   return {
     command: fullCommand,

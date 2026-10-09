@@ -17,9 +17,9 @@ import {
   ExternalLink,
   Zap,
 } from 'lucide-react';
-import { VideoInfo, ViralCut, VideoFormat, SavedCut } from '../types';
+import { VideoInfo, ViralCut, VideoFormat, SavedCut, SubtitleTheme } from '../types';
 import { ShortsPhonePreview } from './ShortsPhonePreview';
-import { FORMAT_OPTIONS } from '../mockData';
+import { FORMAT_OPTIONS, SUBTITLE_THEMES } from '../mockData';
 import confetti from 'canvas-confetti';
 
 interface EditorTabProps {
@@ -62,7 +62,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 }) => {
   const [startTime, setStartTime] = useState<string>('00:15');
   const [endTime, setEndTime] = useState<string>('01:00');
-  const [format, setFormat] = useState<VideoFormat>('vertical_crop');
+  const [format, setFormat] = useState<VideoFormat>('split_screen');
+  const [subtitleTheme, setSubtitleTheme] = useState<SubtitleTheme>('hormozi');
   const [overlayTitle, setOverlayTitle] = useState<string>('ESSE MOMENTO MUDOU TUDO 🚨');
   const [customHook, setCustomHook] = useState<string>('');
   const [ffmpegCommand, setFfmpegCommand] = useState<string>('');
@@ -73,7 +74,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
   const handleDownloadRealCut = async () => {
     setIsRenderingCut(true);
-    setRenderProgressMsg('Baixando trecho do YouTube e renderizando corte 9:16...');
+    setRenderProgressMsg('Baixando trecho em 1080p e renderizando layout inteligente...');
     try {
       const res = await fetch('/api/download-youtube-cut', {
         method: 'POST',
@@ -83,6 +84,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
           startTime,
           endTime,
           format,
+          subtitleTheme,
           title: overlayTitle,
           hook: customHook,
         }),
@@ -118,7 +120,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({
       setEndTime(selectedCut.endTime);
       setOverlayTitle(selectedCut.title || 'MOMENTO VIRAL 🚨');
       setCustomHook(selectedCut.hook || '');
-      setFormat(selectedCut.recommendedFormat || 'vertical_crop');
+      setFormat(selectedCut.recommendedFormat || 'split_screen');
+      if (selectedCut.subtitleTheme) {
+        setSubtitleTheme(selectedCut.subtitleTheme);
+      }
     }
   }, [selectedCut]);
 
@@ -134,19 +139,27 @@ export const EditorTab: React.FC<EditorTabProps> = ({
     videoUrl.match(/(?:v=|\/v\/|embed\/|youtu\.be\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{11})/)?.[1] ||
     'y7G5J2_7c5w';
 
-  // Generate FFmpeg command on the fly
+  // Generate FFmpeg command with Opus Clip / Klap 1080p high bitrate specs
   useEffect(() => {
     let filter = '';
-    if (format === 'vertical_crop') {
-      filter = `-vf "crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1"`;
+    if (format === 'split_screen') {
+      filter = `-filter_complex "[0:v]crop=iw*0.48:ih:iw*0.52:0,scale=1080:960:flags=lanczos[top];[0:v]crop=iw*0.48:ih:iw*0.08:0,scale=1080:960:flags=lanczos[bot];[top][bot]vstack=inputs=2,drawbox=y=956:color=yellow@0.8:width=iw:height=8:t=fill[v]" -map "[v]" -map 0:a?`;
+    } else if (format === 'speaker_left') {
+      filter = `-vf "crop=ih*9/16:ih:iw*0.08:0,scale=1080:1920:flags=lanczos,setsar=1"`;
+    } else if (format === 'speaker_right') {
+      filter = `-vf "crop=ih*9/16:ih:iw*0.52:0,scale=1080:1920:flags=lanczos,setsar=1"`;
+    } else if (format === 'vertical_crop' || format === 'speaker_center') {
+      filter = `-vf "crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920:flags=lanczos,setsar=1"`;
     } else if (format === 'vertical_blur') {
-      filter = `-filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]" -map "[v]" -map 0:a?`;
+      filter = `-filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5[bg];[0:v]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]" -map "[v]" -map 0:a?`;
+    } else if (format === 'square') {
+      filter = `-vf "crop=min(iw\\,ih):min(iw\\,ih),scale=1080:1080:flags=lanczos,setsar=1"`;
     } else {
       filter = `-c:v copy`;
     }
 
     const cleanTitle = overlayTitle.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30) || 'corte_viral';
-    const cmd = `yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --download-sections "*${startTime}-${endTime}" "${videoUrl || 'https://www.youtube.com/watch?v=' + videoId}" -o "raw.mp4" && ffmpeg -i "raw.mp4" ${filter} -c:a aac -b:a 128k -movflags +faststart "${cleanTitle}.mp4" && rm "raw.mp4"`;
+    const cmd = `yt-dlp -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]/best" --download-sections "*${startTime}-${endTime}" "${videoUrl || 'https://www.youtube.com/watch?v=' + videoId}" -o "raw.mp4" && ffmpeg -i "raw.mp4" ${filter} -c:v libx264 -preset fast -crf 18 -b:v 6500k -maxrate 9000k -bufsize 14000k -c:a aac -b:a 192k -movflags +faststart "${cleanTitle}.mp4" && rm "raw.mp4"`;
     setFfmpegCommand(cmd);
   }, [startTime, endTime, format, overlayTitle, videoUrl, videoId]);
 
@@ -381,6 +394,39 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               </div>
             </div>
 
+            {/* Subtitle Theme Customizer (Hormozi / Submagic / MrBeast) */}
+            <div className="space-y-2.5">
+              <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                  Estilo Visual de Legendas Virais (Submagic / Alex Hormozi)
+                </span>
+                <span className="text-[10px] text-zinc-400">Animação palavra por palavra</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {SUBTITLE_THEMES.map((th) => (
+                  <button
+                    key={th.id}
+                    onClick={() => setSubtitleTheme(th.id as SubtitleTheme)}
+                    className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
+                      subtitleTheme === th.id
+                        ? 'bg-zinc-800 border-yellow-400 shadow-md shadow-yellow-900/20'
+                        : 'bg-[#0e0f17] border-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full border border-black/50 shadow flex items-center justify-center"
+                      style={{ backgroundColor: th.color }}
+                    >
+                      {subtitleTheme === th.id && <span className="text-[10px] text-black font-black">✓</span>}
+                    </div>
+                    <span className="text-xs font-bold text-white mt-0.5">{th.name}</span>
+                    <span className="text-[9px] text-zinc-400 line-clamp-1 leading-tight">{th.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Overlay Title Customizer */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
@@ -533,6 +579,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({
             startSeconds={startSec}
             endSeconds={endSec}
             format={format}
+            subtitleTheme={subtitleTheme}
+            activeSpeaker={selectedCut?.activeSpeaker}
             overlayTitle={overlayTitle}
             hook={customHook}
             subtitles={selectedCut?.overlaySubtitlesSample || ['VEJA O QUE ACONTECEU', 'MOMENTO IMPRESSIONANTE', 'PRESTE ATENÇÃO NISSO']}

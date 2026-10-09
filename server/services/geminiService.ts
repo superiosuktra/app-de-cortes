@@ -675,6 +675,18 @@ function generateHeuristicViralCuts({
     const endTimeStr = formatSecondsToMMSS(endSec);
     const score = 92 + ((i * 7) % 8); // 92 to 99
 
+    // Heuristically assign layout based on Opus Clip / Klap best practices
+    const layoutRotation = ['split_screen', 'speaker_right', 'split_screen', 'speaker_left', 'vertical_blur'];
+    const assignedLayout = layoutRotation[i % layoutRotation.length];
+    const speakers = [
+      'Ambos (Diálogo / Split Screen)',
+      'Convidado (Câmera Direita)',
+      'Ambos (Diálogo / Split Screen)',
+      'Apresentador (Câmera Esquerda)',
+      'Geral (Fundo Desfocado)',
+    ];
+    const subtitleThemes = ['hormozi', 'beast', 'cyberpunk', 'clean'];
+
     cuts.push({
       id: `cut-${i + 1}-${Date.now()}`,
       title: `${theme.titlePrefix} ${safeTitle.slice(0, 25).toUpperCase()} ${theme.emoji}`,
@@ -687,8 +699,10 @@ function generateHeuristicViralCuts({
       hook: hookText,
       payoff: payoffText,
       neuromarketingTrigger: theme.trigger,
-      viralityAnalysis: `${theme.angle} Alta taxa de retenção esperada devido ao ritmo acelerado e gancho forte.`,
-      recommendedFormat: i % 2 === 0 ? 'vertical_crop' : 'vertical_blur',
+      viralityAnalysis: `${theme.angle} Alta retenção e dinamismo visual com enquadramento otimizado para o locutor ativo.`,
+      recommendedFormat: assignedLayout,
+      activeSpeaker: speakers[i % speakers.length],
+      subtitleTheme: subtitleThemes[i % subtitleThemes.length],
       caption: {
         youtube: `${theme.captionIntro} Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.`,
         instagram: `${hookText}\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!`,
@@ -728,7 +742,7 @@ export async function analyzeViralCuts({
   // If Gemini API key is available, run deep AI analysis
   if (GEMINI_API_KEY) {
     const systemInstruction = `
-Você é o mais consagrado diretor de pós-produção e estrategista de neuromarketing digital, mídias sociais (Shorts, TikTok, Reels) e retenção orgânica.
+Você é o mais consagrado diretor de pós-produção e estrategista de neuromarketing digital, mídias sociais (Shorts, TikTok, Reels) e retenção orgânica, com tecnologia similar a Opus Clip, Klap e Submagic.
 Sua especialidade é identificar momentos exatos em podcasts e vídeos longos que prendem a atenção do espectador no primeiro segundo e geram milhões de visualizações, compartilhamentos e comentários.
 
 Diretriz personalizada do criador:
@@ -742,6 +756,17 @@ Regras Críticas para os Cortes:
 5. Desfecho (Payoff): O corte não pode terminar no meio de uma frase inacabada; deve ter uma conclusão memorável ou provocação final.
 6. Título de Overlay: Título curto e impactante para colocar no topo do vídeo em letras maiúsculas com emoji (ex: "O ERRO QUE DESTRÓI SUA MEMÓRIA ⚠️", "ELE PERDEU TUDO EM 24 HORAS 🤯").
 7. Legenda persuasiva com gancho, copy de 2 frases, chamada para ação (CTA) e hashtags quentes (#Shorts #Viral #Reels #TikTok).
+
+8. INTELIGÊNCIA DE ENQUADRAMENTO E LAYOUT (Padrão Opus Clip & Klap):
+   - Se o vídeo for podcast ou entrevista com 2 pessoas (Host e Convidado):
+     * Recomende "split_screen" (Split 2 Câmeras Empilhadas) para debates e diálogos onde ambos reagem.
+     * Recomende "speaker_right" quando o Convidado estiver contando uma história pessoal marcante.
+     * Recomende "speaker_left" quando o Apresentador estiver fazendo uma pergunta provocativa.
+     * NUNCA recomende apenas recorte central ("vertical_crop") quando houver duas pessoas sentadas nas pontas da mesa, pois isso cortaria os rostos no meio!
+   - Se for um monólogo solo: recomende "speaker_center".
+   - Se for uma cena de grupo ou externa: recomende "vertical_blur" (fundo desfocado).
+   - Identifique quem está falando no campo 'activeSpeaker'.
+   - Selecione o estilo visual de legendas no campo 'subtitleTheme' ('hormozi' | 'beast' | 'cyberpunk' | 'clean').
 `;
 
     const prompt = `
@@ -778,7 +803,15 @@ Selecione rigorosamente ${targetCount} cortes virais extraordinários distribuí
                 viralityAnalysis: { type: Type.STRING, description: 'Por que este trecho específico engaja e retém a audiência' },
                 recommendedFormat: {
                   type: Type.STRING,
-                  description: 'vertical_crop | vertical_blur | original',
+                  description: 'split_screen | speaker_left | speaker_right | speaker_center | vertical_blur',
+                },
+                activeSpeaker: {
+                  type: Type.STRING,
+                  description: 'Quem está falando: "Ambos (Split Screen)" | "Convidado (Direita)" | "Apresentador (Esquerda)"',
+                },
+                subtitleTheme: {
+                  type: Type.STRING,
+                  description: 'hormozi | beast | cyberpunk | clean',
                 },
                 caption: {
                   type: Type.OBJECT,
@@ -808,6 +841,7 @@ Selecione rigorosamente ${targetCount} cortes virais extraordinários distribuí
                 'payoff',
                 'neuromarketingTrigger',
                 'viralityAnalysis',
+                'recommendedFormat',
                 'caption',
                 'hashtags',
               ],
@@ -833,7 +867,9 @@ Selecione rigorosamente ${targetCount} cortes virais extraordinários distribuí
             durationSeconds,
             startTime: formatSecondsToMMSS(startSeconds),
             endTime: formatSecondsToMMSS(endSeconds),
-            recommendedFormat: cut.recommendedFormat || 'vertical_crop',
+            recommendedFormat: cut.recommendedFormat || 'split_screen',
+            activeSpeaker: cut.activeSpeaker || 'Ambos (Split Screen)',
+            subtitleTheme: cut.subtitleTheme || 'hormozi',
           };
         });
 

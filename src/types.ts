@@ -1,4 +1,14 @@
-export type VideoFormat = 'vertical_crop' | 'vertical_blur' | 'original' | 'square';
+export type VideoFormat =
+  | 'split_screen'
+  | 'speaker_left'
+  | 'speaker_right'
+  | 'speaker_center'
+  | 'vertical_blur'
+  | 'vertical_crop'
+  | 'original'
+  | 'square';
+
+export type SubtitleTheme = 'hormozi' | 'beast' | 'cyberpunk' | 'clean';
 
 export interface VideoInfo {
   videoId: string;
@@ -23,6 +33,8 @@ export interface ViralCut {
   neuromarketingTrigger: string;
   viralityAnalysis: string;
   recommendedFormat: VideoFormat;
+  activeSpeaker?: string;
+  subtitleTheme?: SubtitleTheme;
   caption: {
     youtube: string;
     instagram: string;

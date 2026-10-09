@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Heart, MessageCircle, Share2, Disc3, Sparkles } from 'lucide-react';
-import { VideoFormat } from '../types';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Heart, MessageCircle, Share2, Disc3, Sparkles, Mic, Users, Layout } from 'lucide-react';
+import { VideoFormat, SubtitleTheme } from '../types';
 
 interface ShortsPhonePreviewProps {
   videoId: string;
   startSeconds: number;
   endSeconds: number;
   format: VideoFormat;
+  subtitleTheme?: SubtitleTheme;
+  activeSpeaker?: string;
   overlayTitle?: string;
   hook?: string;
   subtitles?: string[];
@@ -17,6 +19,8 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   startSeconds,
   endSeconds,
   format,
+  subtitleTheme = 'hormozi',
+  activeSpeaker,
   overlayTitle = 'O MOMENTO QUE MUDOU TUDO 🚨',
   hook,
   subtitles = ['ISSO ACONTECEU', 'QUANDO MENOS ESPERAVA', 'PRESTE ATENÇÃO NISSO'],
@@ -55,7 +59,7 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         </div>
 
         {/* Screen Area (9:16 Aspect) */}
-        <div className="relative w-full h-full rounded-[34px] overflow-hidden bg-black flex items-center justify-center">
+        <div className="relative w-full h-full rounded-[34px] overflow-hidden bg-black flex flex-col items-center justify-center">
           
           {/* Format Background & Video Layer */}
           {format === 'vertical_blur' && (
@@ -69,31 +73,99 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
             </div>
           )}
 
-          {/* Main Video Player Container */}
-          <div
-            className={`relative z-10 w-full transition-all duration-300 ${
-              format === 'vertical_crop'
-                ? 'h-full scale-[2.2] flex items-center justify-center'
-                : format === 'vertical_blur'
-                ? 'h-[52%] shadow-2xl'
-                : format === 'square'
-                ? 'aspect-square w-full shadow-2xl'
-                : 'aspect-video w-full shadow-2xl'
-            }`}
-          >
-            <iframe
-              src={embedUrl}
-              title="YouTube Shorts Preview"
-              className="w-full h-full object-cover pointer-events-auto"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+          {/* DUAL CAMERA PODCAST STACK (Opus Clip / Klap Signature Layout) */}
+          {format === 'split_screen' ? (
+            <div className="relative z-10 w-full h-full flex flex-col">
+              {/* Top Viewport: Convidado (Right side of 16:9) */}
+              <div className="relative w-full h-1/2 overflow-hidden bg-black border-b border-yellow-400/80 shadow-md">
+                <iframe
+                  src={embedUrl}
+                  title="Guest Camera (Top)"
+                  className="w-[310%] h-[125%] -ml-[145%] -mt-[10%] object-cover pointer-events-none"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+                <div className="absolute top-10 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-yellow-400/40 text-[9px] font-black text-yellow-300 flex items-center gap-1 shadow">
+                  <Mic className="w-2.5 h-2.5 text-yellow-400" />
+                  <span>CONVIDADO</span>
+                </div>
+              </div>
+
+              {/* Glowing Separator Bar */}
+              <div className="relative w-full h-[3px] bg-gradient-to-r from-yellow-400 via-pink-500 to-yellow-400 z-20 shadow-[0_0_8px_rgba(250,204,21,0.8)] flex items-center justify-center">
+                <span className="px-2 py-0.5 rounded-full bg-black text-[7px] font-black tracking-widest text-white border border-yellow-400/50 uppercase shadow">
+                  OPUS DUAL CAM ⚡
+                </span>
+              </div>
+
+              {/* Bottom Viewport: Host (Left side of 16:9) */}
+              <div className="relative w-full h-1/2 overflow-hidden bg-black">
+                <iframe
+                  src={embedUrl}
+                  title="Host Camera (Bottom)"
+                  className="w-[310%] h-[125%] -ml-[25%] -mt-[10%] object-cover pointer-events-none"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+                <div className="absolute top-2 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-cyan-400/40 text-[9px] font-black text-cyan-300 flex items-center gap-1 shadow">
+                  <Mic className="w-2.5 h-2.5 text-cyan-400" />
+                  <span>HOST</span>
+                </div>
+              </div>
+            </div>
+          ) : format === 'speaker_left' ? (
+            /* Left Speaker Focus (Host Focus) */
+            <div className="relative z-10 w-full h-full overflow-hidden bg-black">
+              <iframe
+                src={embedUrl}
+                title="Left Speaker Preview"
+                className="w-[320%] h-full -ml-[25%] object-cover pointer-events-none"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+              <div className="absolute top-12 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-cyan-400/40 text-[9px] font-bold text-cyan-300 flex items-center gap-1">
+                <Mic className="w-2.5 h-2.5 text-cyan-400" />
+                <span>FOCO: HOST (ESQ)</span>
+              </div>
+            </div>
+          ) : format === 'speaker_right' ? (
+            /* Right Speaker Focus (Guest Focus) */
+            <div className="relative z-10 w-full h-full overflow-hidden bg-black">
+              <iframe
+                src={embedUrl}
+                title="Right Speaker Preview"
+                className="w-[320%] h-full -ml-[195%] object-cover pointer-events-none"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              />
+              <div className="absolute top-12 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-yellow-400/40 text-[9px] font-bold text-yellow-300 flex items-center gap-1">
+                <Mic className="w-2.5 h-2.5 text-yellow-400" />
+                <span>FOCO: CONVIDADO (DIR)</span>
+              </div>
+            </div>
+          ) : (
+            /* Standard Layouts (Center Crop, Blur, Square, Original) */
+            <div
+              className={`relative z-10 w-full transition-all duration-300 ${
+                format === 'vertical_crop' || format === 'speaker_center'
+                  ? 'h-full scale-[2.2] flex items-center justify-center'
+                  : format === 'vertical_blur'
+                  ? 'h-[52%] shadow-2xl'
+                  : format === 'square'
+                  ? 'aspect-square w-full shadow-2xl'
+                  : 'aspect-video w-full shadow-2xl'
+              }`}
+            >
+              <iframe
+                src={embedUrl}
+                title="YouTube Shorts Preview"
+                className="w-full h-full object-cover pointer-events-auto"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
 
           {/* Overlay: Top Impact Headline (Hormozi / Viral Shorts Style) */}
           {overlayTitle && (
             <div className="absolute top-14 left-3 right-3 z-20 pointer-events-none flex flex-col items-center">
-              <div className="bg-black/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-yellow-400/30 shadow-lg shadow-black/80 text-center animate-bounce duration-1000">
+              <div className="bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-yellow-400/50 shadow-lg shadow-black/80 text-center animate-bounce duration-1000">
                 <span className="text-yellow-400 font-black text-xs sm:text-sm tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {overlayTitle}
                 </span>
@@ -101,17 +173,54 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
             </div>
           )}
 
-          {/* Overlay: Center Viral Subtitle Words Animation */}
+          {/* Active Speaker Badge Indicator */}
+          {activeSpeaker && activeSpeaker !== 'ambos' && (
+            <div className="absolute top-24 left-3 z-20 pointer-events-none">
+              <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-white/20 text-[9px] font-bold text-zinc-200 flex items-center gap-1">
+                <Mic className="w-2.5 h-2.5 text-pink-400" />
+                {activeSpeaker === 'host' ? 'Host Falando' : 'Convidado Falando'}
+              </span>
+            </div>
+          )}
+
+          {/* Overlay: Center Viral Subtitle Words Animation with SubtitleTheme Styling */}
           {subtitles && subtitles.length > 0 && (
             <div className="absolute bottom-28 left-4 right-4 z-20 pointer-events-none text-center">
-              <div className="inline-block bg-black/70 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/10">
-                <p className="font-extrabold text-sm sm:text-base tracking-wider text-white drop-shadow-[0_2px_8px_rgba(0,0,0,1)] uppercase">
-                  <span className="text-pink-500 mr-1.5">⚡</span>
-                  <span className="text-yellow-300 underline decoration-yellow-400 decoration-2">
+              {subtitleTheme === 'hormozi' && (
+                <div className="inline-block bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border-2 border-yellow-400 shadow-[0_4px_20px_rgba(250,204,21,0.4)]">
+                  <p className="font-black text-sm sm:text-base tracking-wider text-white uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+                    <span className="text-yellow-400 font-black underline decoration-yellow-400 decoration-2">
+                      {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
+                    </span>
+                  </p>
+                </div>
+              )}
+
+              {subtitleTheme === 'beast' && (
+                <div className="inline-block bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border-2 border-green-400 shadow-[0_4px_20px_rgba(34,197,94,0.4)]">
+                  <p className="font-black text-sm sm:text-base tracking-wider text-green-400 uppercase drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]">
+                    <span className="text-white mr-1 font-black">💥</span>
                     {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
-                  </span>
-                </p>
-              </div>
+                  </p>
+                </div>
+              )}
+
+              {subtitleTheme === 'cyberpunk' && (
+                <div className="inline-block bg-[#0f051d]/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border-2 border-pink-500 shadow-[0_4px_20px_rgba(236,72,153,0.4)]">
+                  <p className="font-black text-sm sm:text-base tracking-wider uppercase bg-gradient-to-r from-pink-400 via-fuchsia-300 to-cyan-400 bg-clip-text text-transparent drop-shadow">
+                    <span className="mr-1 text-pink-400">⚡</span>
+                    {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
+                  </p>
+                </div>
+              )}
+
+              {subtitleTheme === 'clean' && (
+                <div className="inline-block bg-zinc-900/80 backdrop-blur-md px-3 py-1 rounded-lg border border-white/20 shadow-md">
+                  <p className="font-bold text-xs sm:text-sm tracking-wide text-zinc-100 uppercase">
+                    {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

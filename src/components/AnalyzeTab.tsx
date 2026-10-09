@@ -16,6 +16,10 @@ import {
   Hash,
   CheckCircle2,
   Share2,
+  Mic,
+  Users,
+  Layout,
+  Smartphone,
 } from 'lucide-react';
 import { VideoInfo, ViralCut, AutoPostSettings } from '../types';
 import { fetchJson } from '../utils/api';
@@ -590,6 +594,72 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                       <span>{cut.viralityScore}%</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Opus Clip / Klap Layout & Speaker Intelligence Pills */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <span
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 ${
+                      cut.recommendedFormat === 'split_screen'
+                        ? 'bg-yellow-950/40 text-yellow-300 border-yellow-500/40 shadow-sm shadow-yellow-950/30'
+                        : cut.recommendedFormat === 'speaker_left'
+                        ? 'bg-cyan-950/40 text-cyan-300 border-cyan-500/40'
+                        : cut.recommendedFormat === 'speaker_right'
+                        ? 'bg-amber-950/40 text-amber-300 border-amber-500/40'
+                        : cut.recommendedFormat === 'vertical_blur'
+                        ? 'bg-purple-950/40 text-purple-300 border-purple-500/40'
+                        : 'bg-zinc-900 text-zinc-300 border-zinc-800'
+                    }`}
+                  >
+                    <Layout className="w-3 h-3" />
+                    <span>
+                      {cut.recommendedFormat === 'split_screen'
+                        ? '⚡ Split 2 Câmeras (Opus Clip)'
+                        : cut.recommendedFormat === 'speaker_left'
+                        ? '🎙️ Foco no Host (Esq)'
+                        : cut.recommendedFormat === 'speaker_right'
+                        ? '🎙️ Foco no Convidado (Dir)'
+                        : cut.recommendedFormat === 'vertical_blur'
+                        ? '🎬 Fundo Desfocado HD'
+                        : '📱 9:16 Recorte Central'}
+                    </span>
+                  </span>
+
+                  {cut.activeSpeaker && (
+                    <span className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-zinc-900 border border-zinc-800 text-zinc-300 flex items-center gap-1">
+                      {cut.activeSpeaker === 'ambos' ? (
+                        <>
+                          <Users className="w-3 h-3 text-pink-400" />
+                          <span>👥 Diálogo entre Ambos</span>
+                        </>
+                      ) : cut.activeSpeaker === 'convidado' ? (
+                        <>
+                          <Mic className="w-3 h-3 text-yellow-400" />
+                          <span>🗣️ Fala do Convidado</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3 h-3 text-cyan-400" />
+                          <span>🗣️ Fala do Host</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+
+                  {cut.subtitleTheme && (
+                    <span className="px-2 py-1 rounded-xl text-[10px] font-semibold bg-zinc-900/80 border border-zinc-800/80 text-zinc-400 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5 text-yellow-400" />
+                      <span>
+                        {cut.subtitleTheme === 'hormozi'
+                          ? 'Legenda Hormozi'
+                          : cut.subtitleTheme === 'beast'
+                          ? 'Legenda MrBeast'
+                          : cut.subtitleTheme === 'cyberpunk'
+                          ? 'Legenda Cyberpunk'
+                          : 'Legenda Clean'}
+                      </span>
+                    </span>
+                  )}
                 </div>
 
                 {/* Neuromarketing & Hook Info */}
