@@ -137,7 +137,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const videoId =
     videoInfo?.videoId ||
     videoUrl.match(/(?:v=|\/v\/|embed\/|youtu\.be\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{11})/)?.[1] ||
-    'y7G5J2_7c5w';
+    'B57eOqeLVfc';
 
   // Generate FFmpeg command with Opus Clip / Klap 1080p high bitrate specs
   useEffect(() => {
@@ -576,6 +576,9 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
           <ShortsPhonePreview
             videoId={videoId}
+            videoUrl={videoUrl}
+            thumbnailUrl={videoInfo?.thumbnail}
+            channelName={videoInfo?.author || 'cortes_virais'}
             startSeconds={startSec}
             endSeconds={endSec}
             format={format}

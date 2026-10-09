@@ -37,7 +37,7 @@
     {
       "id": "sample-cut-1",
       "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
-      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
       "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
       "startTime": "00:15",
       "endTime": "00:55",
@@ -58,7 +58,7 @@
       "id": "sample-queue-1",
       "cutId": "cut-demo-1",
       "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
-      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
       "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
       "startTime": "00:15",
       "endTime": "00:55",
@@ -108,7 +108,7 @@
       "id": "queue-cut-demo-2-1791403101897-0",
       "cutId": "cut-demo-2",
       "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
       "cutTitle": "O ALGORITMO ROUBOU SUA MENTE 🚨",
       "startTime": "00:50",
       "endTime": "01:25",
@@ -224,8 +224,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T18:22:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-3-1791566550263-1791566562578-2",
@@ -579,5 +585,5 @@
     },
     "defaultPrivacy": "public"
   },
-  "lastUpdated": "2026-10-09T18:14:08.191Z"
+  "lastUpdated": "2026-10-09T18:24:33.549Z"
 }

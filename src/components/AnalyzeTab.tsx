@@ -47,8 +47,8 @@ interface AnalyzeTabProps {
 
 const PRESET_VIDEOS = [
   {
-    name: 'Flow: Neurociência & Dopamina',
-    url: 'https://www.youtube.com/watch?v=y7G5J2_7c5w',
+    name: 'Os Sócios: Poder da Disciplina (Renato Cariani)',
+    url: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
     prompt: 'focar em dicas contra-intuitivas sobre foco, disciplina e vícios digitais',
   },
   {

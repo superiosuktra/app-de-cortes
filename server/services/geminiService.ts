@@ -252,14 +252,14 @@ async function searchRealYouTubeVideos(niche: string): Promise<any[]> {
  */
 const CURATED_POOL = [
   {
-    title: 'Flow Podcast: Inteligência Emocional e Neurociência do Comportamento',
-    channel: 'Flow Podcast',
-    videoId: 'y7G5J2_7c5w',
-    url: 'https://www.youtube.com/watch?v=y7G5J2_7c5w',
+    title: 'O Poder da Disciplina (com Renato Cariani) | Os Sócios Podcast',
+    channel: 'Os Sócios Podcast',
+    videoId: 'B57eOqeLVfc',
+    url: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
     duration: '2h 15min',
     viralityScore: 98,
-    reason: 'Ganchos poderosos sobre dopamina, vícios modernos e estratégias de disciplina com momentos de alto impacto reflexivo.',
-    suggestedThemes: ['Neurociência', 'Foco', 'Dopamina', 'Hábitos'],
+    reason: 'Ganchos poderosos sobre disciplina militar, foco inabalável e rotinas de alta performance.',
+    suggestedThemes: ['Disciplina', 'Foco', 'Dopamina', 'Hábitos'],
   },
   {
     title: 'PrimoCast: Como Construir Riqueza e Negócios Escaláveis',
@@ -292,14 +292,14 @@ const CURATED_POOL = [
     suggestedThemes: ['Inteligência Artificial', 'Futuro', 'Inovação', 'Tech'],
   },
   {
-    title: 'Inteligência Ltda: Lições Secretas de Policiais e Peritos Criminais',
+    title: 'Inteligência Ltda: Especial Médicos e Cirurgiões Renomados',
     channel: 'Inteligência Ltda',
-    videoId: 'b5m4yBkJw58',
-    url: 'https://www.youtube.com/watch?v=b5m4yBkJw58',
-    duration: '1h 40min',
-    viralityScore: 97,
+    videoId: 'qbTzhB0akt8',
+    url: 'https://www.youtube.com/watch?v=qbTzhB0akt8',
+    duration: '2h 50min',
+    viralityScore: 96,
     reason: 'Histórias reais de suspense e adrenalina que mantêm 100% de retenção até os últimos segundos.',
-    suggestedThemes: ['True Crime', 'Investigação', 'Suspense', 'Curiosidades'],
+    suggestedThemes: ['Saúde', 'Ciência', 'Medicina', 'Curiosidades'],
   },
   {
     title: 'Ironberg Podcast: Disciplina Inabalável e Superação Extrema',

@@ -56,13 +56,13 @@ export default function App() {
   );
   const [activeTab, setActiveTab] = useState<'trending' | 'analyze' | 'editor' | 'publish' | 'settings'>('trending');
   const [credentials, setCredentials] = useState<PlatformCredentials>(INITIAL_CREDENTIALS);
-  const [videoUrl, setVideoUrl] = useState<string>('https://www.youtube.com/watch?v=y7G5J2_7c5w');
+  const [videoUrl, setVideoUrl] = useState<string>('https://www.youtube.com/watch?v=B57eOqeLVfc');
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>({
-    videoId: 'y7G5J2_7c5w',
-    videoUrl: 'https://www.youtube.com/watch?v=y7G5J2_7c5w',
-    title: 'Flow Podcast: Inteligência Emocional e Neurociência do Comportamento',
-    author: 'Flow Podcast',
-    thumbnail: 'https://img.youtube.com/vi/y7G5J2_7c5w/maxresdefault.jpg',
+    videoId: 'B57eOqeLVfc',
+    videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
+    title: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160',
+    author: 'Os Sócios Podcast',
+    thumbnail: 'https://img.youtube.com/vi/B57eOqeLVfc/maxresdefault.jpg',
   });
   const [transcript, setTranscript] = useState<string>(
     '[00:15] O maior erro que as pessoas cometem é achar que motivação dura para sempre.\n[00:32] Quando a dopamina cai, você precisa ter sistemas claros de rotina.\n[00:54] Quem depende de sentir vontade de fazer nunca constrói nada grandioso.\n[01:15] Se você não dominar a sua mente logo pela manhã, o algoritmo vai dominar ela por você.'
@@ -233,13 +233,13 @@ export default function App() {
         setSavedCuts([
           {
             id: 'sample-cut-1',
-            videoTitle: 'Flow Podcast: Inteligência Emocional e Neurociência',
-            videoUrl: 'https://www.youtube.com/watch?v=y7G5J2_7c5w',
+            videoTitle: 'O Poder da Disciplina (Renato Cariani) | Os Sócios',
+            videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
             cutTitle: 'A ILUSÃO DA MOTIVAÇÃO 🧠',
             startTime: '00:15',
             endTime: '00:55',
             durationSeconds: 40,
-            format: 'vertical_crop',
+            format: 'split_screen',
             viralityScore: 98,
             caption: 'A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\n#Shorts #Viral',
             hashtags: ['Shorts', 'Neurociencia', 'Foco'],
@@ -259,8 +259,8 @@ export default function App() {
           {
             id: 'sample-queue-1',
             cutId: 'cut-demo-1',
-            videoTitle: 'Flow Podcast: Inteligência Emocional e Neurociência',
-            videoUrl: 'https://www.youtube.com/watch?v=y7G5J2_7c5w',
+            videoTitle: 'O Poder da Disciplina (Renato Cariani) | Os Sócios',
+            videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
             cutTitle: 'A ILUSÃO DA MOTIVAÇÃO 🧠',
             startTime: '00:15',
             endTime: '00:55',
