@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Flame, Sparkles, ExternalLink, Play, Clock, Check, ArrowRight, Video } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Flame, Sparkles, ExternalLink, Play, Clock, Check, ArrowRight, Video, RefreshCw } from 'lucide-react';
 import { TrendingVideo } from '../types';
 import { CURATED_TRENDING_VIDEOS } from '../mockData';
 import { fetchJson } from '../utils/api';
@@ -24,6 +24,11 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
   const [videos, setVideos] = useState<TrendingVideo[]>(CURATED_TRENDING_VIDEOS);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
+
+  // Auto explore on mount so live videos load immediately
+  useEffect(() => {
+    handleAutoExplore('geral');
+  }, []);
 
   // Fetch trending with Gemini via /api/trending
   const handleAutoExplore = async (nicheId: string = selectedNiche) => {
@@ -103,11 +108,20 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
               className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#7000ff] via-[#b000ff] to-[#ff0055] text-white font-bold text-sm shadow-lg shadow-purple-600/30 hover:shadow-pink-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
             >
               <Flame className={`w-5 h-5 text-yellow-300 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Analisando Tendências com IA...' : '🔥 Auto-Explorar Tendências Virais'}</span>
+              <span>{isLoading ? 'Buscando Vídeos em Alta no YouTube...' : '🔥 Auto-Explorar Tendências Virais'}</span>
             </button>
 
-            <span className="text-xs text-zinc-400 font-medium">
-              Ou selecione um dos nichos abaixo:
+            <button
+              onClick={() => handleAutoExplore(selectedNiche)}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-750 border border-zinc-700/80 text-zinc-300 hover:text-white font-semibold text-xs transition"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-pink-400' : ''}`} />
+              <span>Recarregar Outros Episódios</span>
+            </button>
+
+            <span className="text-xs text-zinc-400 font-medium ml-1">
+              {videos.length} vídeos catalogados
             </span>
           </div>
         </div>
@@ -133,27 +147,34 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
         ))}
       </div>
 
-      {/* Manual Search Bar */}
-      <form onSubmit={handleManualSearch} className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Pesquisar por nicho ou podcast (Ex: inteligência artificial, estoicismo, comédia, finanças...)"
-            className="w-full pl-11 pr-4 py-3 bg-[#151622] border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
-          />
+      {/* Manual Search Bar & Results Counter */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <form onSubmit={handleManualSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Pesquisar por nicho ou podcast (Ex: inteligência artificial, estoicismo, comédia, finanças...)"
+              className="w-full pl-11 pr-4 py-3 bg-[#151622] border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-semibold text-sm transition flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" />
+            <span>Buscar</span>
+          </button>
+        </form>
+
+        <div className="flex items-center gap-2 px-3 py-2 bg-[#151622] border border-zinc-800/80 rounded-xl text-xs font-semibold text-zinc-400 self-end sm:self-auto shrink-0">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Exibindo <strong className="text-white">{videos.length}</strong> podcasts em alta</span>
         </div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-semibold text-sm transition flex items-center gap-2"
-        >
-          <Search className="w-4 h-4" />
-          <span>Buscar</span>
-        </button>
-      </form>
+      </div>
 
       {/* Video Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

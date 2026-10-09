@@ -3,8 +3,14 @@ import App from './App.tsx';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 
-// Register PWA service worker for desktop installability and offline support
-if ('serviceWorker' in navigator) {
+// In development, clear any lingering service workers to prevent reload loops
+if (!import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  }).catch(() => {});
+} else if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   try {
     registerSW({ immediate: true });
   } catch {

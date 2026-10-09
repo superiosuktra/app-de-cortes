@@ -60,13 +60,14 @@ videoRouter.post('/trending', handleTrending);
 // 4. Detect & Analyze Viral Cuts with Gemini
 videoRouter.post('/analyze', async (req: Request, res: Response) => {
   try {
-    const { videoUrl, transcript, userPrompt, videoTitle, channelName } = req.body;
+    const { videoUrl, transcript, userPrompt, videoTitle, channelName, cutsCount } = req.body;
     const cuts = await analyzeViralCuts({
       videoUrl,
       transcript,
       userPrompt,
       videoTitle,
       channelName,
+      cutsCount: cutsCount ? Number(cutsCount) : 8,
     });
 
     res.json({

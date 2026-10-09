@@ -1,3 +1,4 @@
+import http from 'http';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
@@ -9,6 +10,7 @@ import { stateRouter } from './server/routes/stateRoutes.js';
 import { PRIVACY_POLICY_HTML, TERMS_OF_SERVICE_HTML } from './server/pages/legalPages.js';
 
 const app = express();
+const httpServer = http.createServer(app);
 
 // Middlewares
 app.use(express.json({ limit: '10mb' }));
@@ -49,11 +51,15 @@ setInterval(() => {
   cleanOldTempFiles();
 }, 60 * 60 * 1000);
 
+
 // 6. Vite Dev Server or Production Static Serving
 async function startServer() {
   if (NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -65,7 +71,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 AI Viral Shorts Cutter Server running on port ${PORT} [${NODE_ENV}]`);
   });
 }

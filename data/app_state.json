@@ -1,17 +1,17 @@
 {
   "credentials": {
     "youtube": {
-      "accessToken": "ya29.a0AX07CmsveksWHEXyE43LZbF3LVYmqRrHd-MJs8FeDpo5zFagfxHKmjKQOGIIj2c2skfAD0n08YIudC5fGcGadslzcGWSUUUOHFANabb3kshXCd0T5iUSOWu6K6_8P5dqe7hEbJbx7qVucUUTTqtw3Ja_Qd5gJ1SS1vioBuD3cY5-PzNWeMVeXKrfwNzXNr6S48W6b7saCgYKAaASARESFQHGX2MiPf7R8RaF2P5Ud3dFdqOQbQ0206",
+      "accessToken": "",
+      "refreshToken": "",
       "clientId": "",
       "clientSecret": "",
-      "status": "connected",
+      "status": "disconnected",
       "channelTitle": "ABNER_CORTES",
       "avatar": "https://i.ytimg.com/vi/lsWTOWpzTFI/hqdefault.jpg",
       "verifiedAt": "2026-10-07 20:52",
       "accountName": "ABNER_CORTES",
       "customUrl": "@ABNER_CORTES",
-      "displayName": "ABNER_CORTES",
-      "refreshToken": ""
+      "displayName": "ABNER_CORTES"
     },
     "instagram": {
       "accessToken": "",
@@ -165,5 +165,5 @@
     },
     "defaultPrivacy": "public"
   },
-  "lastUpdated": "2026-10-07T21:08:20.693Z"
+  "lastUpdated": "2026-10-09T12:04:29.924Z"
 }

@@ -78,6 +78,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
   onNavigateToPublish,
   queueCount = 0,
 }) => {
+  const [cutsCount, setCutsCount] = useState<number>(8);
   const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -156,7 +157,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
     }
 
     setIsAnalyzing(true);
-    setStatusMessage('Enviando para o Gemini 3.8 Flash analisar neuromarketing e momentos magnéticos...');
+    setStatusMessage(`Enviando para o Gemini analisar ${cutsCount} momentos magnéticos por todo o vídeo...`);
 
     try {
       const res = await fetchJson<any>('/api/analyze', {
@@ -168,6 +169,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
           userPrompt,
           videoTitle: videoInfo?.title,
           channelName: videoInfo?.author,
+          cutsCount,
         }),
       });
 
@@ -346,6 +348,42 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
               />
             </div>
 
+            {/* Cuts Quantity Selector (User Request: Faça vários cortes e não só 3) */}
+            <div className="space-y-2.5 p-3.5 bg-[#171825] border border-zinc-800 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Scissors className="w-3.5 h-3.5 text-pink-400" />
+                  <span>Quantidade de Cortes a Extrair</span>
+                </label>
+                <span className="text-[11px] text-pink-400 font-extrabold bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/30">
+                  {cutsCount} Cortes Selecionados
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {[6, 8, 10, 12].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setCutsCount(num)}
+                    className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition-all ${
+                      cutsCount === num
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-pink-900/40 border border-pink-400/50 scale-[1.02]'
+                        : 'bg-[#0f1017] hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800'
+                    }`}
+                  >
+                    {num} Cortes
+                    {num === 8 && <span className="block text-[8px] font-normal text-pink-200">Recomendado</span>}
+                    {num === 12 && <span className="block text-[8px] font-normal text-purple-200">Completo</span>}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[10px] text-zinc-400 leading-tight">
+                A IA analisa e distribui os <strong>{cutsCount} cortes</strong> ao longo de todo o vídeo (início, meio e ápice) para você alimentar seu canal com múltiplos vídeos.
+              </p>
+            </div>
+
             {/* Auto-Post Queue Toggle Card (User Request) */}
             <div className="p-4 bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-pink-950/40 border border-purple-500/40 rounded-2xl space-y-2.5 shadow-md">
               <label className="flex items-start gap-2.5 cursor-pointer">
@@ -433,7 +471,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#7000ff] via-[#b000ff] to-[#ff0055] text-white font-extrabold text-sm shadow-xl shadow-purple-900/40 hover:shadow-pink-900/50 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <Sparkles className={`w-5 h-5 text-yellow-300 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              <span>{isAnalyzing ? 'Analisando Neuromarketing...' : '🔥 Detectar Cortes Virais'}</span>
+              <span>{isAnalyzing ? `Analisando ${cutsCount} Momentos com IA...` : `🔥 Detectar ${cutsCount} Cortes Virais`}</span>
             </button>
 
             {/* Status Feedback Output */}
