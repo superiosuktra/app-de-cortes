@@ -455,7 +455,7 @@ export default function App() {
     handleUpdateQueueItem(id, { status: 'posting' });
 
     const logs: string[] = [];
-    const publishedAccounts: { platform: SocialPlatform; account: string }[] = [];
+    const publishedAccounts: { platform: SocialPlatform; account: string; videoUrl?: string; videoId?: string }[] = [];
     let hasSuccess = false;
     let lastError = '';
 
@@ -481,6 +481,10 @@ export default function App() {
             caption: `${item.caption[p]}\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}`,
             privacy: autoPostSettings.defaultPrivacy,
             videoUrl: item.videoUrl,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            format: item.format,
+            hook: item.hook,
           }),
         });
 
@@ -768,6 +772,8 @@ export default function App() {
 
             {activeTab === 'publish' && (
               <PublisherTab
+                videoUrl={videoUrl}
+                videoInfo={videoInfo}
                 currentCut={selectedCut}
                 savedCuts={savedCuts}
                 onDeleteSavedCut={handleDeleteSavedCut}

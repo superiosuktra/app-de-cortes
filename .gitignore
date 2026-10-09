@@ -6,3 +6,16 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Temporary media & uploads
+data/uploads/
+data/temp/
+*.mp4
+*.webm
+*.m4a
+*.tmp
+
+# Editor & OS settings
+.vscode/
+.idea/
+Thumbs.db

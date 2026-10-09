@@ -68,6 +68,48 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [ffmpegCommand, setFfmpegCommand] = useState<string>('');
   const [isCopiedCommand, setIsCopiedCommand] = useState<boolean>(false);
   const [isSaved, setIsSaved] = useState<boolean>(false);
+  const [isRenderingCut, setIsRenderingCut] = useState<boolean>(false);
+  const [renderProgressMsg, setRenderProgressMsg] = useState<string>('');
+
+  const handleDownloadRealCut = async () => {
+    setIsRenderingCut(true);
+    setRenderProgressMsg('Baixando trecho do YouTube e renderizando corte 9:16...');
+    try {
+      const res = await fetch('/api/download-youtube-cut', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoUrl: videoUrl || `https://www.youtube.com/watch?v=${videoId}`,
+          startTime,
+          endTime,
+          format,
+          title: overlayTitle,
+          hook: customHook,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Erro HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(overlayTitle || 'corte_viral').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30)}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      confetti({ particleCount: 60, spread: 70 });
+    } catch (err: any) {
+      alert(`Erro ao processar corte do YouTube: ${err.message}`);
+    } finally {
+      setIsRenderingCut(false);
+      setRenderProgressMsg('');
+    }
+  };
 
   // Sync state whenever selectedCut changes
   useEffect(() => {
@@ -365,6 +407,16 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               >
                 {isSaved ? <Check className="w-4 h-4 text-emerald-400" /> : <Bookmark className="w-4 h-4 text-pink-400" />}
                 <span>{isSaved ? 'Salvo na Biblioteca!' : 'Salvar Corte na Biblioteca'}</span>
+              </button>
+
+              <button
+                onClick={handleDownloadRealCut}
+                disabled={isRenderingCut}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 text-emerald-200 hover:text-white text-xs font-bold transition shadow-sm disabled:opacity-50"
+                title="Baixar o arquivo de vídeo MP4 cortado em 9:16 diretamente do YouTube"
+              >
+                <Download className={`w-4 h-4 text-emerald-400 ${isRenderingCut ? 'animate-bounce' : ''}`} />
+                <span>{isRenderingCut ? (renderProgressMsg || 'Processando...') : 'Baixar Corte Real (MP4)'}</span>
               </button>
 
               {onEnqueueCut && (
