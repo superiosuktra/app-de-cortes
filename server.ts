@@ -59,6 +59,17 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: { server: httpServer },
+        watch: {
+          ignored: [
+            '**/data/**',
+            '**/server/**',
+            '**/dist/**',
+            '**/dev-dist/**',
+            '**/*.tmp',
+            '**/*.json',
+            '**/*.log',
+          ],
+        },
       },
       appType: 'spa',
     });

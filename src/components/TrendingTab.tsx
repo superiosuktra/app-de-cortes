@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Flame, Sparkles, ExternalLink, Play, Clock, Check, ArrowRight, Video, RefreshCw } from 'lucide-react';
 import { TrendingVideo } from '../types';
 import { CURATED_TRENDING_VIDEOS } from '../mockData';
@@ -24,9 +24,12 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
   const [videos, setVideos] = useState<TrendingVideo[]>(CURATED_TRENDING_VIDEOS);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
+  const hasMountedRef = useRef<boolean>(false);
 
-  // Auto explore on mount so live videos load immediately
+  // Auto explore on mount so live videos load once cleanly
   useEffect(() => {
+    if (hasMountedRef.current) return;
+    hasMountedRef.current = true;
     handleAutoExplore('geral');
   }, []);
 
