@@ -37,7 +37,7 @@
     {
       "id": "sample-cut-1",
       "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
+      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
       "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
       "startTime": "00:15",
       "endTime": "00:55",
@@ -58,7 +58,7 @@
       "id": "sample-queue-1",
       "cutId": "cut-demo-1",
       "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
+      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
       "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
       "startTime": "00:15",
       "endTime": "00:55",
@@ -108,7 +108,7 @@
       "id": "queue-cut-demo-2-1791403101897-0",
       "cutId": "cut-demo-2",
       "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
+      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
       "cutTitle": "O ALGORITMO ROUBOU SUA MENTE 🚨",
       "startTime": "00:50",
       "endTime": "01:25",
@@ -264,8 +264,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T18:52:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-4-1791566550263-1791566562578-3",
@@ -298,8 +304,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T19:22:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-5-1791566550263-1791566562578-4",
@@ -332,8 +344,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T19:52:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-6-1791566550263-1791566562578-5",
@@ -366,8 +384,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T20:22:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-7-1791566550263-1791566562578-6",
@@ -400,8 +424,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T20:52:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-8-1791566550263-1791566562578-7",
@@ -434,8 +464,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T21:22:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-9-1791566550263-1791566562578-8",
@@ -468,8 +504,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T21:52:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-10-1791566550263-1791566562578-9",
@@ -502,8 +544,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T22:22:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-11-1791566550263-1791566562578-10",
@@ -536,8 +584,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T22:52:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     },
     {
       "id": "queue-cut-12-1791566550263-1791566562578-11",
@@ -570,8 +624,14 @@
         "tiktok"
       ],
       "scheduledFor": "2026-10-09T23:22:42.578Z",
-      "status": "pending",
-      "createdAt": "2026-10-09T17:22:42.578Z"
+      "status": "failed",
+      "createdAt": "2026-10-09T17:22:42.578Z",
+      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
+      "logs": [
+        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
     }
   ],
   "autoPostSettings": {
@@ -585,5 +645,5 @@
     },
     "defaultPrivacy": "public"
   },
-  "lastUpdated": "2026-10-09T18:24:33.549Z"
+  "lastUpdated": "2026-10-10T13:04:17.573Z"
 }

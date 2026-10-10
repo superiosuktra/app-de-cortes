@@ -46,6 +46,11 @@ interface ShortsPhonePreviewProps {
   initialPlatform?: SocialPlatform;
   onPlatformChange?: (platform: SocialPlatform) => void;
   channelName?: string;
+  speaker1X?: number;
+  speaker1Y?: number;
+  speaker2X?: number;
+  speaker2Y?: number;
+  zoom?: number;
 }
 
 // Fallback to verified 100% active YouTube video if videoId is dead/empty
@@ -67,15 +72,21 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   initialPlatform = 'youtube',
   onPlatformChange,
   channelName = 'cortes_virais',
+  speaker1X = 24,
+  speaker1Y = 44,
+  speaker2X = 76,
+  speaker2Y = 44,
+  zoom = 1.25,
 }) => {
   const [platform, setPlatform] = useState<SocialPlatform>(initialPlatform);
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [activeWordIndex, setActiveWordIndex] = useState<number>(0);
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const [previewMode, setPreviewMode] = useState<'embed' | 'poster'>('embed');
+  const [showSafeZones, setShowSafeZones] = useState<boolean>(false);
+  const [activeDynamicCam, setActiveDynamicCam] = useState<1 | 2>(2);
   const duration = Math.max(1, endSeconds - startSeconds);
 
   // Sync initial platform if parent prop changes
@@ -85,6 +96,15 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
     }
   }, [initialPlatform]);
 
+  // Automatic camera switcher for Klap / Opus Clip 'dynamic_reframe' mode
+  useEffect(() => {
+    if (format !== 'dynamic_reframe') return;
+    const camInterval = setInterval(() => {
+      setActiveDynamicCam((prev) => (prev === 1 ? 2 : 1));
+    }, 4500);
+    return () => clearInterval(camInterval);
+  }, [format]);
+
   const handleSetPlatform = (p: SocialPlatform) => {
     setPlatform(p);
     onPlatformChange?.(p);
@@ -93,7 +113,6 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   // Resolve valid video ID
   let safeVideoId = videoId;
   if (!safeVideoId || safeVideoId === 'y7G5J2_7c5w' || safeVideoId === 'b5m4yBkJw58') {
-    // Try extract from url or use verified fallback
     const match = videoUrl?.match(/(?:v=|\/v\/|embed\/|youtu\.be\/|\/shorts\/|\/live\/)([A-Za-z0-9_-]{11})/);
     safeVideoId = match?.[1] || RELIABLE_FALLBACK_VIDEO_ID;
   }
@@ -112,10 +131,35 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
     return () => clearInterval(interval);
   }, [subtitles]);
 
-  // Clean YouTube No-Cookie embed URL (NO malformed playlist param to avoid error 150/101)
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${safeVideoId}?autoplay=1&mute=${
+  // Primary YouTube No-Cookie embed URL (plays audio when unmuted)
+  const primaryEmbedUrl = `https://www.youtube-nocookie.com/embed/${safeVideoId}?autoplay=1&mute=${
     isMuted ? '1' : '0'
   }&start=${startSeconds}&end=${endSeconds}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
+
+  // Secondary YouTube embed URL: ALWAYS MUTED (mute=1) to eliminate 100% of audio echo in split_screen and vertical_blur!
+  const mutedEmbedUrl = `https://www.youtube-nocookie.com/embed/${safeVideoId}?autoplay=1&mute=1&start=${startSeconds}&end=${endSeconds}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
+
+  /**
+   * Computes exact 1:1 distortion-free CSS positioning for a 16:9 YouTube iframe inside a 9:16 or 9:8 crop container.
+   * By keeping aspectRatio: '16 / 9' on the iframe and translating by (-X%, -Y%) from the viewport center (50%, 50%),
+   * YouTube never adds internal black bars and faces are never stretched!
+   */
+  const getSmartCropIframeStyle = (focusX: number, focusY: number, zoomLevel: number = 1.25): React.CSSProperties => {
+    const clampedX = Math.max(18, Math.min(82, focusX));
+    const clampedY = Math.max(22, Math.min(78, focusY));
+    const safeZoom = Math.max(1.0, Math.min(1.8, zoomLevel));
+    return {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      height: `${Math.round(108 * safeZoom)}%`,
+      width: 'auto',
+      aspectRatio: '16 / 9',
+      maxWidth: 'none',
+      transform: `translate(-${clampedX}%, -${clampedY}%)`,
+      pointerEvents: 'none',
+    };
+  };
 
   // Dynamic social counters per platform
   const stats = {
@@ -178,6 +222,17 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         {/* Screen Area (9:16 Aspect) */}
         <div className="relative w-full h-full rounded-[36px] overflow-hidden bg-black flex flex-col items-center justify-center">
           
+          {/* OPTIONAL SAFE ZONE GUIDES OVERLAY (Opus Clip / Vizard Standard) */}
+          {showSafeZones && (
+            <div className="absolute inset-0 z-40 pointer-events-none">
+              <div className="absolute top-14 bottom-24 left-3 right-14 border-2 border-dashed border-emerald-400/70 rounded-xl flex items-start justify-start p-1.5">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 text-[8px] font-mono font-bold uppercase">
+                  Zona Segura de Rosto & Legenda
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* TOP STATUS / PLATFORM HEADER OVERLAY */}
           {platform === 'youtube' && (
             <div className="absolute top-11 left-3 right-3 z-30 flex items-center justify-between text-white pointer-events-none drop-shadow">
@@ -231,104 +286,142 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
               />
             </div>
           ) : previewMode === 'embed' ? (
-            /* YouTube Embed with Split Screen or Smart Crop Layout */
+            /* YouTube Embed with Distortion-Free 16:9 Smart Crop & Single Audio Stream */
             <>
               {format === 'vertical_blur' && (
                 <div className="absolute inset-0 z-0 overflow-hidden">
                   <iframe
-                    src={embedUrl}
-                    title="Background Blur"
+                    src={mutedEmbedUrl}
+                    title="Background Blur (Muted)"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    className="w-[300%] h-[300%] -ml-[100%] -mt-[100%] filter blur-xl scale-125 opacity-60 pointer-events-none"
+                    style={getSmartCropIframeStyle(50, 50, 1.35)}
+                    className="filter blur-xl opacity-55"
                     allow="autoplay; encrypted-media"
                   />
                 </div>
               )}
 
               {format === 'split_screen' ? (
-                /* Dual Camera Vertical Stack */
+                /* Dual Camera Vertical Stack (Exact 9:8 per half, Zero Stretching, Single Audio Track) */
                 <div className="relative z-10 w-full h-full flex flex-col">
-                  {/* Top: Convidado (Guest) */}
+                  {/* Top: Convidado (Speaker 2) - Primary Audio Source */}
                   <div className="relative w-full h-1/2 overflow-hidden bg-black border-b border-yellow-400/80 shadow-md">
                     <iframe
-                      src={embedUrl}
-                      title="Guest Camera (Top)"
+                      src={primaryEmbedUrl}
+                      title="Guest Camera (Top - Primary Audio)"
                       referrerPolicy="strict-origin-when-cross-origin"
-                      className="w-[310%] h-[125%] -ml-[145%] -mt-[10%] object-cover pointer-events-none"
+                      style={getSmartCropIframeStyle(speaker2X, speaker2Y, zoom)}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     />
                     <div className="absolute top-10 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-yellow-400/40 text-[9px] font-black text-yellow-300 flex items-center gap-1 shadow">
                       <Mic className="w-2.5 h-2.5 text-yellow-400" />
-                      <span>CONVIDADO</span>
+                      <span>CÂMERA 2 • X:{speaker2X}%</span>
                     </div>
                   </div>
 
                   {/* High Contrast Divider Bar */}
                   <div className="relative w-full h-[3px] bg-gradient-to-r from-yellow-400 via-pink-500 to-yellow-400 z-20 shadow-[0_0_8px_rgba(250,204,21,0.8)] flex items-center justify-center">
                     <span className="px-2 py-0.5 rounded-full bg-black text-[7px] font-black tracking-widest text-white border border-yellow-400/50 uppercase shadow">
-                      OPUS DUAL CAM ⚡
+                      IA DUAL CAM 9:8 ⚡ SEM ECO
                     </span>
                   </div>
 
-                  {/* Bottom: Host (Apresentador) */}
+                  {/* Bottom: Host (Speaker 1) - ALWAYS MUTED to prevent Audio Echo */}
                   <div className="relative w-full h-1/2 overflow-hidden bg-black">
                     <iframe
-                      src={embedUrl}
-                      title="Host Camera (Bottom)"
+                      src={mutedEmbedUrl}
+                      title="Host Camera (Bottom - Muted)"
                       referrerPolicy="strict-origin-when-cross-origin"
-                      className="w-[310%] h-[125%] -ml-[25%] -mt-[10%] object-cover pointer-events-none"
+                      style={getSmartCropIframeStyle(speaker1X, speaker1Y, zoom)}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     />
                     <div className="absolute top-2 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-cyan-400/40 text-[9px] font-black text-cyan-300 flex items-center gap-1 shadow">
                       <Mic className="w-2.5 h-2.5 text-cyan-400" />
-                      <span>HOST</span>
+                      <span>CÂMERA 1 • X:{speaker1X}%</span>
                     </div>
+                  </div>
+                </div>
+              ) : format === 'dynamic_reframe' ? (
+                /* Klap / Opus Clip Auto-Reframe: Smoothly switches between Speaker 2 and Speaker 1 */
+                <div className="relative z-10 w-full h-full overflow-hidden bg-black">
+                  <iframe
+                    src={primaryEmbedUrl}
+                    title="Dynamic Auto-Reframe Preview"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    style={{
+                      ...getSmartCropIframeStyle(
+                        activeDynamicCam === 2 ? speaker2X : speaker1X,
+                        activeDynamicCam === 2 ? speaker2Y : speaker1Y,
+                        zoom
+                      ),
+                      transition: 'transform 650ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  />
+                  <div className="absolute top-11 left-3 z-20 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-pink-500/50 text-[9px] font-bold text-pink-300 flex items-center gap-1.5 shadow">
+                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping" />
+                    <span>
+                      IA AUTO-REFRAME: {activeDynamicCam === 2 ? `CÂM 2 (${speaker2X}%)` : `CÂM 1 (${speaker1X}%)`}
+                    </span>
                   </div>
                 </div>
               ) : format === 'speaker_left' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
                   <iframe
-                    src={embedUrl}
+                    src={primaryEmbedUrl}
                     title="Left Speaker Preview"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    className="w-[320%] h-full -ml-[25%] object-cover pointer-events-none"
+                    style={getSmartCropIframeStyle(speaker1X, speaker1Y, zoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
                   <div className="absolute top-12 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-cyan-400/40 text-[9px] font-bold text-cyan-300 flex items-center gap-1">
                     <Mic className="w-2.5 h-2.5 text-cyan-400" />
-                    <span>FOCO: HOST (ESQ)</span>
+                    <span>FOCO CÂM 1 (X:{speaker1X}%, Y:{speaker1Y}%)</span>
                   </div>
                 </div>
               ) : format === 'speaker_right' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
                   <iframe
-                    src={embedUrl}
+                    src={primaryEmbedUrl}
                     title="Right Speaker Preview"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    className="w-[320%] h-full -ml-[195%] object-cover pointer-events-none"
+                    style={getSmartCropIframeStyle(speaker2X, speaker2Y, zoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
                   <div className="absolute top-12 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-yellow-400/40 text-[9px] font-bold text-yellow-300 flex items-center gap-1">
                     <Mic className="w-2.5 h-2.5 text-yellow-400" />
-                    <span>FOCO: CONVIDADO (DIR)</span>
+                    <span>FOCO CÂM 2 (X:{speaker2X}%, Y:{speaker2Y}%)</span>
                   </div>
+                </div>
+              ) : format === 'vertical_crop' || format === 'speaker_center' ? (
+                <div className="relative z-10 w-full h-full overflow-hidden bg-black">
+                  <iframe
+                    src={primaryEmbedUrl}
+                    title="Center Speaker 9:16 Preview"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    style={getSmartCropIframeStyle(50, 45, zoom)}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  />
                 </div>
               ) : (
                 <div
-                  className={`relative z-10 w-full transition-all duration-300 ${
-                    format === 'vertical_crop' || format === 'speaker_center'
-                      ? 'h-full scale-[2.2] flex items-center justify-center'
-                      : format === 'vertical_blur'
-                      ? 'h-[52%] shadow-2xl'
+                  className={`relative z-10 w-full transition-all duration-300 overflow-hidden ${
+                    format === 'vertical_blur'
+                      ? 'aspect-video w-full shadow-2xl border-y border-white/10'
                       : format === 'square'
                       ? 'aspect-square w-full shadow-2xl'
                       : 'aspect-video w-full shadow-2xl'
                   }`}
                 >
                   <iframe
-                    src={embedUrl}
+                    src={primaryEmbedUrl}
                     title="YouTube Shorts Preview"
                     referrerPolicy="strict-origin-when-cross-origin"
+                    style={
+                      format === 'square'
+                        ? getSmartCropIframeStyle(50, 50, 1.05)
+                        : { width: '100%', height: '100%' }
+                    }
                     className="w-full h-full object-cover pointer-events-auto"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
@@ -659,6 +752,19 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         >
           {previewMode === 'embed' ? <Film className="w-3.5 h-3.5" /> : <ImageIcon className="w-3.5 h-3.5" />}
           <span>{previewMode === 'embed' ? 'Player Web' : 'Modo Estúdio'}</span>
+        </button>
+
+        <button
+          onClick={() => setShowSafeZones(!showSafeZones)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+            showSafeZones
+              ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+              : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+          }`}
+          title="Mostrar ou ocultar as guias de Zona Segura do TikTok / Shorts / Reels"
+        >
+          <Layout className="w-3.5 h-3.5" />
+          <span>Zona Segura</span>
         </button>
 
         <div className="text-xs text-zinc-300 px-2 font-mono flex items-center gap-1">

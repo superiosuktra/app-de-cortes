@@ -8,12 +8,27 @@ import { cutRouter } from './server/routes/cutRoutes.js';
 import { socialRouter } from './server/routes/socialRoutes.js';
 import { stateRouter } from './server/routes/stateRoutes.js';
 import { PRIVACY_POLICY_HTML, TERMS_OF_SERVICE_HTML } from './server/pages/legalPages.js';
+import {
+  securityHeadersMiddleware,
+  sanitizeRequestMiddleware,
+  createRateLimiter,
+} from './server/middleware/security.js';
 
 const app = express();
 const httpServer = http.createServer(app);
 
-// Middlewares
-app.use(express.json({ limit: '10mb' }));
+// Security & Payload Middlewares
+app.disable('x-powered-by');
+app.use(securityHeadersMiddleware);
+app.use(express.json({ limit: '2mb' }));
+app.use(sanitizeRequestMiddleware);
+
+const globalApiLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 120,
+  scope: 'global-api',
+});
+app.use('/api', globalApiLimiter);
 
 // 1. Legal Standalone Pages (for Google / TikTok OAuth & App Review)
 app.get('/privacy', (_req: Request, res: Response) => {

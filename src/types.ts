@@ -1,5 +1,6 @@
 export type VideoFormat =
   | 'split_screen'
+  | 'dynamic_reframe'
   | 'speaker_left'
   | 'speaker_right'
   | 'speaker_center'
@@ -9,6 +10,16 @@ export type VideoFormat =
   | 'square';
 
 export type SubtitleTheme = 'hormozi' | 'beast' | 'cyberpunk' | 'clean';
+
+export interface SmartFramingConfig {
+  speaker1X: number; // 0..100 horizontal center for Speaker 1 (Host/Left)
+  speaker1Y: number; // 0..100 vertical center for Speaker 1
+  speaker2X: number; // 0..100 horizontal center for Speaker 2 (Guest/Right)
+  speaker2Y: number; // 0..100 vertical center for Speaker 2
+  zoom: number; // 1.0..1.8 zoom multiplier
+  detectedFacesCount?: number;
+  aiInsight?: string;
+}
 
 export interface VideoInfo {
   videoId: string;
@@ -35,6 +46,7 @@ export interface ViralCut {
   recommendedFormat: VideoFormat;
   activeSpeaker?: string;
   subtitleTheme?: SubtitleTheme;
+  framing?: SmartFramingConfig;
   caption: {
     youtube: string;
     instagram: string;

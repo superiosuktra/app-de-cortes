@@ -1112,6 +1112,11 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                 activeSpeaker={currentCut?.activeSpeaker}
                 overlayTitle={title || currentCut?.title || 'ESSE MOMENTO MUDOU TUDO 🚨'}
                 hook={caption.slice(0, 85) || currentCut?.hook}
+                speaker1X={currentCut?.framing?.speaker1X ?? 24}
+                speaker1Y={currentCut?.framing?.speaker1Y ?? 44}
+                speaker2X={currentCut?.framing?.speaker2X ?? 76}
+                speaker2Y={currentCut?.framing?.speaker2Y ?? 44}
+                zoom={currentCut?.framing?.zoom ?? 1.25}
                 initialPlatform={previewPlatform}
                 onPlatformChange={(p) => {
                   setPreviewPlatform(p);
