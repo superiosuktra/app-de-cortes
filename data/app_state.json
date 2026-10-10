@@ -1,14 +1,14 @@
 {
   "credentials": {
     "youtube": {
-      "accessToken": "",
-      "refreshToken": "",
+      "accessToken": "enc:v1:33dc6217f30227790ae628d3:cc6142f5c4ae39923cd6dfde48879185:a8cb5fefe5f6da9962fec4d677c23fcae1c02d0c85c5281289847a72f1099ebde518774aa4d24a3293594905d697d39b45f8891e8fb80eff30b148bcf9ac19f55e9cb9d72b675e3a7cc9b409a8bc35a819314949bdba62db1fc985dba1de40df797cd9379ffbaa36abdb84a881bee5d9521effa4a63874cc8b8fe0fbfada64b398d96a697c739605b3247d56fcb4331f08f768c86a632a69deff082b38fa345fa6c97f0d641762e7e7069b53d072fe31d6cab4e6e69b39f30b8fa3e48673d504e8464e9bc6313ea8ae34d263153896600b6b1c500dbb6e5ad1f48a4539503ec49d722c75c27f4482d54299583df55f9ad5bf3a9a66fd3988ea9669be0a",
+      "refreshToken": "enc:v1:bd92471d159faa7a53892991:e600778fe4c7c1c1d43857d1032177a6:72ce787023713d8e5b9914d4003e74e87f6dea595f99721bcd6e5fc7ccd4f01682b0bfb94d70f68c557b1719b7dfe90fbf41e7699c185c6275ae9e83bde6ba05ddff02b69681a7d9d23b5f094991970e48ac98a4127f8643cdf2ee5c1b1845bf4bd40f79a935",
       "clientId": "",
       "clientSecret": "",
-      "status": "disconnected",
+      "status": "connected",
       "channelTitle": "ABNER_CORTES",
       "avatar": "https://i.ytimg.com/vi/lsWTOWpzTFI/hqdefault.jpg",
-      "verifiedAt": "2026-10-07 20:52",
+      "verifiedAt": "12:26:54",
       "accountName": "ABNER_CORTES",
       "customUrl": "@ABNER_CORTES",
       "displayName": "ABNER_CORTES"
@@ -57,8 +57,8 @@
     {
       "id": "sample-queue-1",
       "cutId": "cut-demo-1",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência",
-      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "videoTitle": "O Poder da Disciplina (Renato Cariani) | Os Sócios",
+      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
       "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
       "startTime": "00:15",
       "endTime": "00:55",
@@ -84,36 +84,74 @@
         "tiktok",
         "instagram"
       ],
-      "scheduledFor": "2026-10-07T19:09:50.376Z",
-      "status": "published",
-      "createdAt": "2026-10-07T18:49:50.376Z",
-      "error": "Erro YouTube API (401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+      "scheduledFor": "2026-10-10T15:12:52.593Z",
+      "status": "failed",
+      "createdAt": "2026-10-10T14:52:52.593Z",
+      "error": "Erro YouTube API (429): Quota exceeded for quota metric 'Video Uploads' and limit 'Video Uploads per day' of service 'youtube.googleapis.com' for consumer 'project_number:407408718192'.",
       "logs": [
-        "❌ [YOUTUBE] Erro YouTube API (401): Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "✅ [YOUTUBE] [Modo Demonstração] Publicação transmitida para YouTube Shorts no canal de teste com visibilidade \"public\".",
+        "❌ [YOUTUBE] Erro YouTube API (429): Quota exceeded for quota metric 'Video Uploads' and limit 'Video Uploads per day' of service 'youtube.googleapis.com' for consumer 'project_number:407408718192'.",
         "⚠️ [TIKTOK] Token não configurado em APIs & Conexões.",
         "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões."
-      ],
-      "publishedAt": "2026-10-07T19:46:51.358Z",
-      "publishedAccounts": [
-        {
-          "platform": "youtube",
-          "account": "Canal Demo (Modo Teste)"
-        }
       ]
     },
     {
-      "id": "queue-cut-demo-2-1791403101897-0",
+      "id": "queue-cut-demo-1-1791646035403-0",
+      "cutId": "cut-demo-1",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
+      "cutTitle": "A ILUSÃO DA MOTIVAÇÃO 🧠",
+      "startTime": "00:15",
+      "endTime": "00:55",
+      "durationSeconds": 40,
+      "format": "split_screen",
+      "viralityScore": 98,
+      "hook": "O maior erro que as pessoas cometem é achar que motivação dura para sempre.",
+      "payoff": "Quem depende de sentir vontade nunca constrói nada grandioso.",
+      "caption": {
+        "youtube": "A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\nAssista até o fim para virar essa chave.",
+        "instagram": "Você ainda acredita que precisa de motivação todos os dias? Veja o que a neurociência diz sobre isso. 👇 Salve para lembrar!",
+        "tiktok": "Pare de cair nessa mentira sobre disciplina! 🤯 #dopamina #foco #produtividade #shorts"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Neurociencia",
+        "#Disciplina",
+        "#Mindset",
+        "#Viral"
+      ],
+      "platforms": [
+        "youtube",
+        "instagram",
+        "tiktok"
+      ],
+      "scheduledFor": "2026-10-10T15:57:15.402Z",
+      "status": "published",
+      "createdAt": "2026-10-10T15:27:15.403Z",
+      "publishedAt": "2026-10-10T15:28:43.049Z",
+      "publishedAccounts": [
+        {
+          "platform": "youtube",
+          "account": "ABNER_CORTES",
+          "videoUrl": "https://youtube.com/shorts/3l2OzukFyt4",
+          "videoId": "3l2OzukFyt4"
+        }
+      ],
+      "logs": [
+        "✅ [YOUTUBE] Vídeo postado no YouTube Shorts (ABNER_CORTES)! Link: https://youtube.com/shorts/3l2OzukFyt4",
+        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
+        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
+      ]
+    },
+    {
+      "id": "queue-cut-demo-2-1791646035403-1",
       "cutId": "cut-demo-2",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=y7G5J2_7c5w",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
       "cutTitle": "O ALGORITMO ROUBOU SUA MENTE 🚨",
       "startTime": "00:50",
       "endTime": "01:25",
       "durationSeconds": 35,
-      "format": "vertical_blur",
+      "format": "speaker_right",
       "viralityScore": 96,
       "hook": "Se você não dominar a sua mente logo pela manhã, o algoritmo vai dominar por você.",
       "payoff": "Retome o controle da sua atenção antes que seja tarde.",
@@ -133,517 +171,157 @@
         "instagram",
         "tiktok"
       ],
-      "scheduledFor": "2026-10-07T20:28:21.897Z",
-      "status": "published",
-      "createdAt": "2026-10-07T19:58:21.897Z",
-      "publishedAt": "2026-10-07T20:52:56.000Z",
-      "publishedVideoId": "lsWTOWpzTFI",
-      "publishedVideoUrl": "https://youtube.com/shorts/lsWTOWpzTFI",
-      "publishedAccounts": [
-        {
-          "platform": "youtube",
-          "account": "ABNER_CORTES",
-          "videoId": "lsWTOWpzTFI",
-          "videoUrl": "https://youtube.com/shorts/lsWTOWpzTFI"
-        }
-      ],
-      "logs": [
-        "✅ [YOUTUBE] Vídeo postado com sucesso no canal ABNER_CORTES!",
-        "🔗 [YOUTUBE] Link do Shorts: https://youtube.com/shorts/lsWTOWpzTFI",
-        "ℹ️ [STATUS] Transmitido e publicado com visibilidade Pública no YouTube Shorts."
-      ]
+      "scheduledFor": "2026-10-10T16:27:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:27:15.403Z"
     },
     {
-      "id": "queue-cut-1-1791566550263-1791566562578-0",
-      "cutId": "cut-1-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
+      "id": "queue-cut-demo-3-1791646035403-2",
+      "cutId": "cut-demo-3",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
       "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "A VERDADE BRUTAL SOBRE FLOW PODCAST: INTELIGÊNCI ⚠️",
-      "startTime": "00:15",
-      "endTime": "00:55",
-      "durationSeconds": 40,
-      "format": "vertical_crop",
-      "viralityScore": 92,
-      "hook": "A maioria das pessoas passa a vida inteira sem perceber isso. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "A maioria das pessoas passa a vida inteira sem perceber isso. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "A maioria das pessoas passa a vida inteira sem perceber isso. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "A maioria das pessoas passa a vida inteira sem perceber isso. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Viral",
-        "#Mentalidade",
-        "#Sucesso",
-        "#Verdade"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T17:52:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-2-1791566550263-1791566562578-1",
-      "cutId": "cut-2-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "O ERRO QUE DESTRÓI SEU FLOW PODCAST: INTELIGÊNCI 🚨",
-      "startTime": "01:30",
-      "endTime": "02:20",
-      "durationSeconds": 50,
-      "format": "vertical_blur",
-      "viralityScore": 99,
-      "hook": "Se você faz isso todos os dias, pare imediatamente. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "Se você faz isso todos os dias, pare imediatamente. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Se você faz isso todos os dias, pare imediatamente. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Se você faz isso todos os dias, pare imediatamente. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Produtividade",
-        "#Foco",
-        "#Dopamina",
-        "#Disciplina"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T18:22:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-3-1791566550263-1791566562578-2",
-      "cutId": "cut-3-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "O SEGREDO QUE NINGUÉM CONTA SOBRE FLOW PODCAST: INTELIGÊNCI 🤫",
-      "startTime": "02:45",
-      "endTime": "03:45",
-      "durationSeconds": 60,
-      "format": "vertical_crop",
-      "viralityScore": 98,
-      "hook": "Guardaram esse segredo a sete chaves durante anos... Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "Guardaram esse segredo a sete chaves durante anos... Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Guardaram esse segredo a sete chaves durante anos... Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Guardaram esse segredo a sete chaves durante anos... 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Segredo",
-        "#Revelacao",
-        "#Curiosidades",
-        "#Reels"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T18:52:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-4-1791566550263-1791566562578-3",
-      "cutId": "cut-4-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "COMO MUDAR COMPLETAMENTE SEU FLOW PODCAST: INTELIGÊNCI 🚀",
-      "startTime": "04:00",
-      "endTime": "04:40",
-      "durationSeconds": 40,
-      "format": "vertical_blur",
+      "cutTitle": "O HACK DA DOPAMINA RÁPIDA ⚡",
+      "startTime": "01:40",
+      "endTime": "02:25",
+      "durationSeconds": 45,
+      "format": "speaker_left",
       "viralityScore": 97,
-      "hook": "Aplique esta técnica simples hoje e veja o resultado amanhã. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "hook": "Toda vez que você busca prazer imediato sem esforço, você cava sua própria cova.",
+      "payoff": "Inverta a ordem: dor primeiro, recompensa depois. É assim que os melhores operam.",
       "caption": {
-        "youtube": "Aplique esta técnica simples hoje e veja o resultado amanhã. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Aplique esta técnica simples hoje e veja o resultado amanhã. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Aplique esta técnica simples hoje e veja o resultado amanhã. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+        "youtube": "O segredo da dopamina que ninguém te conta. Pare de sabotar seu cérebro! ⚡ #Shorts",
+        "instagram": "Você sente cansaço constante sem ter feito nada o dia todo? Esse corte explica o porquê.",
+        "tiktok": "Como reiniciar seus receptores de dopamina em 24h 🧠 #neurociencia #biohacking #foco"
       },
       "hashtags": [
         "#Shorts",
-        "#Dicas",
-        "#Transformacao",
-        "#Evolucao",
-        "#TikTok"
+        "#Dopamina",
+        "#Neurociencia",
+        "#Habitos",
+        "#AltaPerformance"
       ],
       "platforms": [
         "youtube",
         "instagram",
         "tiktok"
       ],
-      "scheduledFor": "2026-10-09T19:22:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
+      "scheduledFor": "2026-10-10T16:57:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:27:15.403Z"
     },
     {
-      "id": "queue-cut-5-1791566550263-1791566562578-4",
-      "cutId": "cut-5-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
+      "id": "queue-cut-demo-4-1791646035403-3",
+      "cutId": "cut-demo-4",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
       "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "A HISTÓRIA MAIS LOUCA DE FLOW PODCAST: INTELIGÊNCI 🤯",
-      "startTime": "05:15",
-      "endTime": "06:05",
-      "durationSeconds": 50,
-      "format": "vertical_crop",
-      "viralityScore": 96,
-      "hook": "Você não vai acreditar no que aconteceu no final dessa história... Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "Você não vai acreditar no que aconteceu no final dessa história... Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Você não vai acreditar no que aconteceu no final dessa história... Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Você não vai acreditar no que aconteceu no final dessa história... 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#HistoriaReal",
-        "#Fatos",
-        "#Inacreditavel",
-        "#ViralShorts"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T19:52:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-6-1791566550263-1791566562578-5",
-      "cutId": "cut-6-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "O CONSELHO DE MILHÕES SOBRE FLOW PODCAST: INTELIGÊNCI 💎",
-      "startTime": "06:30",
-      "endTime": "07:30",
-      "durationSeconds": 60,
+      "cutTitle": "A REGRA DOS 5 MINUTOS CONTRA PREGUIÇA ⏳",
+      "startTime": "02:30",
+      "endTime": "03:10",
+      "durationSeconds": 40,
       "format": "vertical_blur",
       "viralityScore": 95,
-      "hook": "Este único conselho pode economizar 5 anos de erros na sua jornada. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "hook": "O seu cérebro odeia começar tarefas, mas ele não consegue parar uma tarefa começada.",
+      "payoff": "Faça apenas cinco minutos. A inércia vai trabalhar a seu favor.",
       "caption": {
-        "youtube": "Este único conselho pode economizar 5 anos de erros na sua jornada. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Este único conselho pode economizar 5 anos de erros na sua jornada. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Este único conselho pode economizar 5 anos de erros na sua jornada. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+        "youtube": "O truque psicológico para vencer a procrastinação instantaneamente! 🔥 #Shorts",
+        "instagram": "Salve para aplicar na próxima vez que bater aquela preguiça incontrolável.",
+        "tiktok": "Testei isso e mudou minha rotina de trabalho 🤯 #estudos #produtividade #foco"
       },
       "hashtags": [
         "#Shorts",
-        "#Sabedoria",
-        "#Conselho",
-        "#Negocios",
-        "#Prosperidade"
+        "#Procrastinacao",
+        "#DicasRapidas",
+        "#Mindset",
+        "#Produtividade"
       ],
       "platforms": [
         "youtube",
         "instagram",
         "tiktok"
       ],
-      "scheduledFor": "2026-10-09T20:22:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
+      "scheduledFor": "2026-10-10T17:27:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:27:15.403Z"
     },
     {
-      "id": "queue-cut-7-1791566550263-1791566562578-6",
-      "cutId": "cut-7-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
+      "id": "queue-cut-demo-5-1791646035403-4",
+      "cutId": "cut-demo-5",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
       "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "O TESTE DEFINITIVO PARA SUA FLOW PODCAST: INTELIGÊNCI 🔥",
-      "startTime": "07:45",
-      "endTime": "08:25",
-      "durationSeconds": 40,
-      "format": "vertical_crop",
-      "viralityScore": 94,
-      "hook": "Faça esse teste mental agora e me diga seu resultado nos comentários! Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "Faça esse teste mental agora e me diga seu resultado nos comentários! Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Faça esse teste mental agora e me diga seu resultado nos comentários! Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Faça esse teste mental agora e me diga seu resultado nos comentários! 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Desafio",
-        "#Reflexao",
-        "#Comente",
-        "#TikTokBrasil"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T20:52:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-8-1791566550263-1791566562578-7",
-      "cutId": "cut-8-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "POR QUE 99% DAS PESSOAS FALHAM EM FLOW PODCAST: INTELIGÊNCI ⚡",
-      "startTime": "09:00",
-      "endTime": "09:50",
-      "durationSeconds": 50,
-      "format": "vertical_blur",
-      "viralityScore": 93,
-      "hook": "A diferença entre quem desiste e quem vence é apenas esse detalhe. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "A diferença entre quem desiste e quem vence é apenas esse detalhe. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "A diferença entre quem desiste e quem vence é apenas esse detalhe. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "A diferença entre quem desiste e quem vence é apenas esse detalhe. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Vencer",
-        "#FocoTotal",
-        "#MindsetMilionario",
-        "#Constancia"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T21:22:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-9-1791566550263-1791566562578-8",
-      "cutId": "cut-9-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "O HACK PSICOLÓGICO PARA DOMINAR FLOW PODCAST: INTELIGÊNCI 🧠",
-      "startTime": "10:15",
-      "endTime": "11:15",
-      "durationSeconds": 60,
-      "format": "vertical_crop",
-      "viralityScore": 92,
-      "hook": "Seu cérebro foi programado para cair nessa armadilha todos os dias. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "Seu cérebro foi programado para cair nessa armadilha todos os dias. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Seu cérebro foi programado para cair nessa armadilha todos os dias. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Seu cérebro foi programado para cair nessa armadilha todos os dias. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Neurociencia",
-        "#Psicologia",
-        "#Hacks",
-        "#Cerebro"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T21:52:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-10-1791566550263-1791566562578-9",
-      "cutId": "cut-10-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "O MOMENTO MAIS TENSO DA CONVERSA FLOW PODCAST: INTELIGÊNCI 👀",
-      "startTime": "11:30",
-      "endTime": "12:10",
-      "durationSeconds": 40,
-      "format": "vertical_blur",
+      "cutTitle": "POR QUE 99% NUNCA ENRIQUECEM 💸",
+      "startTime": "03:20",
+      "endTime": "04:05",
+      "durationSeconds": 45,
+      "format": "split_screen",
       "viralityScore": 99,
-      "hook": "O clima esquentou na hora em que esse assunto veio à tona... Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "hook": "Pobre gasta o que ganha, classe média compra passivos achando que é ativo, e ricos compram tempo.",
+      "payoff": "Enquanto você vender horas, seu teto sempre será limitado.",
       "caption": {
-        "youtube": "O clima esquentou na hora em que esse assunto veio à tona... Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "O clima esquentou na hora em que esse assunto veio à tona... Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "O clima esquentou na hora em que esse assunto veio à tona... 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+        "youtube": "A diferença definitiva entre quem cria riqueza e quem só sobrevive. Concorda? 💬 #Shorts",
+        "instagram": "Qual lado você está escolhendo construir? Deixe nos comentários sua opinião sincera.",
+        "tiktok": "Essa frase doeu mas é a pura verdade 😳 #financas #investimentos #riqueza #mindset"
       },
       "hashtags": [
         "#Shorts",
-        "#Polemic",
-        "#Debate",
-        "#Opinião",
-        "#Podcasts"
+        "#Financas",
+        "#Riqueza",
+        "#Empreendedorismo",
+        "#Sucesso"
       ],
       "platforms": [
         "youtube",
         "instagram",
         "tiktok"
       ],
-      "scheduledFor": "2026-10-09T22:22:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
+      "scheduledFor": "2026-10-10T17:57:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:27:15.403Z"
     },
     {
-      "id": "queue-cut-11-1791566550263-1791566562578-10",
-      "cutId": "cut-11-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
+      "id": "queue-cut-demo-6-1791646035403-5",
+      "cutId": "cut-demo-6",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
       "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "ISSO PODE SALVAR SEU FUTURO EM FLOW PODCAST: INTELIGÊNCI 🛡️",
-      "startTime": "12:45",
-      "endTime": "13:35",
-      "durationSeconds": 50,
-      "format": "vertical_crop",
-      "viralityScore": 98,
-      "hook": "Não ignore este aviso se você se preocupa com o seu futuro. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
-      "caption": {
-        "youtube": "Não ignore este aviso se você se preocupa com o seu futuro. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Não ignore este aviso se você se preocupa com o seu futuro. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Não ignore este aviso se você se preocupa com o seu futuro. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
-      },
-      "hashtags": [
-        "#Shorts",
-        "#Futuro",
-        "#Atencao",
-        "#Importante",
-        "#Compartilhe"
-      ],
-      "platforms": [
-        "youtube",
-        "instagram",
-        "tiktok"
-      ],
-      "scheduledFor": "2026-10-09T22:52:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
-    },
-    {
-      "id": "queue-cut-12-1791566550263-1791566562578-11",
-      "cutId": "cut-12-1791566550263",
-      "videoTitle": "Flow Podcast: Inteligência Emocional e Neurociência do Comportamento",
-      "videoUrl": "https://www.youtube.com/watch?v=B57eOqeLVfc",
-      "cutTitle": "A FRASE QUE MUDOU MINHA VIDA SOBRE FLOW PODCAST: INTELIGÊNCI ✨",
-      "startTime": "14:00",
-      "endTime": "15:00",
-      "durationSeconds": 60,
+      "cutTitle": "A LIÇÃO BRUTAL QUE NINGUÉM TE CONTA 🥊",
+      "startTime": "04:15",
+      "endTime": "04:58",
+      "durationSeconds": 43,
       "format": "vertical_blur",
-      "viralityScore": 97,
-      "hook": "Guarde essa frase com você pelo resto da sua vida. Você precisa ouvir o que Flow Podcast revelou sobre isso.",
-      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "viralityScore": 94,
+      "hook": "O mundo não quer saber o quanto você se esforçou, ele só recompensa o resultado final.",
+      "payoff": "Pare de pedir aplausos pelo esforço e comece a entregar consistência silenciosa.",
       "caption": {
-        "youtube": "Guarde essa frase com você pelo resto da sua vida. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
-        "instagram": "Guarde essa frase com você pelo resto da sua vida. Você precisa ouvir o que Flow Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
-        "tiktok": "Guarde essa frase com você pelo resto da sua vida. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+        "youtube": "A verdade sobre o sucesso que a maioria tem medo de ouvir. Compartilhe com um amigo! 🚀 #Shorts",
+        "instagram": "Marque aquela pessoa que precisa de um choque de realidade hoje. 👇",
+        "tiktok": "Ouça isso todos os dias antes de trabalhar 🥊 #motivacao #disciplina #foco"
       },
       "hashtags": [
         "#Shorts",
-        "#Inspiracao",
-        "#Vida",
-        "#MotivacaoDiaria",
-        "#Forte"
+        "#Superacao",
+        "#Consistencia",
+        "#Disciplina",
+        "#Mentalidade"
       ],
       "platforms": [
         "youtube",
         "instagram",
         "tiktok"
       ],
-      "scheduledFor": "2026-10-09T23:22:42.578Z",
-      "status": "failed",
-      "createdAt": "2026-10-09T17:22:42.578Z",
-      "error": "Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.",
-      "logs": [
-        "⚠️ [YOUTUBE] Token não configurado em APIs & Conexões.",
-        "⚠️ [INSTAGRAM] Token não configurado em APIs & Conexões.",
-        "⚠️ [TIKTOK] Token não configurado em APIs & Conexões."
-      ]
+      "scheduledFor": "2026-10-10T18:27:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:27:15.403Z"
     }
   ],
   "autoPostSettings": {
-    "autoEnqueueOnGenerate": false,
-    "isActive": true,
-    "intervalMinutes": 30,
+    "autoEnqueueOnGenerate": true,
+    "isActive": false,
+    "intervalMinutes": 15,
     "targetPlatforms": {
       "youtube": true,
-      "instagram": true,
-      "tiktok": true
+      "instagram": false,
+      "tiktok": false
     },
     "defaultPrivacy": "public"
   },
-  "lastUpdated": "2026-10-10T13:04:17.573Z"
+  "lastUpdated": "2026-10-10T15:31:39.294Z"
 }

@@ -55,9 +55,45 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  const handleTestToken = async () => {
-    const currentToken = tokens[activePlatform];
-    if (!currentToken.trim()) {
+  const handleGoogleLoginModal = async () => {
+    setTestingStatus('Verificando sessão Google ou abrindo Login...');
+    setTestResult(null);
+    try {
+      const res = await fetchJson<any>('/api/auth/google/quick-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: tokens.youtube || '' }),
+      });
+      if (res.ok && res.data?.success && res.data?.youtube) {
+        const yt = res.data.youtube;
+        const newTokens = { ...tokens, youtube: yt.accessToken || tokens.youtube };
+        setTokens(newTokens);
+        onSaveTokens(newTokens);
+        setTestResult({
+          valid: true,
+          accountName: yt.channelTitle || res.data.accountName || 'Canal do YouTube',
+          avatar: yt.avatar || res.data.avatar,
+          details: 'Conectado permanentemente via Login do Google (Renovação Automática Ativa)!',
+        });
+        setTestingStatus('');
+        return;
+      }
+    } catch {}
+    setTestingStatus('');
+    const width = 540;
+    const height = 680;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    window.open(
+      '/api/auth/google/login',
+      'GoogleYouTubeLogin',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=yes,status=no`
+    );
+  };
+
+  const handleTestToken = async (overrideToken?: string | React.MouseEvent) => {
+    const currentToken = typeof overrideToken === 'string' ? overrideToken : tokens[activePlatform];
+    if (!currentToken.trim() && activePlatform !== 'youtube') {
       setTestResult({
         valid: false,
         error: `Insira o Access Token do ${activePlatform.toUpperCase()} antes de testar.`,
@@ -65,7 +101,7 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
       return;
     }
 
-    setTestingStatus('Testando credencial diretamente na API oficial...');
+    setTestingStatus('Autenticando diretamente na API oficial...');
     setTestResult(null);
 
     try {
@@ -76,8 +112,13 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
       });
       const data = res.data || {};
       if (res.ok && data.valid) {
+        const finalTokens = {
+          ...tokens,
+          [activePlatform]: data.accessToken || currentToken,
+        };
+        setTokens(finalTokens);
         setTestResult(data);
-        onSaveTokens(tokens);
+        onSaveTokens(finalTokens);
       } else {
         setTestResult({
           valid: false,
@@ -180,56 +221,30 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
           {/* 1. YOUTUBE TAB */}
           {activePlatform === 'youtube' && (
             <div className="space-y-5 animate-fadeIn">
-              <div className="p-4 bg-red-950/20 border border-red-500/20 rounded-2xl flex items-start gap-3">
-                <Youtube className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-zinc-300 leading-relaxed space-y-1">
-                  <p className="font-bold text-white">Sobre a YouTube Data API v3:</p>
-                  <p>
-                    O Google requer um <strong>Access Token OAuth 2.0</strong> com permissão de upload para enviar vídeos diretamente ao seu canal.
+              {/* 1-Click Google Login Box */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#1a1c2e] via-[#1f1930] to-[#261726] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <Sparkles className="w-3 h-3 text-emerald-400" /> RECOMENDADO • 1 CLIQUE
+                  </span>
+                  <h4 className="text-sm font-black text-white">Conectar Canal Fazendo Login com o Google</h4>
+                  <p className="text-[11px] text-zinc-300">
+                    Entre diretamente com sua conta Google sem precisar configurar chaves manuais.
                   </p>
                 </div>
-              </div>
-
-              {/* Step by step */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">
-                  Passo a Passo Rápido (3 Minutos):
-                </h4>
-
-                <div className="space-y-2.5 text-xs text-zinc-300">
-                  <div className="p-3 bg-[#0d0e15] border border-zinc-800 rounded-xl space-y-1">
-                    <span className="font-bold text-pink-400">1. Acessar o Google Cloud Console:</span>
-                    <p>
-                      Vá em <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="text-purple-400 underline inline-flex items-center gap-1">console.cloud.google.com <ExternalLink className="w-3 h-3" /></a>, crie um projeto gratuito e ative a biblioteca <strong>YouTube Data API v3</strong>.
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-[#0d0e15] border border-zinc-800 rounded-xl space-y-2">
-                    <span className="font-bold text-pink-400">2. Escopo Obrigatório de Upload:</span>
-                    <p>O token deve conter o seguinte escopo:</p>
-                    <div className="flex items-center justify-between p-2 bg-black rounded-lg font-mono text-[11px] text-yellow-300">
-                      <span>https://www.googleapis.com/auth/youtube.upload</span>
-                      <button
-                        onClick={() => handleCopy('https://www.googleapis.com/auth/youtube.upload', 'scope-yt')}
-                        className="text-zinc-400 hover:text-white p-1"
-                        title="Copiar Escopo"
-                      >
-                        {copiedText === 'scope-yt' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-[#0d0e15] border border-zinc-800 rounded-xl space-y-2">
-                    <span className="font-bold text-pink-400">3. Gerar Tokens Oficiais no Google OAuth Playground:</span>
-                    <p>
-                      Acesse o <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" className="text-purple-400 underline inline-flex items-center gap-1">Google OAuth Playground <ExternalLink className="w-3 h-3" /></a>, selecione <strong>YouTube Data API v3</strong> &gt; marque <code>https://www.googleapis.com/auth/youtube.upload</code> &gt; clique em <strong>Authorize APIs</strong>.
-                    </p>
-                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-500/40 rounded-xl text-yellow-200 text-[11px] leading-relaxed">
-                      💡 <strong>Aviso "o código expira depois de um tempo"?</strong><br />
-                      No Passo 2 do Playground, o Google exibe um "Authorization code" provisório. Para obter as chaves definitivas, clique no botão azul <strong>[Exchange authorization code for tokens]</strong>! O Google criará o <strong>Refresh token (1//...)</strong> que é permanente e o <strong>Access token (ya29...)</strong>.
-                    </div>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleLoginModal}
+                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-900 font-extrabold text-xs shadow-lg transition shrink-0"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z" />
+                    <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z" />
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z" />
+                  </svg>
+                  <span>Entrar com o Google</span>
+                </button>
               </div>
 
               {/* One-Click Demo Mode Option */}
@@ -266,8 +281,8 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
               {/* Token Input & Test Box */}
               <div className="p-4 bg-[#161726] border border-zinc-700/80 rounded-2xl space-y-3">
                 <label className="text-xs font-bold text-white flex items-center justify-between">
-                  <span>Cole seu Access Token do YouTube:</span>
-                  <span className="text-[10px] text-zinc-400">Dura cerca de 60 minutos</span>
+                  <span>Ou cole qualquer Link / Código (4/0...) / Token do Google:</span>
+                  <span className="text-[10px] text-emerald-400">Troca e Renovação Automáticas</span>
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -283,17 +298,24 @@ export const ApiSetupModal: React.FC<ApiSetupModalProps> = ({
                         } catch (err) {}
                       }
                       setTokens({ ...tokens, youtube: newVal });
+                      if (
+                        val.includes('code=4/') ||
+                        val.startsWith('4/0') ||
+                        (val.startsWith('1//') && val.length > 20)
+                      ) {
+                        handleTestToken(val);
+                      }
                     }}
-                    placeholder="ya29.a0AfH6SM... (ou cole o JSON do Playground)"
+                    placeholder="Cole o link de redirecionamento, código 4/0..., 1//... ou ya29..."
                     className="flex-1 px-3.5 py-2.5 bg-[#0e0f17] border border-zinc-700 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                   />
                   <button
-                    onClick={handleTestToken}
+                    onClick={() => handleTestToken()}
                     disabled={!!testingStatus}
                     className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:opacity-90 text-white text-xs font-bold transition flex items-center gap-1.5"
                   >
                     {testingStatus ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                    <span>Testar Conexão</span>
+                    <span>Conectar</span>
                   </button>
                 </div>
 

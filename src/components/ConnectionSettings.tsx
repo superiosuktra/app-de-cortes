@@ -81,12 +81,141 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
   const [isTikTokGuideOpen, setIsTikTokGuideOpen] = useState<boolean>(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState<boolean>(false);
   const [legalModalTab, setLegalModalTab] = useState<'privacy' | 'terms' | 'hosting'>('privacy');
+  const [isGooglePopupOpen, setIsGooglePopupOpen] = useState<boolean>(false);
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState<boolean>(false);
+  const [googleQuickPasteInput, setGoogleQuickPasteInput] = useState<string>('');
 
   useEffect(() => {
     if (credentials) {
       setCreds(credentials);
     }
   }, [credentials]);
+
+  // Listen for postMessage from /api/auth/google/callback popup
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
+        setIsGooglePopupOpen(false);
+        setIsConnectingGoogle(false);
+        if (event.data.success && event.data.youtube) {
+          const updated = {
+            ...creds,
+            youtube: {
+              ...creds.youtube,
+              ...event.data.youtube,
+              status: 'connected' as const,
+            },
+          };
+          setCreds(updated);
+          onSaveCredentials(updated);
+          setSaveFeedback(`✅ ${event.data.message || 'Canal conectado via Login do Google!'}`);
+          setTestResults((prev) => ({
+            ...prev,
+            youtube: {
+              success: true,
+              message: `Conectado com sucesso: ${event.data.youtube.channelTitle || 'Canal do YouTube'}!`,
+              details: 'Autenticação Google OAuth 2.0 concluída com Renovação Automática Permanente.',
+            },
+          }));
+          confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 } });
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [creds, onSaveCredentials]);
+
+  // Quick-connect using code, redirect URL, refresh token, or existing server session
+  const handleGoogleQuickConnect = async (rawInput?: string, openPopupIfNeeded = false) => {
+    setIsConnectingGoogle(true);
+    try {
+      const res = await fetchJson<any>('/api/auth/google/quick-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: rawInput || '' }),
+      });
+
+      if (res.ok && res.data?.success && res.data?.youtube) {
+        const yt = res.data.youtube;
+        const updated = {
+          ...creds,
+          youtube: {
+            ...creds.youtube,
+            ...yt,
+            status: 'connected' as const,
+          },
+        };
+        setCreds(updated);
+        onSaveCredentials(updated);
+        setIsGooglePopupOpen(false);
+        setGoogleQuickPasteInput('');
+        setSaveFeedback(`✅ ${res.data.message || 'Canal conectado com sucesso!'}`);
+        setTestResults((prev) => ({
+          ...prev,
+          youtube: {
+            success: true,
+            message: `Conectado via Google: ${yt.channelTitle || res.data.accountName || 'Canal Ativo'}!`,
+            details: 'Sessão permanente ativa — o aplicativo renova o token sozinho em segundo plano.',
+          },
+        }));
+        confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 } });
+        setTimeout(() => setSaveFeedback(''), 5000);
+        return true;
+      }
+
+      if (openPopupIfNeeded) {
+        openGoogleAuthPopup();
+      } else if (rawInput) {
+        setSaveFeedback(`⚠️ ${res.data?.error || 'Código inválido ou expirado.'}`);
+      }
+      return false;
+    } catch {
+      if (openPopupIfNeeded) openGoogleAuthPopup();
+      return false;
+    } finally {
+      setIsConnectingGoogle(false);
+    }
+  };
+
+  const openGoogleAuthPopup = () => {
+    const width = 540;
+    const height = 680;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const params = new URLSearchParams();
+    if (creds.youtube.clientId) params.set('clientId', creds.youtube.clientId);
+    if (creds.youtube.clientSecret) params.set('clientSecret', creds.youtube.clientSecret);
+
+    window.open(
+      `/api/auth/google/login?${params.toString()}`,
+      'GoogleYouTubeLogin',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=yes,status=no`
+    );
+    setIsGooglePopupOpen(true);
+  };
+
+  // Auto-detect Google Auth Code or Token from clipboard when user returns from the Google login popup
+  useEffect(() => {
+    if (!isGooglePopupOpen) return;
+    const handleFocus = async () => {
+      try {
+        const clipText = (await navigator.clipboard.readText())?.trim() || '';
+        if (
+          clipText.includes('code=4/') ||
+          clipText.includes('code=4%2F') ||
+          clipText.startsWith('4/0') ||
+          clipText.startsWith('1//0') ||
+          clipText.startsWith('ya29.')
+        ) {
+          await handleGoogleQuickConnect(clipText, false);
+        }
+      } catch {
+        // Clipboard permission not granted yet; user can click the 1-click button or paste
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isGooglePopupOpen]);
 
   const toggleShowToken = (platform: string) => {
     setShowTokens((prev) => ({ ...prev, [platform]: !prev[platform] }));
@@ -101,12 +230,13 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
   // Test individual platform token
   const handleTestPlatform = async (platform: 'youtube' | 'instagram' | 'tiktok') => {
     const token = creds[platform].accessToken;
-    if (!token?.trim()) {
+    const refreshToken = (creds[platform] as any).refreshToken;
+    if (!token?.trim() && !(platform === 'youtube' && refreshToken?.trim())) {
       setTestResults((prev) => ({
         ...prev,
         [platform]: {
           success: false,
-          message: 'Insira o Access Token antes de realizar o teste de conexão.',
+          message: 'Clique em "Entrar com o Google" ou insira o token antes de testar.',
         },
       }));
       return;
@@ -118,8 +248,8 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token: token.trim(),
-          refreshToken: (creds[platform] as any).refreshToken,
+          token: (token || '').trim(),
+          refreshToken,
           clientId: (creds[platform] as any).clientId,
           clientSecret: (creds[platform] as any).clientSecret || (creds[platform] as any).appSecret,
         }),
@@ -130,6 +260,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
       if (res.ok && data.valid) {
         let platformUpdate: any = {
           ...creds[platform],
+          accessToken: data.accessToken || creds[platform].accessToken,
           status: 'connected' as const,
           avatar: data.avatar || (creds[platform] as any).avatar,
           verifiedAt: new Date().toLocaleTimeString('pt-BR'),
@@ -137,6 +268,8 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
 
         if (platform === 'youtube') {
           platformUpdate.channelTitle = data.accountName || creds.youtube.channelTitle;
+          if (data.refreshToken) platformUpdate.refreshToken = data.refreshToken;
+          if (data.customUrl) platformUpdate.customUrl = data.customUrl;
         } else if (platform === 'instagram') {
           platformUpdate.accountName = data.accountName || creds.instagram.accountName;
         } else if (platform === 'tiktok') {
@@ -464,34 +597,178 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
 
           {/* Connected Profile Preview if available */}
           {creds.youtube.channelTitle && creds.youtube.status === 'connected' && (
-            <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-2xl flex items-center justify-between">
+            <div className="p-3.5 bg-emerald-950/25 border border-emerald-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 {creds.youtube.avatar ? (
-                  <img src={creds.youtube.avatar} alt="Canal" className="w-10 h-10 rounded-full border border-zinc-700" />
+                  <img src={creds.youtube.avatar} alt="Canal" className="w-11 h-11 rounded-full border-2 border-emerald-500/50" />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white font-bold">
+                  <div className="w-11 h-11 rounded-full bg-red-600 flex items-center justify-center text-white font-bold">
                     YT
                   </div>
                 )}
                 <div>
-                  <h4 className="text-sm font-bold text-white">{creds.youtube.channelTitle}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black text-white">{creds.youtube.channelTitle}</h4>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Login Google Ativo
+                    </span>
+                  </div>
                   <p className="text-[11px] text-zinc-400">
-                    {creds.youtube.customUrl || 'Canal Autenticado'} • Verificado às {creds.youtube.verifiedAt || 'agora'}
+                    {creds.youtube.customUrl || 'Canal Autenticado'} • Renovação Automática Permanente • Verificado às {creds.youtube.verifiedAt || 'agora'}
                   </p>
                 </div>
               </div>
-              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                <Check className="w-4 h-4" /> Pronto para Postar
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openGoogleAuthPopup()}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-[11px] font-bold transition flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Trocar Conta Google</span>
+                </button>
+                <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 px-2">
+                  <Check className="w-4 h-4" /> Pronto
+                </span>
+              </div>
             </div>
           )}
+
+          {/* ============================================================ */}
+          {/* 1-CLICK GOOGLE LOGIN HERO BOX (ENTRAR COM O GOOGLE) */}
+          {/* ============================================================ */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#1a1c2e] via-[#1f1930] to-[#261726] border border-white/15 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                  NOVO • CONEXÃO RÁPIDA COM 1 CLIQUE
+                </div>
+                <h4 className="text-sm sm:text-base font-black text-white">
+                  Conectar Canal Apenas Fazendo Login com o Google
+                </h4>
+                <p className="text-xs text-zinc-300 max-w-xl leading-relaxed">
+                  Esqueça configurações manuais complicadas. Clique no botão ao lado para entrar com sua conta do Google e ativar a renovação automática permanente do seu canal.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={isConnectingGoogle}
+                  onClick={() => handleGoogleQuickConnect('', true)}
+                  className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-extrabold text-xs sm:text-sm shadow-xl shadow-black/40 hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-60"
+                >
+                  {/* Official Google G Logo */}
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"
+                    />
+                  </svg>
+                  <span>
+                    {isConnectingGoogle
+                      ? 'Conectando ao Google...'
+                      : creds.youtube.status === 'connected'
+                      ? 'Reconectar com o Google'
+                      : 'Entrar com o Google'}
+                  </span>
+                </button>
+
+                {creds.youtube.refreshToken && creds.youtube.status !== 'connected' && (
+                  <button
+                    type="button"
+                    disabled={isConnectingGoogle}
+                    onClick={() => handleGoogleQuickConnect('', false)}
+                    className="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isConnectingGoogle ? 'animate-spin' : ''}`} />
+                    <span>Restaurar Canal Salvo (1 Clique)</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Interactive Helper when Google Popup is Opened */}
+            {isGooglePopupOpen && (
+              <div className="p-4 rounded-xl bg-black/60 border border-blue-500/40 space-y-3 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-300 flex items-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                    Janela de Login do Google aberta! Siga os 2 passos rápidos:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsGooglePopupOpen(false)}
+                    className="text-[11px] text-zinc-400 hover:text-white"
+                  >
+                    Fechar aviso
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-zinc-300">
+                  <div className="p-2.5 rounded-lg bg-zinc-900/90 border border-zinc-800">
+                    <strong className="text-white">1. Na janela que abriu:</strong> Escolha sua conta do Google / canal do YouTube e clique em <strong>Continuar</strong>.
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-zinc-900/90 border border-zinc-800">
+                    <strong className="text-white">2. Concluir em 1 segundo:</strong> Copie o endereço da página final (ou o código <code className="text-pink-300">4/0...</code>) — ao voltar para esta aba, conectamos sozinho!
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={googleQuickPasteInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGoogleQuickPasteInput(val);
+                      if (val.trim().length > 12) {
+                        handleGoogleQuickConnect(val.trim(), false);
+                      }
+                    }}
+                    placeholder="Cole aqui o link da barra de endereço ou o código do Google (conecta na hora!)..."
+                    className="flex-1 px-3.5 py-2 bg-[#0e0f17] border border-blue-500/40 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text?.trim()) {
+                          await handleGoogleQuickConnect(text.trim(), false);
+                        } else {
+                          setSaveFeedback('⚠️ Área de transferência vazia. Copie o link ou código da janela do Google.');
+                        }
+                      } catch {
+                        setSaveFeedback('⚠️ Cole o código/link no campo ao lado com Ctrl+V.');
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shrink-0 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Colar e Conectar Agora</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Inputs Row */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
-                <span>Access Token (Bearer OAuth 2.0)</span>
-                <span className="text-[10px] text-pink-400 font-mono">Duração: ~60 min (Temporário)</span>
+                <span>Access Token / Código Google (Preenchido Automaticamente pelo Login)</span>
+                <span className="text-[10px] text-emerald-400 font-mono">Aceita Link, Código 4/0..., Refresh 1//... ou ya29...</span>
               </label>
               <div className="relative">
                 <input
@@ -502,6 +779,19 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                     const val = rawVal.trim();
                     let access = rawVal;
                     let refresh = creds.youtube.refreshToken || '';
+
+                    // If user pasted a Google Redirect URL (?code=4/...) or Auth Code (4/0...) or Refresh Token (1//...), auto-exchange immediately on the server!
+                    if (
+                      val.includes('code=4/') ||
+                      val.includes('code=4%2F') ||
+                      val.startsWith('4/0') ||
+                      val.startsWith('4%2F0') ||
+                      (val.startsWith('1//') && val.length > 20)
+                    ) {
+                      setSaveFeedback('🔄 Trocando código com o Google e conectando seu canal automaticamente...');
+                      handleGoogleQuickConnect(val, false);
+                      return;
+                    }
 
                     // Check if user pasted a string containing ya29 or 1//
                     const yaMatch = val.match(/(ya29\.[a-zA-Z0-9_\-\.]+)/);
@@ -515,12 +805,6 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                       } else {
                         setSaveFeedback('✨ Access Token do YouTube (ya29...) reconhecido!');
                       }
-                    } else if (val.startsWith('1//') || (refreshMatch && !yaMatch)) {
-                      refresh = refreshMatch ? refreshMatch[1] : val;
-                      access = '';
-                      setSaveFeedback('⚠️ Esse código é o Refresh Token (1//...). Guardamos no campo verde abaixo! Para este campo, copie o "Access token" (ya29...) no OAuth Playground.');
-                    } else if (val.startsWith('4/') || val.startsWith('4%2F')) {
-                      setSaveFeedback('⚠️ Você colou um Código de Autorização temporário (4/0...). No OAuth Playground, clique no botão azul "Exchange authorization code for tokens" no Passo 2!');
                     } else if (val.startsWith('{')) {
                       try {
                         const parsed = JSON.parse(val);
@@ -535,7 +819,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
                       youtube: { ...creds.youtube, accessToken: access, refreshToken: refresh },
                     });
                   }}
-                  placeholder="ya29.a0AfH6SM... (ou cole o JSON do Playground)"
+                  placeholder="Clique em 'Entrar com o Google' acima (ou cole qualquer código/token do Google aqui)"
                   className="w-full pl-3.5 pr-20 py-2.5 bg-[#0e0f17] border border-zinc-700/80 rounded-xl text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">

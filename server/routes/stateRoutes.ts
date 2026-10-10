@@ -1,12 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { stateManager } from '../services/stateService.js';
+import { refreshYouTubeToken } from '../services/youtubeService.js';
 import { STATE_FILE } from '../config.js';
 
 export const stateRouter = Router();
 
-// 1. Get Full Persisted State
-stateRouter.get('/storage/state', (_req: Request, res: Response) => {
-  const state = stateManager.getState();
+// 1. Get Full Persisted State (with automatic YouTube Refresh Token self-healing)
+stateRouter.get('/storage/state', async (_req: Request, res: Response) => {
+  let state = stateManager.getState();
+
+  // Auto-heal YouTube connection if a permanent Refresh Token (1//...) is saved
+  const yt = state.credentials?.youtube;
+  if (yt?.refreshToken?.startsWith('1//') && (yt.status !== 'connected' || !yt.accessToken)) {
+    try {
+      const refreshed = await refreshYouTubeToken({ refreshToken: yt.refreshToken });
+      if (refreshed.success) {
+        state = stateManager.getState();
+      }
+    } catch {}
+  }
+
   res.json({
     success: true,
     state,

@@ -718,22 +718,73 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
             {/* YouTube API Configs */}
             {platform === 'YouTube Shorts' && (
               <div className="p-4 bg-[#0e0f17] border border-zinc-800 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                     <Youtube className="w-4 h-4 text-red-500" />
                     Transmissão Oficial: YouTube Data API v3
                   </span>
-                  <button
-                    onClick={() => setIsApiModalOpen(true)}
-                    className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold"
-                  >
-                    Como Obter Token?
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setPostStatus('Conectando ao Google...');
+                        try {
+                          const res = await fetchJson<any>('/api/auth/google/quick-connect', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ input: tokens.youtube || '' }),
+                          });
+                          if (res.ok && res.data?.success && res.data?.youtube) {
+                            const yt = res.data.youtube;
+                            handleSaveTokens({ ...tokens, youtube: yt.accessToken || tokens.youtube });
+                            if (onSaveCredentials && credentials) {
+                              onSaveCredentials({
+                                ...credentials,
+                                youtube: { ...credentials.youtube, ...yt, status: 'connected' },
+                              });
+                            }
+                            setPostStatus(`✅ Canal "${yt.channelTitle || 'YouTube'}" conectado via Google!`);
+                            confetti({ particleCount: 40, spread: 60 });
+                            return;
+                          }
+                        } catch {}
+                        setPostStatus('');
+                        const width = 540;
+                        const height = 680;
+                        const left = window.screenX + (window.outerWidth - width) / 2;
+                        const top = window.screenY + (window.outerHeight - height) / 2;
+                        window.open(
+                          '/api/auth/google/login',
+                          'GoogleYouTubeLogin',
+                          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=yes,status=no`
+                        );
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-900 font-extrabold text-[11px] shadow transition"
+                    >
+                      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z" />
+                        <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z" />
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z" />
+                      </svg>
+                      <span>{credentials?.youtube?.status === 'connected' ? 'Reconectar Google' : 'Entrar com o Google'}</span>
+                    </button>
+                    <button
+                      onClick={() => setIsApiModalOpen(true)}
+                      className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold"
+                    >
+                      Opções
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/30 border border-purple-500/20 rounded-xl text-[11px] text-purple-300">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/30 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-300">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>🔒 Salvo permanentemente no navegador. Você conecta uma única vez!</span>
+                  <span>
+                    {credentials?.youtube?.channelTitle
+                      ? `✅ Canal "${credentials.youtube.channelTitle}" conectado com Renovação Automática Permanente!`
+                      : '🔒 Faça login com o Google uma única vez — o sistema renova o token automaticamente.'}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -752,8 +803,8 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
 
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-zinc-400 flex items-center justify-between">
-                      <span>Access Token OAuth</span>
-                      <span className="text-[9px] text-pink-400">escopo youtube.upload</span>
+                      <span>Token / Código Google</span>
+                      <span className="text-[9px] text-emerald-400">Automático</span>
                     </label>
                     <input
                       type="password"
@@ -762,15 +813,11 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                         const newT = { ...tokens, youtube: e.target.value };
                         handleSaveTokens(newT);
                       }}
-                      placeholder="ya29.a0AfH6SM..."
+                      placeholder="Clique em 'Entrar com o Google' acima"
                       className="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
                     />
                   </div>
                 </div>
-
-                <p className="text-[10px] text-zinc-500 leading-normal">
-                  💡 Caso não possua um token OAuth configurado agora, use o botão <strong>"Copiar Legenda"</strong> acima e faça o upload do vídeo gerado diretamente pelo YouTube Studio ou app.
-                </p>
               </div>
             )}
 
