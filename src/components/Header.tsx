@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Sparkles, Scissors, Share2, Compass, Film, Zap } from 'lucide-react';
+import { Flame, Sparkles, Scissors, Share2, Compass, Film, Zap, Bot, RefreshCw } from 'lucide-react';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -14,6 +14,8 @@ interface HeaderProps {
   lastSavedAt?: string | null;
   isSaving?: boolean;
   onManualSync?: () => void;
+  onStartAutoBot?: () => void;
+  isAutoBotRunning?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   lastSavedAt = null,
   isSaving = false,
   onManualSync,
+  onStartAutoBot,
+  isAutoBotRunning = false,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#0e0f14]/90 backdrop-blur-md border-b border-zinc-800/80 shadow-2xl">
@@ -69,6 +73,16 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mobile Actions */}
             <div className="flex lg:hidden items-center gap-2">
+              {onStartAutoBot && (
+                <button
+                  onClick={onStartAutoBot}
+                  disabled={isAutoBotRunning}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-zinc-950 font-black text-xs shadow-lg shadow-emerald-900/40"
+                >
+                  {isAutoBotRunning ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
+                  <span>{isAutoBotRunning ? 'Bot Ativo...' : 'Bot Auto'}</span>
+                </button>
+              )}
               <AutoSaveIndicator lastSavedAt={lastSavedAt} isSaving={isSaving} onManualSync={onManualSync} />
               <PWAInstallButton />
             </div>
@@ -76,6 +90,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Navigation Tabs & Desktop Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
+            {onStartAutoBot && (
+              <button
+                onClick={onStartAutoBot}
+                disabled={isAutoBotRunning}
+                title="Escolhe o vídeo em alta, gera vários cortes, agenda de 5 em 5 min e posta automaticamente!"
+                className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 hover:brightness-110 text-zinc-950 font-black text-xs shadow-lg shadow-emerald-500/25 hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-60 shrink-0"
+              >
+                {isAutoBotRunning ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-zinc-950" />
+                ) : (
+                  <Bot className="w-4 h-4 text-zinc-950" />
+                )}
+                <span>{isAutoBotRunning ? '🤖 Bot Executando...' : '🤖 Bot Automático (1 Clique)'}</span>
+              </button>
+            )}
+
             <nav className="flex items-center gap-1 sm:gap-2 p-1 bg-[#161720] border border-zinc-800 rounded-xl overflow-x-auto max-w-full">
               <button
                 onClick={() => setActiveTab('trending')}

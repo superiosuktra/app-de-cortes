@@ -29,7 +29,7 @@ import {
 import { ViralCut, SavedCut, QueueItem, AutoPostSettings, PlatformCredentials, VideoInfo, SocialPlatform } from '../types';
 import { ShortsPhonePreview } from './ShortsPhonePreview';
 import { ApiSetupModal } from './ApiSetupModal';
-import { AutoPostQueueManager } from './AutoPostQueueManager';
+import { AutoPostQueueManager, AutoBotStatus } from './AutoPostQueueManager';
 import { fetchJson } from '../utils/api';
 import confetti from 'canvas-confetti';
 
@@ -56,6 +56,10 @@ interface PublisherTabProps {
   onSwitchToDemoAndPost?: (id: string) => Promise<void>;
   videoUrl?: string;
   videoInfo?: VideoInfo | null;
+  onStartAutoBot?: (customNiche?: string) => Promise<void>;
+  autoBotStatus?: AutoBotStatus;
+  onSkipWaitAndPostNow?: (id?: string) => Promise<void>;
+  onRescheduleEvery5Minutes?: () => void;
 }
 
 export const PublisherTab: React.FC<PublisherTabProps> = ({
@@ -79,10 +83,20 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   onSwitchToDemoAndPost,
   videoUrl,
   videoInfo,
+  onStartAutoBot,
+  autoBotStatus,
+  onSkipWaitAndPostNow,
+  onRescheduleEvery5Minutes,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'manual'>(
     queue.length > 0 ? 'queue' : 'manual'
   );
+
+  useEffect(() => {
+    if (autoBotStatus?.isRunning) {
+      setActiveSubTab('queue');
+    }
+  }, [autoBotStatus?.isRunning]);
   const [platform, setPlatform] = useState<string>('YouTube Shorts');
   const [tone, setTone] = useState<string>('Magnético & Viral');
   const [title, setTitle] = useState<string>('Esse Momento Mudou Tudo #Shorts');
@@ -529,6 +543,10 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           credentials={credentials}
           onOpenApiModal={() => setIsApiModalOpen(true)}
           onSwitchToDemoAndPost={onSwitchToDemoAndPost}
+          onStartAutoBot={onStartAutoBot}
+          autoBotStatus={autoBotStatus}
+          onSkipWaitAndPostNow={onSkipWaitAndPostNow}
+          onRescheduleEvery5Minutes={onRescheduleEvery5Minutes}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

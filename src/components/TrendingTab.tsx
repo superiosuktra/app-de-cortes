@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Flame, Sparkles, ExternalLink, Play, Clock, Check, ArrowRight, Video, RefreshCw } from 'lucide-react';
+import { Search, Flame, Sparkles, ExternalLink, Play, Clock, Check, ArrowRight, Video, RefreshCw, Bot } from 'lucide-react';
 import { TrendingVideo } from '../types';
 import { CURATED_TRENDING_VIDEOS } from '../mockData';
 import { fetchJson } from '../utils/api';
 
 interface TrendingTabProps {
   onSelectVideo: (url: string) => void;
+  onStartAutoBot?: (customNiche?: string) => Promise<void>;
+  isAutoBotRunning?: boolean;
 }
 
 const NICHES = [
@@ -17,7 +19,11 @@ const NICHES = [
   { id: 'humor', label: '🎭 Humor & Entrevistas' },
 ];
 
-export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
+export const TrendingTab: React.FC<TrendingTabProps> = ({
+  onSelectVideo,
+  onStartAutoBot,
+  isAutoBotRunning,
+}) => {
   const [selectedNiche, setSelectedNiche] = useState<string>('geral');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -86,7 +92,7 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#141226] via-[#1a142e] to-[#24132e] border border-purple-900/40 p-6 sm:p-10 shadow-2xl">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-gradient-to-br from-[#ff0055]/20 to-[#7000ff]/20 blur-3xl pointer-events-none" />
         
-        <div className="relative z-10 max-w-3xl">
+        <div className="relative z-10 max-w-4xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-fuchsia-500/10 border border-fuchsia-500/30 text-pink-300 mb-4">
             <Sparkles className="w-3.5 h-3.5 text-pink-400" />
             Caçador de Vídeos Virais por Inteligência Artificial
@@ -105,13 +111,28 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
+            {onStartAutoBot && (
+              <button
+                onClick={() => onStartAutoBot(selectedNiche)}
+                disabled={isAutoBotRunning}
+                className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-zinc-950 font-black text-sm shadow-xl shadow-emerald-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                <Bot className={`w-5 h-5 ${isAutoBotRunning ? 'animate-spin' : ''}`} />
+                <span>
+                  {isAutoBotRunning
+                    ? '🤖 Bot Automático Executando...'
+                    : '🤖 BOT AUTOMÁTICO (Escolher + Cortar + Postar 5 em 5 min)'}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => handleAutoExplore(selectedNiche)}
               disabled={isLoading}
-              className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#7000ff] via-[#b000ff] to-[#ff0055] text-white font-bold text-sm shadow-lg shadow-purple-600/30 hover:shadow-pink-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              className="flex items-center gap-2.5 px-5 py-3.5 rounded-xl bg-gradient-to-r from-[#7000ff] via-[#b000ff] to-[#ff0055] text-white font-bold text-sm shadow-lg shadow-purple-600/30 hover:shadow-pink-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
             >
               <Flame className={`w-5 h-5 text-yellow-300 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Buscando Vídeos em Alta no YouTube...' : '🔥 Auto-Explorar Tendências Virais'}</span>
+              <span>{isLoading ? 'Buscando Vídeos em Alta...' : '🔥 Auto-Explorar Tendências'}</span>
             </button>
 
             <button
@@ -120,7 +141,7 @@ export const TrendingTab: React.FC<TrendingTabProps> = ({ onSelectVideo }) => {
               className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-750 border border-zinc-700/80 text-zinc-300 hover:text-white font-semibold text-xs transition"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-pink-400' : ''}`} />
-              <span>Recarregar Outros Episódios</span>
+              <span>Recarregar Episódios</span>
             </button>
 
             <span className="text-xs text-zinc-400 font-medium ml-1">

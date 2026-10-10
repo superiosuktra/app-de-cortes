@@ -1,8 +1,8 @@
 {
   "credentials": {
     "youtube": {
-      "accessToken": "enc:v1:33dc6217f30227790ae628d3:cc6142f5c4ae39923cd6dfde48879185:a8cb5fefe5f6da9962fec4d677c23fcae1c02d0c85c5281289847a72f1099ebde518774aa4d24a3293594905d697d39b45f8891e8fb80eff30b148bcf9ac19f55e9cb9d72b675e3a7cc9b409a8bc35a819314949bdba62db1fc985dba1de40df797cd9379ffbaa36abdb84a881bee5d9521effa4a63874cc8b8fe0fbfada64b398d96a697c739605b3247d56fcb4331f08f768c86a632a69deff082b38fa345fa6c97f0d641762e7e7069b53d072fe31d6cab4e6e69b39f30b8fa3e48673d504e8464e9bc6313ea8ae34d263153896600b6b1c500dbb6e5ad1f48a4539503ec49d722c75c27f4482d54299583df55f9ad5bf3a9a66fd3988ea9669be0a",
-      "refreshToken": "enc:v1:bd92471d159faa7a53892991:e600778fe4c7c1c1d43857d1032177a6:72ce787023713d8e5b9914d4003e74e87f6dea595f99721bcd6e5fc7ccd4f01682b0bfb94d70f68c557b1719b7dfe90fbf41e7699c185c6275ae9e83bde6ba05ddff02b69681a7d9d23b5f094991970e48ac98a4127f8643cdf2ee5c1b1845bf4bd40f79a935",
+      "accessToken": "enc:v1:2458a5ca58126ba59f11c30f:83651db1938382e99128a572cac04443:dbb0ad3b99af73a1a86775dae771a75831675f095f9e0a86284d73aa632f8dace3e8bde749d96386ee98b5d1d5a7680ca33879a23b0f1fbc1ec111942e3d9e2a8817900704475cadecc4c75445549e958ecc4ef059aab225de86ddb85dec0929530edc01ee09096b76a550d68bd7e568ae5822c5937bd75f93151d8fe8fed70eeeedb6c4164c6946abbb38a92d8cd430c20c5d698108e8f032c86c4b1cce6b095b0a8a73a3d075d1a7faf83c89980fb4e06582784ffd3ab2fcefebac0b049672b306f610215368713a84a8863a3e94503dfb2a39f7c5c11138d9a38af6e03bf371035730427fdc81d36b39105fe00a68b945899efd613e2bae4ee99af4",
+      "refreshToken": "enc:v1:136230db1ce68a36eadeb86d:9e5df2a5f67b8a6b299da6fa1a12a510:c8b001bc015df673499661df6c20869fc19ee4e3706f377bc86167f51b7d5f1fa1448348c3ad4e7b89bcaef98838990227674cb92cc5960d1c2c9571e737e596394257a9a27cae2a79892ac571ed4131232c7d2cb44f80d66ca836120339cdc94b55420af771",
       "clientId": "",
       "clientSecret": "",
       "status": "connected",
@@ -310,6 +310,390 @@
       "scheduledFor": "2026-10-10T18:27:15.402Z",
       "status": "pending",
       "createdAt": "2026-10-10T15:27:15.403Z"
+    },
+    {
+      "id": "queue-cut-1-1791646724326-1791646724333-0",
+      "cutId": "cut-1-1791646724326",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "A VERDADE BRUTAL SOBRE O PODER DA DISCIPLINA (CO ⚠️",
+      "startTime": "00:15",
+      "endTime": "00:55",
+      "durationSeconds": 40,
+      "format": "split_screen",
+      "viralityScore": 92,
+      "hook": "A maioria das pessoas passa a vida inteira sem perceber isso. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "A maioria das pessoas passa a vida inteira sem perceber isso. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "A maioria das pessoas passa a vida inteira sem perceber isso. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "A maioria das pessoas passa a vida inteira sem perceber isso. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Viral",
+        "#Mentalidade",
+        "#Sucesso",
+        "#Verdade"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T18:42:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-2-1791646724326-1791646724334-1",
+      "cutId": "cut-2-1791646724326",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "O ERRO QUE DESTRÓI SEU O PODER DA DISCIPLINA (CO 🚨",
+      "startTime": "01:30",
+      "endTime": "02:20",
+      "durationSeconds": 50,
+      "format": "dynamic_reframe",
+      "viralityScore": 99,
+      "hook": "Se você faz isso todos os dias, pare imediatamente. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Se você faz isso todos os dias, pare imediatamente. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Se você faz isso todos os dias, pare imediatamente. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Se você faz isso todos os dias, pare imediatamente. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Produtividade",
+        "#Foco",
+        "#Dopamina",
+        "#Disciplina"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T18:57:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-3-1791646724326-1791646724334-2",
+      "cutId": "cut-3-1791646724326",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "O SEGREDO QUE NINGUÉM CONTA SOBRE O PODER DA DISCIPLINA (CO 🤫",
+      "startTime": "02:45",
+      "endTime": "03:45",
+      "durationSeconds": 60,
+      "format": "speaker_right",
+      "viralityScore": 98,
+      "hook": "Guardaram esse segredo a sete chaves durante anos... Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Guardaram esse segredo a sete chaves durante anos... Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Guardaram esse segredo a sete chaves durante anos... Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Guardaram esse segredo a sete chaves durante anos... 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Segredo",
+        "#Revelacao",
+        "#Curiosidades",
+        "#Reels"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T19:12:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-4-1791646724326-1791646724334-3",
+      "cutId": "cut-4-1791646724326",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "COMO MUDAR COMPLETAMENTE SEU O PODER DA DISCIPLINA (CO 🚀",
+      "startTime": "04:00",
+      "endTime": "04:40",
+      "durationSeconds": 40,
+      "format": "split_screen",
+      "viralityScore": 97,
+      "hook": "Aplique esta técnica simples hoje e veja o resultado amanhã. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Aplique esta técnica simples hoje e veja o resultado amanhã. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Aplique esta técnica simples hoje e veja o resultado amanhã. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Aplique esta técnica simples hoje e veja o resultado amanhã. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Dicas",
+        "#Transformacao",
+        "#Evolucao",
+        "#TikTok"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T19:27:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-5-1791646724326-1791646724334-4",
+      "cutId": "cut-5-1791646724326",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "A HISTÓRIA MAIS LOUCA DE O PODER DA DISCIPLINA (CO 🤯",
+      "startTime": "05:15",
+      "endTime": "06:05",
+      "durationSeconds": 50,
+      "format": "speaker_left",
+      "viralityScore": 96,
+      "hook": "Você não vai acreditar no que aconteceu no final dessa história... Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Você não vai acreditar no que aconteceu no final dessa história... Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Você não vai acreditar no que aconteceu no final dessa história... Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Você não vai acreditar no que aconteceu no final dessa história... 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#HistoriaReal",
+        "#Fatos",
+        "#Inacreditavel",
+        "#ViralShorts"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T19:42:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-6-1791646724327-1791646724334-5",
+      "cutId": "cut-6-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "O CONSELHO DE MILHÕES SOBRE O PODER DA DISCIPLINA (CO 💎",
+      "startTime": "06:30",
+      "endTime": "07:30",
+      "durationSeconds": 60,
+      "format": "vertical_blur",
+      "viralityScore": 95,
+      "hook": "Este único conselho pode economizar 5 anos de erros na sua jornada. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Este único conselho pode economizar 5 anos de erros na sua jornada. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Este único conselho pode economizar 5 anos de erros na sua jornada. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Este único conselho pode economizar 5 anos de erros na sua jornada. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Sabedoria",
+        "#Conselho",
+        "#Negocios",
+        "#Prosperidade"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T19:57:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-7-1791646724327-1791646724334-6",
+      "cutId": "cut-7-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "O TESTE DEFINITIVO PARA SUA O PODER DA DISCIPLINA (CO 🔥",
+      "startTime": "07:45",
+      "endTime": "08:25",
+      "durationSeconds": 40,
+      "format": "split_screen",
+      "viralityScore": 94,
+      "hook": "Faça esse teste mental agora e me diga seu resultado nos comentários! Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Faça esse teste mental agora e me diga seu resultado nos comentários! Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Faça esse teste mental agora e me diga seu resultado nos comentários! Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Faça esse teste mental agora e me diga seu resultado nos comentários! 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Desafio",
+        "#Reflexao",
+        "#Comente",
+        "#TikTokBrasil"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T20:12:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-8-1791646724327-1791646724334-7",
+      "cutId": "cut-8-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "POR QUE 99% DAS PESSOAS FALHAM EM O PODER DA DISCIPLINA (CO ⚡",
+      "startTime": "09:00",
+      "endTime": "09:50",
+      "durationSeconds": 50,
+      "format": "dynamic_reframe",
+      "viralityScore": 93,
+      "hook": "A diferença entre quem desiste e quem vence é apenas esse detalhe. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "A diferença entre quem desiste e quem vence é apenas esse detalhe. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "A diferença entre quem desiste e quem vence é apenas esse detalhe. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "A diferença entre quem desiste e quem vence é apenas esse detalhe. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Vencer",
+        "#FocoTotal",
+        "#MindsetMilionario",
+        "#Constancia"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T20:27:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-9-1791646724327-1791646724334-8",
+      "cutId": "cut-9-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "O HACK PSICOLÓGICO PARA DOMINAR O PODER DA DISCIPLINA (CO 🧠",
+      "startTime": "10:15",
+      "endTime": "11:15",
+      "durationSeconds": 60,
+      "format": "speaker_right",
+      "viralityScore": 92,
+      "hook": "Seu cérebro foi programado para cair nessa armadilha todos os dias. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Seu cérebro foi programado para cair nessa armadilha todos os dias. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Seu cérebro foi programado para cair nessa armadilha todos os dias. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Seu cérebro foi programado para cair nessa armadilha todos os dias. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Neurociencia",
+        "#Psicologia",
+        "#Hacks",
+        "#Cerebro"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T20:42:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-10-1791646724327-1791646724334-9",
+      "cutId": "cut-10-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "O MOMENTO MAIS TENSO DA CONVERSA O PODER DA DISCIPLINA (CO 👀",
+      "startTime": "11:30",
+      "endTime": "12:10",
+      "durationSeconds": 40,
+      "format": "split_screen",
+      "viralityScore": 99,
+      "hook": "O clima esquentou na hora em que esse assunto veio à tona... Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "O clima esquentou na hora em que esse assunto veio à tona... Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "O clima esquentou na hora em que esse assunto veio à tona... Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "O clima esquentou na hora em que esse assunto veio à tona... 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Polemic",
+        "#Debate",
+        "#Opinião",
+        "#Podcasts"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T20:57:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-11-1791646724327-1791646724334-10",
+      "cutId": "cut-11-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "ISSO PODE SALVAR SEU FUTURO EM O PODER DA DISCIPLINA (CO 🛡️",
+      "startTime": "12:45",
+      "endTime": "13:35",
+      "durationSeconds": 50,
+      "format": "speaker_left",
+      "viralityScore": 98,
+      "hook": "Não ignore este aviso se você se preocupa com o seu futuro. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Não ignore este aviso se você se preocupa com o seu futuro. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Não ignore este aviso se você se preocupa com o seu futuro. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Não ignore este aviso se você se preocupa com o seu futuro. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Futuro",
+        "#Atencao",
+        "#Importante",
+        "#Compartilhe"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T21:12:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
+    },
+    {
+      "id": "queue-cut-12-1791646724327-1791646724334-11",
+      "cutId": "cut-12-1791646724327",
+      "videoTitle": "O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160",
+      "videoUrl": "https://www.youtube.com/watch?v=B7FNkIwLbyw",
+      "cutTitle": "A FRASE QUE MUDOU MINHA VIDA SOBRE O PODER DA DISCIPLINA (CO ✨",
+      "startTime": "14:00",
+      "endTime": "15:00",
+      "durationSeconds": 60,
+      "format": "vertical_blur",
+      "viralityScore": 97,
+      "hook": "Guarde essa frase com você pelo resto da sua vida. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.",
+      "payoff": "Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!",
+      "caption": {
+        "youtube": "Guarde essa frase com você pelo resto da sua vida. Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.",
+        "instagram": "Guarde essa frase com você pelo resto da sua vida. Você precisa ouvir o que Os Sócios Podcast revelou sobre isso.\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!",
+        "tiktok": "Guarde essa frase com você pelo resto da sua vida. 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral"
+      },
+      "hashtags": [
+        "#Shorts",
+        "#Inspiracao",
+        "#Vida",
+        "#MotivacaoDiaria",
+        "#Forte"
+      ],
+      "platforms": [
+        "youtube"
+      ],
+      "scheduledFor": "2026-10-10T21:27:15.402Z",
+      "status": "pending",
+      "createdAt": "2026-10-10T15:38:44.334Z"
     }
   ],
   "autoPostSettings": {
@@ -323,5 +707,5 @@
     },
     "defaultPrivacy": "public"
   },
-  "lastUpdated": "2026-10-10T15:31:39.294Z"
+  "lastUpdated": "2026-10-10T15:45:34.558Z"
 }

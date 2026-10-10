@@ -5,10 +5,12 @@ import { AnalyzeTab } from './components/AnalyzeTab';
 import { EditorTab } from './components/EditorTab';
 import { PublisherTab } from './components/PublisherTab';
 import { ConnectionSettings } from './components/ConnectionSettings';
+import { AutoBotStatus } from './components/AutoPostQueueManager';
 import { VideoInfo, ViralCut, SavedCut, PlatformCredentials, QueueItem, AutoPostSettings, SocialPlatform } from './types';
 import { fetchJson } from './utils/api';
 import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key, Zap } from 'lucide-react';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import confetti from 'canvas-confetti';
 
 const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v1';
 const STORAGE_CREDENTIALS_KEY = 'viral_shorts_full_credentials_v1';
@@ -18,7 +20,7 @@ const STORAGE_QUEUE_SETTINGS_KEY = 'viral_shorts_autopost_settings_v1';
 const DEFAULT_AUTO_POST_SETTINGS: AutoPostSettings = {
   autoEnqueueOnGenerate: true,
   isActive: true,
-  intervalMinutes: 30,
+  intervalMinutes: 5,
   targetPlatforms: {
     youtube: true,
     instagram: true,
@@ -220,7 +222,29 @@ export default function App() {
   const [autoPostSettings, setAutoPostSettings] = useState<AutoPostSettings>(DEFAULT_AUTO_POST_SETTINGS);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [autoBotStatus, setAutoBotStatus] = useState<AutoBotStatus>({
+    isRunning: false,
+    step: 0,
+    message: 'Pronto para iniciar o piloto automático completo.',
+    logs: [],
+  });
   const initialLoadDone = useRef<boolean>(false);
+  const queueRef = useRef<QueueItem[]>(queue);
+  const credentialsRef = useRef<PlatformCredentials>(credentials);
+  const autoPostSettingsRef = useRef<AutoPostSettings>(autoPostSettings);
+  const isPostingRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+
+  useEffect(() => {
+    credentialsRef.current = credentials;
+  }, [credentials]);
+
+  useEffect(() => {
+    autoPostSettingsRef.current = autoPostSettings;
+  }, [autoPostSettings]);
 
   // Load saved cuts, queue, settings and credentials from localStorage AND disk backend
   useEffect(() => {
@@ -253,8 +277,8 @@ export default function App() {
       if (storedQueue) {
         setQueue(JSON.parse(storedQueue));
       } else {
-        // Initial sample queued item so user immediately discovers the auto-post queue
-        const sampleScheduled = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        // Initial sample queued item so user immediately discovers the auto-post queue (5 min countdown)
+        const sampleScheduled = new Date(Date.now() + 5 * 60 * 1000).toISOString();
         setQueue([
           {
             id: 'sample-queue-1',
@@ -265,7 +289,7 @@ export default function App() {
             startTime: '00:15',
             endTime: '00:55',
             durationSeconds: 40,
-            format: 'vertical_crop',
+            format: 'split_screen',
             viralityScore: 98,
             hook: 'O maior erro que as pessoas cometem é achar que motivação dura para sempre.',
             payoff: 'Quem depende de sentir vontade nunca constrói nada grandioso.',
@@ -275,7 +299,7 @@ export default function App() {
               tiktok: 'Pare de cair nessa mentira sobre disciplina! 🤯 #dopamina #foco #produtividade #shorts',
             },
             hashtags: ['#Shorts', '#Neurociencia', '#Disciplina', '#Mindset', '#Viral'],
-            platforms: ['youtube', 'tiktok', 'instagram'],
+            platforms: ['youtube'],
             scheduledFor: sampleScheduled,
             status: 'pending',
             createdAt: new Date().toISOString(),
@@ -286,7 +310,11 @@ export default function App() {
       // Load auto post settings
       const storedQueueSettings = localStorage.getItem(STORAGE_QUEUE_SETTINGS_KEY);
       if (storedQueueSettings) {
-        setAutoPostSettings(JSON.parse(storedQueueSettings));
+        const parsedSettings = JSON.parse(storedQueueSettings);
+        if (parsedSettings.intervalMinutes === 30) {
+          parsedSettings.intervalMinutes = 5;
+        }
+        setAutoPostSettings(parsedSettings);
       }
 
       // Load credentials and unify with tokens storage
@@ -333,7 +361,11 @@ export default function App() {
               setQueue(res.state.queue);
             }
             if (res.state.autoPostSettings) {
-              setAutoPostSettings(res.state.autoPostSettings);
+              const loadedSettings = { ...res.state.autoPostSettings };
+              if (loadedSettings.intervalMinutes === 30) {
+                loadedSettings.intervalMinutes = 5;
+              }
+              setAutoPostSettings(loadedSettings);
             }
             if (res.state.credentials) {
               setCredentials((prev) => ({
@@ -429,21 +461,46 @@ export default function App() {
     }
   };
 
+  const getEffectivePlatforms = (settings: AutoPostSettings, creds: PlatformCredentials): SocialPlatform[] => {
+    const connectedAndEnabled: SocialPlatform[] = [];
+    const hasYt = Boolean(creds.youtube?.accessToken?.trim() || creds.youtube?.refreshToken?.trim());
+    const hasIg = Boolean(creds.instagram?.accessToken?.trim());
+    const hasTt = Boolean(creds.tiktok?.accessToken?.trim());
+
+    if (settings.targetPlatforms.youtube && hasYt) connectedAndEnabled.push('youtube');
+    if (settings.targetPlatforms.instagram && hasIg) connectedAndEnabled.push('instagram');
+    if (settings.targetPlatforms.tiktok && hasTt) connectedAndEnabled.push('tiktok');
+
+    if (connectedAndEnabled.length > 0) return connectedAndEnabled;
+
+    const enabled: SocialPlatform[] = [];
+    if (settings.targetPlatforms.youtube) enabled.push('youtube');
+    if (settings.targetPlatforms.instagram) enabled.push('instagram');
+    if (settings.targetPlatforms.tiktok) enabled.push('tiktok');
+    return enabled.length > 0 ? enabled : ['youtube'];
+  };
+
   // Queue Management Functions
-  const handleEnqueueCuts = (cutsToEnqueue: ViralCut[], options?: { immediateFirst?: boolean }) => {
+  const handleEnqueueCuts = (
+    cutsToEnqueue: ViralCut[],
+    options?: {
+      immediateFirst?: boolean;
+      overrideVideoUrl?: string;
+      overrideVideoTitle?: string;
+      overrideIntervalMinutes?: number;
+    }
+  ): QueueItem[] => {
     const now = Date.now();
-    const intervalMs = (autoPostSettings.intervalMinutes || 30) * 60 * 1000;
+    const effectiveIntervalMinutes = options?.overrideIntervalMinutes || autoPostSettingsRef.current.intervalMinutes || 5;
+    const intervalMs = effectiveIntervalMinutes * 60 * 1000;
 
-    const activePlatforms: SocialPlatform[] = [];
-    if (autoPostSettings.targetPlatforms.youtube) activePlatforms.push('youtube');
-    if (autoPostSettings.targetPlatforms.instagram) activePlatforms.push('instagram');
-    if (autoPostSettings.targetPlatforms.tiktok) activePlatforms.push('tiktok');
-    if (activePlatforms.length === 0) activePlatforms.push('youtube');
+    const activePlatforms = getEffectivePlatforms(autoPostSettingsRef.current, credentialsRef.current);
 
-    // Base time: after last pending item, or starting now/soon
-    const pending = queue.filter((q) => q.status === 'pending');
+    // Base time: if immediateFirst is requested, schedule from right now; otherwise after last pending item
+    const currentQueue = queueRef.current;
+    const pending = currentQueue.filter((q) => q.status === 'pending');
     let baseTime = now;
-    if (pending.length > 0) {
+    if (!options?.immediateFirst && pending.length > 0) {
       const lastScheduled = Math.max(...pending.map((p) => new Date(p.scheduledFor).getTime()));
       if (lastScheduled > now) {
         baseTime = lastScheduled;
@@ -456,8 +513,8 @@ export default function App() {
       return {
         id: `queue-${cut.id}-${Date.now()}-${idx}`,
         cutId: cut.id,
-        videoTitle: videoInfo?.title || 'Vídeo Fonte',
-        videoUrl: videoUrl,
+        videoTitle: options?.overrideVideoTitle || videoInfo?.title || 'Vídeo Fonte',
+        videoUrl: options?.overrideVideoUrl || videoUrl,
         cutTitle: cut.title,
         startTime: cut.startTime,
         endTime: cut.endTime,
@@ -475,13 +532,27 @@ export default function App() {
       };
     });
 
-    const updatedQueue = [...queue, ...newItems];
+    // When immediateFirst is true (Auto Bot), place new items before older pending items and shift older pending items after them
+    let updatedQueue: QueueItem[];
+    if (options?.immediateFirst) {
+      const nonPending = currentQueue.filter((q) => q.status !== 'pending');
+      const shiftedOldPending = pending.map((oldItem, i) => ({
+        ...oldItem,
+        scheduledFor: new Date(baseTime + (newItems.length + i) * intervalMs).toISOString(),
+      }));
+      updatedQueue = [...newItems, ...shiftedOldPending, ...nonPending];
+    } else {
+      updatedQueue = [...currentQueue, ...newItems];
+    }
+
+    queueRef.current = updatedQueue;
     setQueue(updatedQueue);
     try {
       localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updatedQueue));
     } catch (e) {
       console.warn('Failed to save queue to localStorage:', e);
     }
+    return newItems;
   };
 
   const handleEnqueueSingleCut = (cut: ViralCut) => {
@@ -491,6 +562,7 @@ export default function App() {
   const handleUpdateAutoPostSettings = (newSettings: Partial<AutoPostSettings>) => {
     setAutoPostSettings((prev) => {
       const updated = { ...prev, ...newSettings };
+      autoPostSettingsRef.current = updated;
       try {
         localStorage.setItem(STORAGE_QUEUE_SETTINGS_KEY, JSON.stringify(updated));
       } catch (e) {
@@ -503,6 +575,7 @@ export default function App() {
   const handleUpdateQueueItem = (id: string, updates: Partial<QueueItem>) => {
     setQueue((prevQueue) => {
       const updated = prevQueue.map((i) => (i.id === id ? { ...i, ...updates } : i));
+      queueRef.current = updated;
       try {
         localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
       } catch (e) {
@@ -515,6 +588,7 @@ export default function App() {
   const handleDeleteQueueItem = (id: string) => {
     setQueue((prevQueue) => {
       const updated = prevQueue.filter((i) => i.id !== id);
+      queueRef.current = updated;
       try {
         localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
       } catch (e) {
@@ -527,6 +601,7 @@ export default function App() {
   const handleClearCompletedQueue = () => {
     setQueue((prevQueue) => {
       const updated = prevQueue.filter((i) => i.status !== 'published');
+      queueRef.current = updated;
       try {
         localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
       } catch (e) {
@@ -537,6 +612,7 @@ export default function App() {
   };
 
   const handleClearAllQueue = () => {
+    queueRef.current = [];
     setQueue([]);
     try {
       localStorage.removeItem(STORAGE_QUEUE_KEY);
@@ -546,92 +622,356 @@ export default function App() {
   };
 
   // Immediate or Automated Post Execution for a Queue Item
-  const handlePostQueueItemNow = async (id: string) => {
-    const item = queue.find((q) => q.id === id);
+  const handlePostQueueItemNow = async (id: string, itemOverride?: QueueItem) => {
+    if (isPostingRef.current.has(id)) return;
+    const item = itemOverride || queueRef.current.find((q) => q.id === id);
     if (!item) return;
 
+    isPostingRef.current.add(id);
     handleUpdateQueueItem(id, { status: 'posting' });
 
+    const currentCreds = credentialsRef.current;
+    const currentSettings = autoPostSettingsRef.current;
     const logs: string[] = [];
     const publishedAccounts: { platform: SocialPlatform; account: string; videoUrl?: string; videoId?: string }[] = [];
     let hasSuccess = false;
     let lastError = '';
 
-    for (const p of item.platforms) {
-      const token = credentials[p]?.accessToken;
-      const refreshToken = (credentials[p] as any)?.refreshToken;
-      if ((!token || !token.trim()) && (!refreshToken || !refreshToken.trim())) {
-        logs.push(`⚠️ [${p.toUpperCase()}] Token não configurado em APIs & Conexões.`);
-        continue;
-      }
+    // Filter platforms to connected ones if at least one platform is connected
+    const platformsToPost = item.platforms.filter((p) => {
+      const token = currentCreds[p]?.accessToken;
+      const refresh = (currentCreds[p] as any)?.refreshToken;
+      return Boolean((token && token.trim()) || (refresh && refresh.trim()));
+    });
+    const effectivePlatforms = platformsToPost.length > 0 ? platformsToPost : item.platforms;
 
-      try {
-        const res = await fetchJson<any>('/api/post-social', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform: p,
-            token: token || refreshToken,
-            refreshToken: (credentials[p] as any)?.refreshToken,
-            clientId: (credentials[p] as any)?.clientId,
-            clientSecret: (credentials[p] as any)?.clientSecret,
-            title: item.cutTitle,
-            caption: `${item.caption[p]}\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}`,
-            privacy: autoPostSettings.defaultPrivacy,
-            videoUrl: item.videoUrl,
-            startTime: item.startTime,
-            endTime: item.endTime,
-            format: item.format,
-            hook: item.hook,
-          }),
-        });
-
-        if (res.ok && res.data.success) {
-          hasSuccess = true;
-          const account = res.data.account || 'Conta Conectada';
-          const videoUrl = res.data.videoUrl;
-          const videoId = res.data.videoId;
-          publishedAccounts.push({ platform: p, account, videoUrl, videoId });
-          logs.push(`✅ [${p.toUpperCase()}] ${res.data.message || 'Publicado com sucesso!'}`);
-        } else {
-          const err = res.data?.error || res.error || 'Erro na transmissão da rede social';
-          lastError = err;
-          logs.push(`❌ [${p.toUpperCase()}] ${err}`);
+    try {
+      for (const p of effectivePlatforms) {
+        const token = currentCreds[p]?.accessToken;
+        const refreshToken = (currentCreds[p] as any)?.refreshToken;
+        if ((!token || !token.trim()) && (!refreshToken || !refreshToken.trim())) {
+          logs.push(`⚠️ [${p.toUpperCase()}] Token não configurado em APIs & Conexões.`);
+          continue;
         }
-      } catch (err: any) {
-        lastError = err.message;
-        logs.push(`❌ [${p.toUpperCase()}] Erro de conexão: ${err.message}`);
-      }
-    }
 
-    if (hasSuccess) {
-      handleUpdateQueueItem(id, {
-        status: 'published',
-        publishedAt: new Date().toISOString(),
-        publishedAccounts,
-        logs: [...(item.logs || []), ...logs],
-      });
-    } else {
-      handleUpdateQueueItem(id, {
-        status: 'failed',
-        error: lastError || 'Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.',
-        logs: [...(item.logs || []), ...logs],
-      });
+        try {
+          const res = await fetchJson<any>('/api/post-social', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: p,
+              token: token || refreshToken,
+              refreshToken: (currentCreds[p] as any)?.refreshToken,
+              clientId: (currentCreds[p] as any)?.clientId,
+              clientSecret: (currentCreds[p] as any)?.clientSecret,
+              title: item.cutTitle,
+              caption: `${item.caption[p]}\n\n${item.hashtags.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' ')}`,
+              privacy: currentSettings.defaultPrivacy,
+              videoUrl: item.videoUrl,
+              startTime: item.startTime,
+              endTime: item.endTime,
+              format: item.format,
+              hook: item.hook,
+            }),
+          });
+
+          if (res.ok && res.data.success) {
+            hasSuccess = true;
+            const account = res.data.account || 'Conta Conectada';
+            const postedUrl = res.data.videoUrl;
+            const postedId = res.data.videoId;
+            publishedAccounts.push({ platform: p, account, videoUrl: postedUrl, videoId: postedId });
+            logs.push(`✅ [${p.toUpperCase()}] ${res.data.message || 'Publicado com sucesso!'}`);
+          } else {
+            const err = res.data?.error || res.error || 'Erro na transmissão da rede social';
+            lastError = err;
+            logs.push(`❌ [${p.toUpperCase()}] ${err}`);
+          }
+        } catch (err: any) {
+          lastError = err.message;
+          logs.push(`❌ [${p.toUpperCase()}] Erro de conexão: ${err.message}`);
+        }
+      }
+
+      if (hasSuccess) {
+        handleUpdateQueueItem(id, {
+          status: 'published',
+          publishedAt: new Date().toISOString(),
+          publishedAccounts,
+          logs: [...(item.logs || []), ...logs],
+        });
+      } else {
+        handleUpdateQueueItem(id, {
+          status: 'failed',
+          error: lastError || 'Nenhum token configurado para as redes selecionadas. Configure em APIs & Conexões.',
+          logs: [...(item.logs || []), ...logs],
+        });
+      }
+    } finally {
+      isPostingRef.current.delete(id);
     }
   };
 
   const handleTriggerNextQueueNow = async () => {
-    const next = queue.find((q) => q.status === 'pending');
+    const next = [...queueRef.current]
+      .filter((q) => q.status === 'pending')
+      .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())[0];
     if (next) {
-      await handlePostQueueItemNow(next.id);
+      await handlePostQueueItemNow(next.id, next);
+    }
+  };
+
+  // Skip the 5-minute waiting timer for a specific item (or next waiting item), post it right away, and shift remaining pending items to +5min, +10min, +15min...
+  const handleSkipWaitAndPostNow = async (targetId?: string) => {
+    const pendingSorted = [...queueRef.current]
+      .filter((q) => q.status === 'pending')
+      .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
+
+    const targetItem = targetId
+      ? queueRef.current.find((q) => q.id === targetId)
+      : pendingSorted[0];
+
+    if (!targetItem) return;
+
+    const intervalMs = (autoPostSettingsRef.current.intervalMinutes || 5) * 60 * 1000;
+    const now = Date.now();
+    let pendingRank = 1;
+
+    // Shift all remaining pending items to now + 5m, now + 10m, etc.
+    setQueue((prevQueue) => {
+      const updated = prevQueue.map((item) => {
+        if (item.id === targetItem.id) {
+          return { ...item, scheduledFor: new Date(now).toISOString() };
+        }
+        if (item.status === 'pending') {
+          const nextSchedule = new Date(now + pendingRank * intervalMs).toISOString();
+          pendingRank += 1;
+          return { ...item, scheduledFor: nextSchedule };
+        }
+        return item;
+      });
+      queueRef.current = updated;
+      try {
+        localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    await handlePostQueueItemNow(targetItem.id, targetItem);
+  };
+
+  // Re-align all pending items to strict 5-minute intervals from now
+  const handleRescheduleEvery5Minutes = () => {
+    handleUpdateAutoPostSettings({ intervalMinutes: 5, isActive: true });
+    const now = Date.now();
+    const intervalMs = 5 * 60 * 1000;
+    let rank = 1;
+
+    setQueue((prevQueue) => {
+      const updated = prevQueue.map((item) => {
+        if (item.status === 'pending') {
+          const scheduledFor = new Date(now + rank * intervalMs).toISOString();
+          rank += 1;
+          return { ...item, scheduledFor };
+        }
+        return item;
+      });
+      queueRef.current = updated;
+      try {
+        localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  // 1-Click Autonomous Bot: Choose Trending Video -> Analyze & Smart Frame -> Generate Viral Cuts -> Enqueue Every 5 Minutes & Post #1 Immediately!
+  const handleStartAutoBot = async (customNiche: string = 'geral') => {
+    if (autoBotStatus.isRunning) return;
+
+    setLegalView(null);
+    setActiveTab('publish');
+    handleUpdateAutoPostSettings({ intervalMinutes: 5, isActive: true, autoEnqueueOnGenerate: true });
+
+    const botLogs: string[] = [];
+    const pushBotState = (patch: Partial<AutoBotStatus>, newLog?: string) => {
+      if (newLog) botLogs.push(newLog);
+      setAutoBotStatus((prev) => ({
+        ...prev,
+        ...patch,
+        logs: [...botLogs],
+      }));
+    };
+
+    pushBotState(
+      {
+        isRunning: true,
+        step: 1,
+        message: 'Passo 1/4: Buscando vídeos em alta no YouTube para escolher a melhor fonte...',
+        chosenVideoTitle: undefined,
+        chosenVideoUrl: undefined,
+        cutsGenerated: undefined,
+      },
+      `🤖 [Passo 1/4] Buscando vídeos virais em alta no nicho "${customNiche}"...`
+    );
+
+    try {
+      // STEP 1: Fetch trending videos & pick one not yet in queue
+      const trendRes = await fetchJson<any>('/api/trending', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche: customNiche, refresh: true }),
+      });
+
+      const trendingList: any[] = trendRes.ok && Array.isArray(trendRes.data?.trending) ? trendRes.data.trending : [];
+      const queuedUrls = new Set(queueRef.current.map((q) => q.videoUrl));
+      const chosenVideo =
+        trendingList.find((v) => v?.url && !queuedUrls.has(v.url)) ||
+        trendingList[0] || {
+          title: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160',
+          url: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
+          channel: 'Os Sócios Podcast',
+        };
+
+      const targetUrl: string = chosenVideo.url;
+      const targetTitle: string = chosenVideo.title || 'Podcast em Alta';
+      setVideoUrl(targetUrl);
+
+      pushBotState(
+        {
+          step: 2,
+          chosenVideoTitle: targetTitle,
+          chosenVideoUrl: targetUrl,
+          message: `Passo 2/4: Vídeo escolhido! Extraindo transcrição e mapeando rosto em 9:16...`,
+        },
+        `✅ Vídeo selecionado: "${targetTitle}"`
+      );
+
+      // STEP 2: Fetch video metadata/transcript AND Gemini Vision speaker framing in parallel
+      const [infoRes, framingRes] = await Promise.all([
+        fetchJson<any>('/api/video-info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: targetUrl }),
+        }),
+        fetchJson<any>('/api/analyze-framing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoUrl: targetUrl, title: targetTitle }),
+        }),
+      ]);
+
+      const fetchedInfo: VideoInfo = infoRes.ok && infoRes.data?.videoId
+        ? {
+            videoId: infoRes.data.videoId,
+            videoUrl: targetUrl,
+            title: infoRes.data.title || targetTitle,
+            author: infoRes.data.author || chosenVideo.channel || 'Canal YouTube',
+            thumbnail: infoRes.data.thumbnail || `https://img.youtube.com/vi/${infoRes.data.videoId}/maxresdefault.jpg`,
+          }
+        : {
+            videoId: 'B57eOqeLVfc',
+            videoUrl: targetUrl,
+            title: targetTitle,
+            author: chosenVideo.channel || 'Canal YouTube',
+            thumbnail: 'https://img.youtube.com/vi/B57eOqeLVfc/maxresdefault.jpg',
+          };
+
+      const fetchedTranscript: string =
+        (infoRes.ok && infoRes.data?.transcript) ||
+        transcript ||
+        '[00:15] O maior erro que as pessoas cometem é achar que motivação dura para sempre.\n[00:45] Quando a dopamina cai, você precisa de sistemas claros.';
+
+      setVideoInfo(fetchedInfo);
+      setTranscript(fetchedTranscript);
+
+      const framingData = framingRes.ok && framingRes.data?.framing ? framingRes.data.framing : null;
+      pushBotState(
+        {
+          step: 3,
+          chosenVideoTitle: fetchedInfo.title,
+          message: 'Passo 3/4: IA identificando os momentos mais virais e realizando os cortes...',
+        },
+        `🎯 Transcrição e enquadramento inteligente prontos (${framingData?.recommendedFormat || '9:16 Vertical'}). Gerando múltiplos cortes virais...`
+      );
+
+      // STEP 3: Generate multiple viral cuts with Gemini AI
+      const cutsRes = await fetchJson<any>('/api/generate-cuts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoTitle: fetchedInfo.title,
+          transcript: fetchedTranscript,
+          userPrompt: userPrompt || 'gere vários cortes virais dinâmicos com alto potencial de retenção',
+        }),
+      });
+
+      let generatedCuts: ViralCut[] =
+        cutsRes.ok && Array.isArray(cutsRes.data?.cuts) && cutsRes.data.cuts.length > 0
+          ? cutsRes.data.cuts
+          : viralCuts;
+
+      if (framingData) {
+        generatedCuts = generatedCuts.map((c) => ({
+          ...c,
+          framing: c.framing || framingData,
+        }));
+      }
+
+      setViralCuts(generatedCuts);
+      if (generatedCuts.length > 0) {
+        setSelectedCut(generatedCuts[0]);
+      }
+
+      // STEP 4: Enqueue all cuts spaced by 5 minutes (First item scheduled for NOW, 2nd +5m, 3rd +10m...)
+      const enqueuedItems = handleEnqueueCuts(generatedCuts, {
+        immediateFirst: true,
+        overrideVideoUrl: targetUrl,
+        overrideVideoTitle: fetchedInfo.title,
+        overrideIntervalMinutes: 5,
+      });
+
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+
+      pushBotState(
+        {
+          step: 4,
+          cutsGenerated: enqueuedItems.length,
+          message: `Passo 4/4: ${enqueuedItems.length} cortes agendados de 5 em 5 min! Publicando o 1º vídeo agora...`,
+        },
+        `🚀 ${enqueuedItems.length} cortes adicionados à fila com 5 minutos de diferença! Disparando o 1º corte imediatamente...`
+      );
+
+      if (enqueuedItems.length > 0) {
+        await handlePostQueueItemNow(enqueuedItems[0].id, enqueuedItems[0]);
+      }
+
+      pushBotState(
+        {
+          isRunning: false,
+          step: 4,
+          cutsGenerated: enqueuedItems.length,
+          message: `✅ Bot concluiu o 1º envio! Os próximos ${Math.max(0, enqueuedItems.length - 1)} cortes estão aguardando na fila de 5 em 5 min.`,
+        },
+        `🎉 1º corte processado! A fila automática postará o próximo vídeo a cada 5 minutos (ou clique em "Pular Tempo de Espera" abaixo).`
+      );
+    } catch (err: any) {
+      console.error('AutoBot Error:', err);
+      pushBotState(
+        {
+          isRunning: false,
+          step: 0,
+          message: `❌ Erro no Bot Automático: ${err.message || 'Falha inesperada'}`,
+        },
+        `❌ Erro: ${err.message || 'Falha ao executar pipeline automático'}`
+      );
     }
   };
 
   const handleSwitchToDemoAndPost = async (id: string) => {
     const demoCreds: PlatformCredentials = {
-      ...credentials,
+      ...credentialsRef.current,
       youtube: {
-        ...credentials.youtube,
+        ...credentialsRef.current.youtube,
         accessToken: 'demo_youtube_shorts_verified_token',
         clientId: 'demo-client-id.apps.googleusercontent.com',
         clientSecret: 'demo-client-secret',
@@ -652,23 +992,26 @@ export default function App() {
     handleUpdateAutoPostSettings({ isActive: active });
   };
 
-  // Background Auto-Post Worker Engine
+  // Background Auto-Post Worker Engine (checks every 2 seconds for precision countdown)
   useEffect(() => {
     if (!autoPostSettings.isActive) return;
 
     const timer = setInterval(() => {
+      // Do not start a second upload if one is already in flight
+      if (isPostingRef.current.size > 0) return;
+
       const now = Date.now();
-      const dueItem = queue.find(
-        (item) => item.status === 'pending' && new Date(item.scheduledFor).getTime() <= now
-      );
+      const dueItem = [...queueRef.current]
+        .filter((item) => item.status === 'pending' && new Date(item.scheduledFor).getTime() <= now)
+        .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())[0];
 
       if (dueItem) {
-        handlePostQueueItemNow(dueItem.id);
+        handlePostQueueItemNow(dueItem.id, dueItem);
       }
-    }, 15000);
+    }, 2000);
 
     return () => clearInterval(timer);
-  }, [queue, autoPostSettings.isActive, credentials]);
+  }, [autoPostSettings.isActive]);
 
   // Save cuts to localStorage
   const handleSaveCut = (newCut: SavedCut) => {
@@ -745,6 +1088,8 @@ export default function App() {
         lastSavedAt={lastSavedAt}
         isSaving={isSaving}
         onManualSync={handleForceSync}
+        onStartAutoBot={() => handleStartAutoBot('geral')}
+        isAutoBotRunning={autoBotStatus.isRunning}
       />
 
       {/* Main Content Area */}
@@ -830,7 +1175,11 @@ export default function App() {
         ) : (
           <>
             {activeTab === 'trending' && (
-              <TrendingTab onSelectVideo={handleSelectTrendingVideo} />
+              <TrendingTab
+                onSelectVideo={handleSelectTrendingVideo}
+                onStartAutoBot={handleStartAutoBot}
+                isAutoBotRunning={autoBotStatus.isRunning}
+              />
             )}
 
             {activeTab === 'analyze' && (
@@ -890,6 +1239,10 @@ export default function App() {
                 credentials={credentials}
                 onSaveCredentials={handleSaveCredentials}
                 onSwitchToDemoAndPost={handleSwitchToDemoAndPost}
+                onStartAutoBot={handleStartAutoBot}
+                autoBotStatus={autoBotStatus}
+                onSkipWaitAndPostNow={handleSkipWaitAndPostNow}
+                onRescheduleEvery5Minutes={handleRescheduleEvery5Minutes}
               />
             )}
 
