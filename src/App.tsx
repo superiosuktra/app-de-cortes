@@ -12,10 +12,10 @@ import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key, Zap } fro
 import { OfflineIndicator } from './components/OfflineIndicator';
 import confetti from 'canvas-confetti';
 
-const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v1';
+const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v2';
 const STORAGE_CREDENTIALS_KEY = 'viral_shorts_full_credentials_v1';
-const STORAGE_QUEUE_KEY = 'viral_shorts_autopost_queue_v1';
-const STORAGE_QUEUE_SETTINGS_KEY = 'viral_shorts_autopost_settings_v1';
+const STORAGE_QUEUE_KEY = 'viral_shorts_autopost_queue_v2';
+const STORAGE_QUEUE_SETTINGS_KEY = 'viral_shorts_autopost_settings_v2';
 
 const DEFAULT_AUTO_POST_SETTINGS: AutoPostSettings = {
   autoEnqueueOnGenerate: true,
@@ -62,158 +62,160 @@ export default function App() {
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>({
     videoId: 'B57eOqeLVfc',
     videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
-    title: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Os Sócios 160',
-    author: 'Os Sócios Podcast',
+    title: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Joel Jota',
+    author: 'Joel Jota',
     thumbnail: 'https://img.youtube.com/vi/B57eOqeLVfc/maxresdefault.jpg',
   });
   const [transcript, setTranscript] = useState<string>(
-    '[00:15] O maior erro que as pessoas cometem é achar que motivação dura para sempre.\n[00:32] Quando a dopamina cai, você precisa ter sistemas claros de rotina.\n[00:54] Quem depende de sentir vontade de fazer nunca constrói nada grandioso.\n[01:15] Se você não dominar a sua mente logo pela manhã, o algoritmo vai dominar ela por você.'
+    '[38:17] Eu fazia ações e quando eu não tinha esses resultados muito bem claros eu corria atrás até entregar.\n[38:42] Ser uma pessoa competitiva é uma arma poderosa: qualquer coisa nunca está bom.\n[39:06] Quando eu entrei na área digital e comecei a gravar, construí o maior canal de musculação do mundo começando do zero.\n[39:55] Eu tenho várias competições silenciosas comigo mesmo para nunca acomodar.\n[40:43] No começo do ano todo mundo faz promessa, mas quem não é condicionado morre no meio do caminho antes da linha de chegada.\n[41:30] Competitividade e metas claras fazem parte de todo profissional de sucesso.\n[42:21] Disciplina não é um estado sazonal: é um padrão diário inegociável.'
   );
   const [userPrompt, setUserPrompt] = useState<string>(
-    'gere vídeos com maior possibilidade de se tornar viral focando em neurociência, choque e quebra de crenças'
+    'encontrar a parte de fala mais interessante e chamativa para o público e criar cortes em sequência contínua (Parte 1, Parte 2, Parte 3...)'
   );
   const [viralCuts, setViralCuts] = useState<ViralCut[]>([
     {
-      id: 'cut-demo-1',
-      title: 'A ILUSÃO DA MOTIVAÇÃO 🧠',
-      startTime: '00:15',
-      endTime: '00:55',
-      startSeconds: 15,
-      endSeconds: 55,
-      durationSeconds: 40,
-      viralityScore: 98,
-      hook: 'O maior erro que as pessoas cometem é achar que motivação dura para sempre.',
-      payoff: 'Quem depende de sentir vontade nunca constrói nada grandioso.',
-      neuromarketingTrigger: 'Quebra de Padrão & Choque de Realidade',
-      viralityAnalysis: 'Desmonta uma crença comum no primeiro segundo. Diálogo dinâmico entre apresentador e convidado perfeito para tela dividida (Split 2 Câmeras).',
+      id: 'cut-seq-1',
+      title: '🔥 [PARTE 1] SER UMA PESSOA COMPETITIVA É UMA ARMA PODEROSA — Renato Cariani',
+      startTime: '38:17',
+      endTime: '39:06',
+      startSeconds: 2297,
+      endSeconds: 2346,
+      durationSeconds: 49,
+      viralityScore: 99,
+      hook: '"Eu fazia ações e quando eu não tinha esses resultados muito bem claros, eu corria atrás até virar o jogo..."',
+      payoff: '"Ser uma pessoa competitiva é uma arma poderosa — não aceite que qualquer coisa está bom!"',
+      neuromarketingTrigger: 'Gancho de Abertura & Curiosidade Irresistível (Início da História)',
+      viralityAnalysis: 'Pico #1 de interesse e retenção do público ("Mais Reproduzidos") detectado em 38:17. Inicia a história no momento mais chamativo do vídeo (pula intros e anúncios).',
       recommendedFormat: 'split_screen',
-      activeSpeaker: 'ambos',
+      activeSpeaker: 'Ambos (Diálogo / Split Screen)',
       subtitleTheme: 'hormozi',
       caption: {
-        youtube: 'A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\nAssista até o fim para virar essa chave.',
-        instagram: 'Você ainda acredita que precisa de motivação todos os dias? Veja o que a neurociência diz sobre isso. 👇 Salve para lembrar!',
-        tiktok: 'Pare de cair nessa mentira sobre disciplina! 🤯 #dopamina #foco #produtividade #shorts',
+        youtube: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes aqui no canal! Siga para não perder.\n\n#Shorts #Cortes #RenatoCariani #Disciplina #Viral',
+        instagram: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes no perfil! Siga para acompanhar.',
+        tiktok: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!" ⏭️ Parte 2 (continuação) no perfil! #cortes #podcast #disciplina #viral',
       },
-      hashtags: ['#Shorts', '#Neurociencia', '#Disciplina', '#Mindset', '#Viral'],
-      overlaySubtitlesSample: ['A ILUSÃO', 'DA MOTIVAÇÃO', 'PARE AGORA'],
+      hashtags: ['#Shorts', '#Cortes', '#Disciplina', '#RenatoCariani', '#Viral'],
+      overlaySubtitlesSample: ['ARMA PODEROSA', 'SEJA COMPETITIVO', 'PARTE 1'],
     },
     {
-      id: 'cut-demo-2',
-      title: 'O ALGORITMO ROUBOU SUA MENTE 🚨',
-      startTime: '00:50',
-      endTime: '01:25',
-      startSeconds: 50,
-      endSeconds: 85,
-      durationSeconds: 35,
-      viralityScore: 96,
-      hook: 'Se você não dominar a sua mente logo pela manhã, o algoritmo vai dominar por você.',
-      payoff: 'Retome o controle da sua atenção antes que seja tarde.',
-      neuromarketingTrigger: 'Medo de Ficar Para Trás (FOMO) & Alerta',
-      viralityAnalysis: 'Fala direta e visceral do convidado sobre a dor universal do vício em telas.',
-      recommendedFormat: 'speaker_right',
-      activeSpeaker: 'convidado',
+      id: 'cut-seq-2',
+      title: '🔥 [PARTE 2 - CONTINUAÇÃO] COMO ELE CRIOU O MAIOR CANAL DE MUSCULAÇÃO DO MUNDO DO ZERO',
+      startTime: '39:06',
+      endTime: '39:55',
+      startSeconds: 2346,
+      endSeconds: 2395,
+      durationSeconds: 49,
+      viralityScore: 98,
+      hook: '"Quando eu entrei na área digital e comecei a gravar, construí o maior canal de musculação do mundo começando do zero..."',
+      payoff: '"Hoje é ainda mais competitivo — e é exatamente isso que separa quem cresce de quem para."',
+      neuromarketingTrigger: 'Continuação Direta & Aprofundamento da Ideia (Parte 2)',
+      viralityAnalysis: 'Continuação direta e sequencial da Parte 1 (38:17–39:06 → 39:06–39:55), mantendo 100% do contexto e da linha de raciocínio.',
+      recommendedFormat: 'dynamic_reframe',
+      activeSpeaker: 'Auto-Reframe IA (Troca Dinâmica)',
       subtitleTheme: 'beast',
       caption: {
-        youtube: 'A primeira hora do seu dia decide o seu futuro. Não toque no celular ao acordar! ⚠️ #Shorts',
-        instagram: 'Quantas horas você perdeu nas redes hoje sem perceber? Assista e mude sua rotina matinal.',
-        tiktok: 'Isso é o que acontece com seu cérebro de manhã 😳 #foco #rotina #estudos',
+        youtube: '🔥 [PARTE 2 - CONTINUAÇÃO] — Como ele construiu o maior canal de musculação do mundo começando do zero!\n\n⏭️ A Parte 3 (continuação direta) sai em instantes aqui no canal!\n\n#Shorts #Cortes #RenatoCariani #Sucesso',
+        instagram: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior canal do mundo!\n\n⏭️ Parte 3 (continuação) já vai ao ar!',
+        tiktok: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior do mundo! ⏭️ Parte 3 a seguir! #cortes #podcast #viral',
       },
-      hashtags: ['#Shorts', '#Produtividade', '#Dopamina', '#HacksDeVida'],
-      overlaySubtitlesSample: ['O ALGORITMO', 'ROUBOU SUA ATENÇÃO', 'ACORDE'],
+      hashtags: ['#Shorts', '#Cortes', '#Mentalidade', '#Sucesso', '#Viral'],
+      overlaySubtitlesSample: ['MAIOR DO MUNDO', 'COMEÇOU DO ZERO', 'PARTE 2'],
     },
     {
-      id: 'cut-demo-3',
-      title: 'O HACK DA DOPAMINA RÁPIDA ⚡',
-      startTime: '01:40',
-      endTime: '02:25',
-      startSeconds: 100,
-      endSeconds: 145,
-      durationSeconds: 45,
-      viralityScore: 97,
-      hook: 'Toda vez que você busca prazer imediato sem esforço, você cava sua própria cova.',
-      payoff: 'Inverta a ordem: dor primeiro, recompensa depois. É assim que os melhores operam.',
-      neuromarketingTrigger: 'Hack Mental & Contraste Extremo',
-      viralityAnalysis: 'Host questionando e provocando reflexão científica com alta retenção visual.',
-      recommendedFormat: 'speaker_left',
-      activeSpeaker: 'host',
+      id: 'cut-seq-3',
+      title: '🔥 [PARTE 3 - CONTINUAÇÃO] A TÉCNICA DA COMPETIÇÃO SILENCIOSA PARA BATER METAS',
+      startTime: '39:55',
+      endTime: '40:43',
+      startSeconds: 2395,
+      endSeconds: 2443,
+      durationSeconds: 48,
+      viralityScore: 98,
+      hook: '"Eu tenho várias competições contra um monte de gente que nem sabe que está competindo comigo..."',
+      payoff: '"Com meta é assim também: você cria um alvo claro para nunca entrar na zona de conforto."',
+      neuromarketingTrigger: 'Virada de Chave & Quebra de Padrão (Continuação Parte 3)',
+      viralityAnalysis: 'Continuação direta e sequencial da Parte 2 (39:06–39:55 → 39:55–40:43), mantendo 100% do contexto e da linha de raciocínio.',
+      recommendedFormat: 'speaker_right',
+      activeSpeaker: 'Convidado (Câmera Direita)',
       subtitleTheme: 'cyberpunk',
       caption: {
-        youtube: 'O segredo da dopamina que ninguém te conta. Pare de sabotar seu cérebro! ⚡ #Shorts',
-        instagram: 'Você sente cansaço constante sem ter feito nada o dia todo? Esse corte explica o porquê.',
-        tiktok: 'Como reiniciar seus receptores de dopamina em 24h 🧠 #neurociencia #biohacking #foco',
+        youtube: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica mental das metas e da competição silenciosa!\n\n⏭️ A Parte 4 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Metas #Foco',
+        instagram: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica da competição silenciosa para nunca acomodar.\n\n⏭️ Parte 4 na sequência!',
+        tiktok: '🔥 [PARTE 3 - CONTINUAÇÃO] — Nunca entre na zona de conforto! #cortes #metas #foco #viral',
       },
-      hashtags: ['#Shorts', '#Dopamina', '#Neurociencia', '#Habitos', '#AltaPerformance'],
-      overlaySubtitlesSample: ['DOPAMINA BARATA', 'DESTRÓI SEU FOCO', 'MUDA HOJE'],
+      hashtags: ['#Shorts', '#Cortes', '#Metas', '#Foco', '#AltaPerformance'],
+      overlaySubtitlesSample: ['META CLARA', 'SEM ACOMODAR', 'PARTE 3'],
     },
     {
-      id: 'cut-demo-4',
-      title: 'A REGRA DOS 5 MINUTOS CONTRA PREGUIÇA ⏳',
-      startTime: '02:30',
-      endTime: '03:10',
-      startSeconds: 150,
-      endSeconds: 190,
-      durationSeconds: 40,
-      viralityScore: 95,
-      hook: 'O seu cérebro odeia começar tarefas, mas ele não consegue parar uma tarefa começada.',
-      payoff: 'Faça apenas cinco minutos. A inércia vai trabalhar a seu favor.',
-      neuromarketingTrigger: 'Ganho Imediato & Transformação Rápida',
-      viralityAnalysis: 'Dica prática imediata de alta aplicabilidade em formato widescreen centralizado com fundo desfocado.',
-      recommendedFormat: 'vertical_blur',
-      activeSpeaker: 'convidado',
+      id: 'cut-seq-4',
+      title: '🔥 [PARTE 4 - CONTINUAÇÃO] POR QUE QUEM NÃO É CONDICIONADO MORRE NO MEIO DO CAMINHO',
+      startTime: '40:43',
+      endTime: '41:30',
+      startSeconds: 2443,
+      endSeconds: 2490,
+      durationSeconds: 47,
+      viralityScore: 97,
+      hook: '"No começo do ano todo mundo faz promessa, mas quando a pessoa não é condicionada ela morre no meio do caminho..."',
+      payoff: '"Quando ela vê a linha de chegada, já perdeu o fôlego porque não treinou a constância."',
+      neuromarketingTrigger: 'Clímax Narrativo & Revelação Central (Continuação Parte 4)',
+      viralityAnalysis: 'Continuação direta e sequencial da Parte 3 (39:55–40:43 → 40:43–41:30), mantendo 100% do contexto e da linha de raciocínio.',
+      recommendedFormat: 'split_screen',
+      activeSpeaker: 'Ambos (Diálogo / Split Screen)',
       subtitleTheme: 'clean',
       caption: {
-        youtube: 'O truque psicológico para vencer a procrastinação instantaneamente! 🔥 #Shorts',
-        instagram: 'Salve para aplicar na próxima vez que bater aquela preguiça incontrolável.',
-        tiktok: 'Testei isso e mudou minha rotina de trabalho 🤯 #estudos #produtividade #foco',
+        youtube: '🔥 [PARTE 4 - CONTINUAÇÃO] — Por que 99% das promessas morrem no meio do caminho?\n\n⏭️ A Parte 5 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Constancia #Disciplina',
+        instagram: '🔥 [PARTE 4 - CONTINUAÇÃO] — Não pare no meio do caminho antes da linha de chegada!',
+        tiktok: '🔥 [PARTE 4 - CONTINUAÇÃO] — O segredo do condicionamento mental! #cortes #disciplina #viral',
       },
-      hashtags: ['#Shorts', '#Procrastinacao', '#DicasRapidas', '#Mindset', '#Produtividade'],
-      overlaySubtitlesSample: ['APENAS 5 MINUTOS', 'ENGANE SEU CÉREBRO', 'VENCEU'],
+      hashtags: ['#Shorts', '#Cortes', '#Constancia', '#Disciplina', '#Mindset'],
+      overlaySubtitlesSample: ['NÃO PARE', 'LINHA DE CHEGADA', 'PARTE 4'],
     },
     {
-      id: 'cut-demo-5',
-      title: 'POR QUE 99% NUNCA ENRIQUECEM 💸',
-      startTime: '03:20',
-      endTime: '04:05',
-      startSeconds: 200,
-      endSeconds: 245,
-      durationSeconds: 45,
-      viralityScore: 99,
-      hook: 'Pobre gasta o que ganha, classe média compra passivos achando que é ativo, e ricos compram tempo.',
-      payoff: 'Enquanto você vender horas, seu teto sempre será limitado.',
-      neuromarketingTrigger: 'Choque Financeiro & Autoridade',
-      viralityAnalysis: 'Tópico de alta polarização. Debate intenso gravado em duas câmeras simultâneas no podcast.',
-      recommendedFormat: 'split_screen',
-      activeSpeaker: 'ambos',
+      id: 'cut-seq-5',
+      title: '🔥 [PARTE 5 - CONTINUAÇÃO] METAS DE FATURAMENTO E A MENTALIDADE DOS VENCEDORES',
+      startTime: '41:30',
+      endTime: '42:21',
+      startSeconds: 2490,
+      endSeconds: 2541,
+      durationSeconds: 51,
+      viralityScore: 97,
+      hook: '"Lógico que eu quero resultado: eu tenho meta de faturamento e competitividade faz parte de todo profissional de sucesso..."',
+      payoff: '"Quem diz que o importante é só competir nunca construiu nada extraordinário."',
+      neuromarketingTrigger: 'Desdobramento Prático & Exemplo Real (Continuação Parte 5)',
+      viralityAnalysis: 'Continuação direta e sequencial da Parte 4 (40:43–41:30 → 41:30–42:21), mantendo 100% do contexto e da linha de raciocínio.',
+      recommendedFormat: 'speaker_left',
+      activeSpeaker: 'Apresentador (Câmera Esquerda)',
       subtitleTheme: 'hormozi',
       caption: {
-        youtube: 'A diferença definitiva entre quem cria riqueza e quem só sobrevive. Concorda? 💬 #Shorts',
-        instagram: 'Qual lado você está escolhendo construir? Deixe nos comentários sua opinião sincera.',
-        tiktok: 'Essa frase doeu mas é a pura verdade 😳 #financas #investimentos #riqueza #mindset',
+        youtube: '🔥 [PARTE 5 - CONTINUAÇÃO] — A verdade sobre metas de resultado e ambição saudável!\n\n⏭️ A Parte 6 (Final da sequência) sai em instantes!\n\n#Shorts #Cortes #Negocios #Sucesso',
+        instagram: '🔥 [PARTE 5 - CONTINUAÇÃO] — Competitividade faz parte de todo profissional de sucesso.',
+        tiktok: '🔥 [PARTE 5 - CONTINUAÇÃO] — "O importante é competir?" Veja essa resposta! #cortes #negocios #viral',
       },
-      hashtags: ['#Shorts', '#Financas', '#Riqueza', '#Empreendedorismo', '#Sucesso'],
-      overlaySubtitlesSample: ['99% NÃO SABEM', 'RICOS COMPRAM TEMPO', 'ACORDE'],
+      hashtags: ['#Shorts', '#Cortes', '#Negocios', '#Resultados', '#Sucesso'],
+      overlaySubtitlesSample: ['FOCO NO RESULTado', 'MENTALIDADE FORTE', 'PARTE 5'],
     },
     {
-      id: 'cut-demo-6',
-      title: 'A LIÇÃO BRUTAL QUE NINGUÉM TE CONTA 🥊',
-      startTime: '04:15',
-      endTime: '04:58',
-      startSeconds: 255,
-      endSeconds: 298,
-      durationSeconds: 43,
-      viralityScore: 94,
-      hook: 'O mundo não quer saber o quanto você se esforçou, ele só recompensa o resultado final.',
-      payoff: 'Pare de pedir aplausos pelo esforço e comece a entregar consistência silenciosa.',
-      neuromarketingTrigger: 'Choque de Realidade & Desafio Pessoal',
-      viralityAnalysis: 'Mensagem dura e inspiradora com forte conexão emocional e taxa de salvamento nos favoritos.',
-      recommendedFormat: 'vertical_blur',
+      id: 'cut-seq-6',
+      title: '🔥 [PARTE 6 - FINAL] A DISCIPLINA NÃO É SAZONAL: É UM PADRÃO DE VIDA INEGOCIÁVEL',
+      startTime: '42:21',
+      endTime: '43:08',
+      startSeconds: 2541,
+      endSeconds: 2588,
+      durationSeconds: 47,
+      viralityScore: 99,
+      hook: '"A disciplina não é um estado sazonal — ela é um padrão de comportamento quando você acorda todos os dias..."',
+      payoff: '"Conclusão definitiva: quando você transforma rotina em identidade, ninguém te para."',
+      neuromarketingTrigger: 'Conclusão Definitiva & Lição de Ouro (Desfecho da Sequência)',
+      viralityAnalysis: 'Desfecho direto e sequencial da Parte 5 (41:30–42:21 → 42:21–43:08), fechando o raciocínio completo com chave de ouro.',
+      recommendedFormat: 'split_screen',
+      activeSpeaker: 'Ambos (Diálogo / Split Screen)',
+      subtitleTheme: 'beast',
       caption: {
-        youtube: 'A verdade sobre o sucesso que a maioria tem medo de ouvir. Compartilhe com um amigo! 🚀 #Shorts',
-        instagram: 'Marque aquela pessoa que precisa de um choque de realidade hoje. 👇',
-        tiktok: 'Ouça isso todos os dias antes de trabalhar 🥊 #motivacao #disciplina #foco',
+        youtube: '🔥 [PARTE 6 - FINAL] — A disciplina não é sazonal, é um padrão de vida!\n\n✅ Sequência completa! Volte no canal se perdeu a Parte 1.\n\n#Shorts #Cortes #Disciplina #RenatoCariani #JoelJota',
+        instagram: '🔥 [PARTE 6 - FINAL] — Fechando essa sequência incrível sobre disciplina e competitividade! ✅ Veja as partes anteriores no perfil.',
+        tiktok: '🔥 [PARTE 6 - FINAL] — Disciplina é padrão de vida! ✅ Sequência completa no perfil! #cortes #disciplina #viral',
       },
-      hashtags: ['#Shorts', '#Superacao', '#Consistencia', '#Disciplina', '#Mentalidade'],
-      overlaySubtitlesSample: ['SEM DESCULPAS', 'ENTREGUE RESULTADOS', 'CONSISTÊNCIA'],
+      hashtags: ['#Shorts', '#Cortes', '#Disciplina', '#habitos', '#Viral'],
+      overlaySubtitlesSample: ['PADRÃO DE VIDA', 'DISCIPLINA REAL', 'FINAL'],
     },
   ]);
   const [selectedCut, setSelectedCut] = useState<ViralCut | null>(viralCuts[0]);
@@ -248,25 +250,35 @@ export default function App() {
 
   // Load saved cuts, queue, settings and credentials from localStorage AND disk backend
   useEffect(() => {
+    const isLegacyRandomCut = (item: any): boolean => {
+      if (!item) return false;
+      const cid = String(item.cutId || item.id || '');
+      const title = String(item.cutTitle || item.title || '');
+      if (cid.includes('cut-demo-')) return true;
+      if (title.includes('(CO ') || title === 'A ILUSÃO DA MOTIVAÇÃO 🧠') return true;
+      if (item.startTime === '00:15' && item.endTime === '00:55') return true;
+      return false;
+    };
+
     try {
       const stored = localStorage.getItem(STORAGE_SAVED_CUTS_KEY);
       if (stored) {
-        setSavedCuts(JSON.parse(stored));
+        const parsed = JSON.parse(stored).filter((c: any) => !isLegacyRandomCut(c));
+        setSavedCuts(parsed);
       } else {
-        // Initial sample saved cut
         setSavedCuts([
           {
-            id: 'sample-cut-1',
-            videoTitle: 'O Poder da Disciplina (Renato Cariani) | Os Sócios',
+            id: 'sample-seq-cut-1',
+            videoTitle: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Joel Jota',
             videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
-            cutTitle: 'A ILUSÃO DA MOTIVAÇÃO 🧠',
-            startTime: '00:15',
-            endTime: '00:55',
-            durationSeconds: 40,
+            cutTitle: '🔥 [PARTE 1] SER UMA PESSOA COMPETITIVA É UMA ARMA PODEROSA — Renato Cariani',
+            startTime: '38:17',
+            endTime: '39:06',
+            durationSeconds: 49,
             format: 'split_screen',
-            viralityScore: 98,
-            caption: 'A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\n#Shorts #Viral',
-            hashtags: ['Shorts', 'Neurociencia', 'Foco'],
+            viralityScore: 99,
+            caption: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta) sai em instantes!',
+            hashtags: ['Shorts', 'Disciplina', 'RenatoCariani'],
             createdAt: new Date().toLocaleDateString('pt-BR'),
           },
         ]);
@@ -275,43 +287,38 @@ export default function App() {
       // Load queue
       const storedQueue = localStorage.getItem(STORAGE_QUEUE_KEY);
       if (storedQueue) {
-        setQueue(JSON.parse(storedQueue));
+        const parsedQ = JSON.parse(storedQueue).filter((q: any) => q.status === 'published' || !isLegacyRandomCut(q));
+        setQueue(parsedQ);
       } else {
-        // Initial sample queued item so user immediately discovers the auto-post queue (5 min countdown)
-        const sampleScheduled = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-        setQueue([
-          {
-            id: 'sample-queue-1',
-            cutId: 'cut-demo-1',
-            videoTitle: 'O Poder da Disciplina (Renato Cariani) | Os Sócios',
-            videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
-            cutTitle: 'A ILUSÃO DA MOTIVAÇÃO 🧠',
-            startTime: '00:15',
-            endTime: '00:55',
-            durationSeconds: 40,
-            format: 'split_screen',
-            viralityScore: 98,
-            hook: 'O maior erro que as pessoas cometem é achar que motivação dura para sempre.',
-            payoff: 'Quem depende de sentir vontade nunca constrói nada grandioso.',
-            caption: {
-              youtube: 'A verdade brutal sobre por que você procrastina. Pare de esperar motivação cair do céu! 🔥\n\nAssista até o fim para virar essa chave.',
-              instagram: 'Você ainda acredita que precisa de motivação todos os dias? Veja o que a neurociência diz sobre isso. 👇 Salve para lembrar!',
-              tiktok: 'Pare de cair nessa mentira sobre disciplina! 🤯 #dopamina #foco #produtividade #shorts',
-            },
-            hashtags: ['#Shorts', '#Neurociencia', '#Disciplina', '#Mindset', '#Viral'],
-            platforms: ['youtube'],
-            scheduledFor: sampleScheduled,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-          },
-        ]);
+        const nowMs = Date.now();
+        const defaultSeqQueue: QueueItem[] = viralCuts.map((c, idx) => ({
+          id: `sample-seq-queue-${idx + 1}`,
+          cutId: c.id,
+          videoTitle: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Joel Jota',
+          videoUrl: 'https://www.youtube.com/watch?v=B57eOqeLVfc',
+          cutTitle: c.title,
+          startTime: c.startTime,
+          endTime: c.endTime,
+          durationSeconds: c.durationSeconds,
+          format: c.recommendedFormat,
+          viralityScore: c.viralityScore,
+          hook: c.hook,
+          payoff: c.payoff,
+          caption: c.caption,
+          hashtags: c.hashtags,
+          platforms: ['youtube'],
+          scheduledFor: new Date(nowMs + (idx + 1) * 5 * 60 * 1000).toISOString(),
+          status: 'pending',
+          createdAt: new Date(nowMs).toISOString(),
+        }));
+        setQueue(defaultSeqQueue);
       }
 
       // Load auto post settings
       const storedQueueSettings = localStorage.getItem(STORAGE_QUEUE_SETTINGS_KEY);
       if (storedQueueSettings) {
         const parsedSettings = JSON.parse(storedQueueSettings);
-        if (parsedSettings.intervalMinutes === 30) {
+        if (parsedSettings.intervalMinutes === 30 || parsedSettings.intervalMinutes === 15) {
           parsedSettings.intervalMinutes = 5;
         }
         setAutoPostSettings(parsedSettings);
@@ -355,14 +362,18 @@ export default function App() {
               setLastSavedAt(res.state.lastUpdated);
             }
             if (Array.isArray(res.state.savedCuts) && res.state.savedCuts.length > 0) {
-              setSavedCuts(res.state.savedCuts);
+              const cleanSaved = res.state.savedCuts.filter((c: any) => !isLegacyRandomCut(c));
+              if (cleanSaved.length > 0) setSavedCuts(cleanSaved);
             }
             if (Array.isArray(res.state.queue) && res.state.queue.length > 0) {
-              setQueue(res.state.queue);
+              const cleanQueue = res.state.queue.filter(
+                (q: any) => q.status === 'published' || !isLegacyRandomCut(q)
+              );
+              if (cleanQueue.length > 0) setQueue(cleanQueue);
             }
             if (res.state.autoPostSettings) {
               const loadedSettings = { ...res.state.autoPostSettings };
-              if (loadedSettings.intervalMinutes === 30) {
+              if (loadedSettings.intervalMinutes === 30 || loadedSettings.intervalMinutes === 15) {
                 loadedSettings.intervalMinutes = 5;
               }
               setAutoPostSettings(loadedSettings);
@@ -846,9 +857,14 @@ export default function App() {
         `✅ Vídeo selecionado: "${targetTitle}"`
       );
 
-      // STEP 2: Fetch video metadata/transcript AND Gemini Vision speaker framing in parallel
-      const [infoRes, framingRes] = await Promise.all([
+      // STEP 2: Fetch video metadata, real spoken transcript + YouTube Heatmap, and Gemini Vision speaker framing in parallel
+      const [infoRes, transcriptRes, framingRes] = await Promise.all([
         fetchJson<any>('/api/video-info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: targetUrl }),
+        }),
+        fetchJson<any>('/api/transcript', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: targetUrl }),
@@ -877,31 +893,36 @@ export default function App() {
           };
 
       const fetchedTranscript: string =
-        (infoRes.ok && infoRes.data?.transcript) ||
-        transcript ||
-        '[00:15] O maior erro que as pessoas cometem é achar que motivação dura para sempre.\n[00:45] Quando a dopamina cai, você precisa de sistemas claros.';
+        (transcriptRes.ok && transcriptRes.data?.transcript) || '';
 
       setVideoInfo(fetchedInfo);
-      setTranscript(fetchedTranscript);
+      if (fetchedTranscript) {
+        setTranscript(fetchedTranscript);
+      }
 
-      const framingData = framingRes.ok && framingRes.data?.framing ? framingRes.data.framing : null;
+      const framingData = framingRes.ok && (framingRes.data?.framing || framingRes.data) ? (framingRes.data?.framing || framingRes.data) : null;
       pushBotState(
         {
           step: 3,
           chosenVideoTitle: fetchedInfo.title,
-          message: 'Passo 3/4: IA identificando os momentos mais virais e realizando os cortes...',
+          message: 'Passo 3/4: IA localizando a fala mais interessante e criando cortes em continuação (Parte 1, 2, 3...)...',
         },
-        `🎯 Transcrição e enquadramento inteligente prontos (${framingData?.recommendedFormat || '9:16 Vertical'}). Gerando múltiplos cortes virais...`
+        `🎯 Transcrição real (${transcriptRes.data?.count || 'vários'} trechos) + Mapa de Retenção extraídos! Criando sequência contínua de cortes...`
       );
 
-      // STEP 3: Generate multiple viral cuts with Gemini AI
-      const cutsRes = await fetchJson<any>('/api/generate-cuts', {
+      // STEP 3: Generate connected sequential viral cuts (Parte 1 -> Parte 2 -> Parte 3...) via /api/analyze
+      const cutsRes = await fetchJson<any>('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          videoUrl: targetUrl,
           videoTitle: fetchedInfo.title,
+          channelName: fetchedInfo.author,
           transcript: fetchedTranscript,
-          userPrompt: userPrompt || 'gere vários cortes virais dinâmicos com alto potencial de retenção',
+          cutsCount: 6,
+          userPrompt:
+            userPrompt ||
+            'encontrar a parte de fala mais interessante e chamativa para o público e criar cortes em sequência contínua (Parte 1, Parte 2, Parte 3...)',
         }),
       });
 
@@ -910,7 +931,7 @@ export default function App() {
           ? cutsRes.data.cuts
           : viralCuts;
 
-      if (framingData) {
+      if (framingData && typeof framingData.speaker1X === 'number') {
         generatedCuts = generatedCuts.map((c) => ({
           ...c,
           framing: c.framing || framingData,

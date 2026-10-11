@@ -581,7 +581,16 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                     </h4>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Sequential Continuation Badge */}
+                    <div className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-[11px] font-extrabold flex items-center gap-1">
+                      <span>
+                        {index === 0
+                          ? '🎯 Pico #1 de Interesse (Início)'
+                          : `🔗 Continuação da Parte ${index}`}
+                      </span>
+                    </div>
+
                     {/* Timecode Badge */}
                     <div className="px-2.5 py-1 rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 text-xs font-mono font-bold flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-pink-400" />

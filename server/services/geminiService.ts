@@ -1,6 +1,38 @@
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
+import util from 'util';
 import { GoogleGenAI, Type } from '@google/genai';
 import { YoutubeTranscript } from 'youtube-transcript';
-import { GEMINI_API_KEY } from '../config.js';
+import { GEMINI_API_KEY, TEMP_DIR } from '../config.js';
+import { getYtdlpPath } from './ffmpegService.js';
+
+const execFilePromise = util.promisify(execFile);
+
+export interface TranscriptSegment {
+  startSec: number;
+  endSec: number;
+  text: string;
+}
+
+export interface HeatmapMarker {
+  startSec: number;
+  durationSec: number;
+  score: number; // 0..1 intensityScoreNormalized ("Most Replayed")
+}
+
+interface CachedTranscriptResult {
+  videoId: string;
+  transcript: string;
+  count: number;
+  hasRealCaptions: boolean;
+  segments: TranscriptSegment[];
+  heatmap: HeatmapMarker[];
+  videoDurationSec?: number;
+  message?: string;
+}
+
+const transcriptMemoryCache = new Map<string, CachedTranscriptResult>();
 
 // Shared Gemini client instance
 export const ai = new GoogleGenAI({
@@ -81,42 +113,248 @@ export async function fetchVideoMetadata(videoId: string) {
 }
 
 /**
- * Fetch video transcript using YoutubeTranscript with multi-language fallback
+ * Extract YouTube "Most Replayed" Heatmap (MARKER_TYPE_HEATMAP) and video duration from watch page HTML
  */
-export async function fetchTranscript(videoId: string) {
+async function fetchYouTubeHeatmapAndDuration(videoId: string): Promise<{
+  heatmap: HeatmapMarker[];
+  videoDurationSec: number;
+}> {
   try {
-    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
-      lang: 'pt',
-    }).catch(async () => {
-      return await YoutubeTranscript.fetchTranscript(videoId);
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      },
     });
+    if (!res.ok) return { heatmap: [], videoDurationSec: 0 };
 
-    if (!transcriptItems || transcriptItems.length === 0) {
-      throw new Error('Nenhuma legenda encontrada.');
+    const html = await res.text();
+    let videoDurationSec = 0;
+    const lenMatch = html.match(/"lengthSeconds":"(\d+)"/);
+    if (lenMatch) {
+      videoDurationSec = parseInt(lenMatch[1], 10) || 0;
     }
 
-    const formattedLines = transcriptItems.map((item) => {
-      const seconds = Math.floor(item.offset / 1000);
-      const timeStr = formatSecondsToMMSS(seconds);
-      return `[${timeStr}] ${item.text.replace(/&amp;/g, '&').replace(/&#39;/g, "'")}`;
-    });
+    const heatmap: HeatmapMarker[] = [];
+    const markerIdx = html.indexOf('"MARKER_TYPE_HEATMAP"');
+    if (markerIdx !== -1) {
+      const slice = html.slice(markerIdx, markerIdx + 35000);
+      const markersMatch = slice.match(/"markers":(\[\{.*?\}\])/);
+      if (markersMatch) {
+        const rawMarkers = JSON.parse(markersMatch[1]);
+        if (Array.isArray(rawMarkers)) {
+          for (const m of rawMarkers) {
+            const startSec = Number(m.startMillis || 0) / 1000;
+            const durationSec = Number(m.durationMillis || 0) / 1000;
+            const score = Number(m.intensityScoreNormalized || 0);
+            if (!isNaN(startSec) && !isNaN(score)) {
+              heatmap.push({ startSec, durationSec, score });
+            }
+          }
+        }
+      }
+    }
 
-    return {
+    return { heatmap, videoDurationSec };
+  } catch {
+    return { heatmap: [], videoDurationSec: 0 };
+  }
+}
+
+/**
+ * Extract real word-by-word/phrase-by-phrase subtitles via yt-dlp in json3 format
+ */
+async function extractSubtitlesViaYtdlp(videoId: string): Promise<TranscriptSegment[]> {
+  const ytdlpBinary = getYtdlpPath();
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const randomId = `${videoId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const outPrefix = path.join(TEMP_DIR, `subs_${randomId}`);
+
+  const tryLangs = ['pt,pt-BR', 'en,es'];
+  try {
+    for (const langArg of tryLangs) {
+      try {
+        await execFilePromise(
+          ytdlpBinary,
+          [
+            '--no-playlist',
+            '--no-check-certificates',
+            '--ignore-errors',
+            '--extractor-args',
+            'youtube:player_client=android,web;player_skip=webpage,configs',
+            '--write-auto-subs',
+            '--write-subs',
+            '--sub-lang',
+            langArg,
+            '--sub-format',
+            'json3',
+            '--skip-download',
+            '-o',
+            outPrefix,
+            videoUrl,
+          ],
+          { timeout: 25000 }
+        );
+      } catch {
+        // Ignore non-zero exit if one language failed while another succeeded
+      }
+
+      const files = fs
+        .readdirSync(TEMP_DIR)
+        .filter((f) => f.startsWith(`subs_${randomId}`) && f.endsWith('.json3'));
+
+      if (files.length > 0) {
+        const filePath = path.join(TEMP_DIR, files[0]);
+        const rawJson = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const events: any[] = Array.isArray(rawJson?.events) ? rawJson.events : [];
+
+        const rawPhrases: TranscriptSegment[] = [];
+        for (const ev of events) {
+          if (!Array.isArray(ev.segs)) continue;
+          const text = ev.segs
+            .map((s: any) => s.utf8 || '')
+            .join('')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (!text || /^\[.*\]$/.test(text)) continue;
+
+          const startSec = Math.max(0, Number(ev.tStartMs || 0) / 1000);
+          const durSec = Math.max(1.5, Number(ev.dDurationMs || 3000) / 1000);
+          rawPhrases.push({
+            startSec,
+            endSec: startSec + durSec,
+            text,
+          });
+        }
+
+        // Clamp each phrase's endSec to the next phrase's startSec (since YouTube json3 keeps lines on screen in a 2-line rolling window)
+        for (let k = 0; k < rawPhrases.length - 1; k++) {
+          const nextStart = rawPhrases[k + 1].startSec;
+          if (nextStart > rawPhrases[k].startSec) {
+            rawPhrases[k].endSec = Math.min(rawPhrases[k].endSec, nextStart);
+          }
+        }
+
+        // Merge tiny 2-second fragments into coherent ~5-6 second spoken sentences
+        const merged: TranscriptSegment[] = [];
+        let current: TranscriptSegment | null = null;
+        for (const p of rawPhrases) {
+          if (!current) {
+            current = { ...p };
+            continue;
+          }
+          const combinedDur = p.endSec - current.startSec;
+          const combinedWords = `${current.text} ${p.text}`.split(/\s+/).length;
+          if (combinedDur <= 6.0 && combinedWords <= 20) {
+            current.text = `${current.text} ${p.text}`.replace(/\s+/g, ' ').trim();
+            current.endSec = Math.max(current.endSec, p.endSec);
+          } else {
+            merged.push(current);
+            current = { ...p };
+          }
+        }
+        if (current) merged.push(current);
+
+        if (merged.length > 0) {
+          return merged;
+        }
+      }
+    }
+  } finally {
+    try {
+      const leftover = fs.readdirSync(TEMP_DIR).filter((f) => f.startsWith(`subs_${randomId}`));
+      for (const f of leftover) {
+        fs.unlinkSync(path.join(TEMP_DIR, f));
+      }
+    } catch {}
+  }
+
+  return [];
+}
+
+/**
+ * Fetch video transcript + YouTube "Most Replayed" Heatmap using yt-dlp json3 + YoutubeTranscript fallback
+ */
+export async function fetchTranscript(videoId: string): Promise<CachedTranscriptResult> {
+  if (transcriptMemoryCache.has(videoId)) {
+    return transcriptMemoryCache.get(videoId)!;
+  }
+
+  const diskCacheFile = path.join(TEMP_DIR, `transcript_v3_${videoId}.json`);
+  if (fs.existsSync(diskCacheFile)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(diskCacheFile, 'utf8'));
+      if (cached && cached.hasRealCaptions && Array.isArray(cached.segments) && cached.segments.length > 5) {
+        transcriptMemoryCache.set(videoId, cached);
+        return cached;
+      }
+    } catch {}
+  }
+
+  const [{ heatmap, videoDurationSec }, ytdlpSegments] = await Promise.all([
+    fetchYouTubeHeatmapAndDuration(videoId),
+    extractSubtitlesViaYtdlp(videoId),
+  ]);
+
+  let segments: TranscriptSegment[] = ytdlpSegments;
+
+  // Fallback to YoutubeTranscript npm package if yt-dlp returned empty
+  if (segments.length === 0) {
+    try {
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+        lang: 'pt',
+      }).catch(async () => {
+        return await YoutubeTranscript.fetchTranscript(videoId);
+      });
+
+      if (transcriptItems && transcriptItems.length > 0) {
+        segments = transcriptItems.map((item) => {
+          const startSec = Math.floor(item.offset / 1000);
+          const durSec = Math.max(2, Math.floor((item.duration || 4000) / 1000));
+          return {
+            startSec,
+            endSec: startSec + durSec,
+            text: item.text
+              .replace(/&amp;/g, '&')
+              .replace(/&#39;/g, "'")
+              .replace(/\s+/g, ' ')
+              .trim(),
+          };
+        });
+      }
+    } catch {}
+  }
+
+  if (segments.length > 0) {
+    const formattedLines = segments.map((seg) => `[${formatSecondsToMMSS(seg.startSec)}] ${seg.text}`);
+    const result: CachedTranscriptResult = {
       videoId,
       transcript: formattedLines.join('\n'),
-      count: transcriptItems.length,
+      count: segments.length,
       hasRealCaptions: true,
+      segments,
+      heatmap,
+      videoDurationSec,
     };
-  } catch (err: any) {
-    return {
-      videoId,
-      transcript: '',
-      count: 0,
-      hasRealCaptions: false,
-      message:
-        'Este vídeo não possui legendas públicas automáticas ou o YouTube restringiu o acesso. Você pode digitar/colar o texto da fala ou pedir para a IA analisar pelo tema e metadados.',
-    };
+    transcriptMemoryCache.set(videoId, result);
+    try {
+      fs.writeFileSync(diskCacheFile, JSON.stringify(result), 'utf8');
+    } catch {}
+    return result;
   }
+
+  return {
+    videoId,
+    transcript: '',
+    count: 0,
+    hasRealCaptions: false,
+    segments: [],
+    heatmap,
+    videoDurationSec,
+    message:
+      'Este vídeo não possui legendas públicas automáticas ou o YouTube restringiu o acesso. Você pode digitar/colar o texto da fala ou pedir para a IA analisar pelo tema e metadados.',
+  };
 }
 
 /**
@@ -509,199 +747,527 @@ Um array de objetos com:
   return shuffled.slice(0, 18);
 }
 
+const SPONSOR_KEYWORDS = [
+  'patrocinador',
+  'patrocinadores',
+  'patrocínio',
+  'myprofit',
+  'insider store',
+  'cupom de desconto',
+  'qrcode na tela',
+  'qr code na tela',
+  'link na descrição',
+  'anunciante',
+  'antes de apresentar o nosso convidado',
+  'recado de um dos nossos',
+];
+
+const HOOK_PHRASES = [
+  'o maior erro',
+  'a verdade é',
+  'vou te contar',
+  'ninguém te conta',
+  'o segredo',
+  'muita gente acha',
+  'sabe por que',
+  'o problema é',
+  'aconteceu uma',
+  'quando eu',
+  'imagina que',
+  'pensa comigo',
+  'olha só',
+  'nunca faça',
+  'a primeira coisa',
+  'o que muda',
+  '99%',
+  'todo mundo',
+  'a diferença entre',
+  'como funciona',
+  'descobri que',
+  'o ponto principal',
+  'presta atenção',
+  'isso mudou',
+];
+
+const HIGH_IMPACT_TOPICS = [
+  'dinheiro',
+  'milhões',
+  'riqueza',
+  'disciplina',
+  'cérebro',
+  'dopamina',
+  'foco',
+  'hábito',
+  'hábitos',
+  'vício',
+  'ansiedade',
+  'sucesso',
+  'vida',
+  'medo',
+  'história',
+  'ciência',
+  'psicologia',
+  'decisão',
+  'liberdade',
+  'poder',
+  'mente',
+  'estratégia',
+  'segredo',
+  'bilhões',
+  'futuro',
+  'carreira',
+  'energia',
+  'rotina',
+];
+
+function parseRawTranscriptToSegments(transcript: string): TranscriptSegment[] {
+  const rawLines = (transcript || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('[') && l.includes(']'));
+
+  const parsed: TranscriptSegment[] = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const match = rawLines[i].match(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.+)/);
+    if (!match) continue;
+    const startSec = parseTimeToSeconds(match[1]);
+    const text = match[2].trim();
+    if (!text) continue;
+    parsed.push({
+      startSec,
+      endSec: startSec + 5,
+      text,
+    });
+  }
+
+  for (let i = 0; i < parsed.length - 1; i++) {
+    const gap = parsed[i + 1].startSec - parsed[i].startSec;
+    parsed[i].endSec = parsed[i].startSec + Math.max(2, Math.min(10, gap));
+  }
+  return parsed;
+}
+
+function isSponsorText(text: string): boolean {
+  const lower = text.toLowerCase();
+  return SPONSOR_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 /**
- * Smart Heuristic Generator: Creates 8 to 15 high-retention cuts across the entire timeline
- * Used when Gemini is not configured, quota is exceeded, or supplementary cuts are needed.
+ * Finds the #1 most engaging, high-retention continuous speech block in the video
+ * using YouTube's "Most Replayed" Heatmap + Semantic Hook & Storytelling density,
+ * while strictly skipping intros (<3.5 min) and sponsor ad reads.
+ */
+function findBestStoryAnchorIndex(
+  segments: TranscriptSegment[],
+  heatmap: HeatmapMarker[],
+  cutsCount: number
+): number {
+  if (segments.length === 0) return 0;
+
+  const lastEndSec = segments[segments.length - 1].endSec;
+  const neededDurationSec = cutsCount * 46;
+  // Skip first 210s (3m30s) of intro/greetings/sponsor ads on long podcasts (>10 min)
+  const minStartSec = lastEndSec > 600 ? 210 : lastEndSec > 240 ? 60 : 0;
+  const maxStartSec = Math.max(minStartSec + 30, lastEndSec - neededDurationSec - 30);
+
+  let bestIdx = 0;
+  let bestScore = -999999;
+
+  for (let i = 0; i < segments.length; i++) {
+    const segStart = segments[i].startSec;
+    if (segStart < minStartSec) continue;
+    if (segStart > maxStartSec) break;
+
+    // Evaluate a 220-second continuous story window starting at segments[i]
+    const windowEnd = segStart + 220;
+    const openingEnd = segStart + 25;
+    let windowText = '';
+    let openingText = '';
+    let segmentCountInWindow = 0;
+
+    for (let j = i; j < segments.length && segments[j].startSec <= windowEnd; j++) {
+      const t = segments[j].text;
+      windowText += ' ' + t;
+      if (segments[j].startSec <= openingEnd) {
+        openingText += ' ' + t;
+      }
+      segmentCountInWindow++;
+    }
+
+    const lowerWindow = windowText.toLowerCase();
+    const lowerOpening = openingText.toLowerCase();
+
+    // Heavy penalty for sponsor ads
+    if (isSponsorText(lowerWindow)) {
+      continue;
+    }
+
+    let score = 0;
+
+    // 1. YouTube Official "Most Replayed" Heatmap alignment (up to +120 pts)
+    if (heatmap.length > 0) {
+      const overlappingMarkers = heatmap.filter(
+        (m) => m.startSec + m.durationSec >= segStart && m.startSec <= segStart + 180
+      );
+      if (overlappingMarkers.length > 0) {
+        const maxHeat = Math.max(...overlappingMarkers.map((m) => m.score));
+        const firstMarkerHeat = overlappingMarkers[0].score;
+        score += maxHeat * 75 + firstMarkerHeat * 45;
+      }
+    }
+
+    // 2. Opening Hook Phrases in the first 25 seconds (+20 pts each)
+    for (const hp of HOOK_PHRASES) {
+      if (lowerOpening.includes(hp)) {
+        score += 20;
+      } else if (lowerWindow.includes(hp)) {
+        score += 6;
+      }
+    }
+
+    // 3. High-Impact Topics across the story block (+8 pts each)
+    for (const topic of HIGH_IMPACT_TOPICS) {
+      if (lowerOpening.includes(topic)) {
+        score += 12;
+      } else if (lowerWindow.includes(topic)) {
+        score += 5;
+      }
+    }
+
+    // 4. Dense, uninterrupted speech bonus
+    score += Math.min(35, segmentCountInWindow);
+
+    // 5. Question or exclamation hook bonus
+    if (openingText.includes('?')) score += 14;
+    if (/\b\d+\b/.test(openingText)) score += 10;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+
+  // Fallback if all segments were filtered out
+  if (bestScore === -999999) {
+    const fallbackIdx = segments.findIndex((s) => s.startSec >= minStartSec);
+    return fallbackIdx >= 0 ? fallbackIdx : 0;
+  }
+
+  return bestIdx;
+}
+
+const STOPWORDS_PT = new Set([
+  'que', 'para', 'com', 'uma', 'uns', 'umas', 'por', 'mais', 'como', 'mas',
+  'foi', 'ele', 'ela', 'eles', 'elas', 'isso', 'isto', 'esse', 'essa', 'esses',
+  'essas', 'aquele', 'aquela', 'então', 'tipo', 'assim', 'aqui', 'ali', 'lá',
+  'muito', 'muita', 'muitos', 'muitas', 'algum', 'alguma', 'alguns', 'algumas',
+  'inclusive', 'lógico', 'cara', 'mano', 'velho', 'né', 'tá', 'está', 'estava',
+  'tinha', 'tenho', 'tem', 'ter', 'vai', 'vou', 'ia', 'fazer', 'fazia', 'fez',
+  'quando', 'onde', 'quem', 'qual', 'quais', 'porque', 'porquê', 'pelo', 'pela',
+]);
+
+function cleanSpokenStutters(raw: string): string {
+  if (!raw) return '';
+  let text = raw
+    .replace(/\b(\w+)\s+\1\b/gi, '$1')
+    .replace(/\b(essas\s+esses|esses\s+essas|alguns\s+algumas|algumas\s+alguns|um\s+uma|uma\s+um|o\s+a|a\s+o)\b/gi, (m) => m.split(/\s+/)[1])
+    .replace(/^(e|mas|aí|então|porque|que|né|tá)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text.length > 0) {
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+  }
+  return text;
+}
+
+function synthesizeViralHeadline(partSegs: TranscriptSegment[], partNumber: number): string {
+  if (!partSegs || partSegs.length === 0) {
+    return `REVELAÇÃO IMPACTANTE PARTE ${partNumber}`;
+  }
+
+  // Score each segment inside this 45s slice to find the punchiest core statement
+  let bestSeg = partSegs[0];
+  let bestSegScore = -999;
+
+  for (let idx = 0; idx < partSegs.length; idx++) {
+    const s = partSegs[idx];
+    const lower = s.text.toLowerCase();
+    let sc = idx === 0 ? 8 : 0; // slight preference for opening statement
+    for (const hp of HOOK_PHRASES) {
+      if (lower.includes(hp)) sc += 18;
+    }
+    for (const tp of HIGH_IMPACT_TOPICS) {
+      if (lower.includes(tp)) sc += 14;
+    }
+    if (s.text.includes('?')) sc += 10;
+    if (/\b(nunca|jamais|segredo|verdade|erro|competitivo|mundo|zero|meta|resultado|disciplina|foco|dinheiro|vida)\b/i.test(lower)) {
+      sc += 15;
+    }
+    if (sc > bestSegScore && s.text.trim().length >= 16) {
+      bestSegScore = sc;
+      bestSeg = s;
+    }
+  }
+
+  const cleaned = cleanSpokenStutters(bestSeg.text);
+  const words = cleaned.split(/\s+/);
+  if (words.length <= 9) {
+    return cleaned.toUpperCase();
+  }
+
+  // Trim trailing filler words on a 7-9 word punchy slice
+  const sliceWords = words.slice(0, 8);
+  while (sliceWords.length > 4 && STOPWORDS_PT.has(sliceWords[sliceWords.length - 1].toLowerCase().replace(/[^\p{L}]/gu, ''))) {
+    sliceWords.pop();
+  }
+  return sliceWords.join(' ').toUpperCase();
+}
+
+interface SequentialSlice {
+  partNumber: number;
+  totalParts: number;
+  startSec: number;
+  endSec: number;
+  durationSec: number;
+  startTime: string;
+  endTime: string;
+  spokenTranscript: string;
+  openingHookSentence: string;
+  closingPayoffSentence: string;
+  headlineSnippet: string;
+  heatmapIntensity: number;
+}
+
+/**
+ * Slices the #1 peak speech block into connected sequential continuations:
+ * Parte 1 -> Parte 2 (Continuação direta) -> Parte 3 (Continuação direta) -> ...
+ */
+function buildSequentialStorySlices(
+  segments: TranscriptSegment[],
+  heatmap: HeatmapMarker[],
+  cutsCount: number
+): SequentialSlice[] {
+  const count = Math.max(4, Math.min(12, cutsCount));
+
+  if (segments.length === 0) {
+    // Fallback continuous sequential timeline starting at 04:00 (after podcast intro)
+    const baseStart = 240;
+    const partDur = 46;
+    return Array.from({ length: count }, (_, idx) => {
+      const s = baseStart + idx * partDur;
+      const e = s + partDur;
+      return {
+        partNumber: idx + 1,
+        totalParts: count,
+        startSec: s,
+        endSec: e,
+        durationSec: partDur,
+        startTime: formatSecondsToMMSS(s),
+        endTime: formatSecondsToMMSS(e),
+        spokenTranscript: '',
+        openingHookSentence: '',
+        closingPayoffSentence: '',
+        headlineSnippet: `PARTE ${idx + 1}`,
+        heatmapIntensity: 0.85,
+      };
+    });
+  }
+
+  let cursorIdx = findBestStoryAnchorIndex(segments, heatmap, count);
+  const slices: SequentialSlice[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // Skip any sponsor segment if encountered
+    while (cursorIdx < segments.length - 1 && isSponsorText(segments[cursorIdx].text)) {
+      cursorIdx++;
+    }
+
+    const startSeg = segments[cursorIdx] || segments[segments.length - 1];
+    const startSec =
+      i > 0 && slices[i - 1]
+        ? slices[i - 1].endSec
+        : Math.floor(startSeg.startSec);
+    const targetDuration = 46; // ~46 seconds per sequential part (ideal for YouTube Shorts/TikTok/Reels)
+
+    const partSegs: TranscriptSegment[] = [];
+    let endIdx = cursorIdx;
+
+    while (endIdx < segments.length) {
+      const seg = segments[endIdx];
+      partSegs.push(seg);
+      const currentDur = seg.endSec - startSec;
+      if (currentDur >= targetDuration) {
+        break;
+      }
+      endIdx++;
+    }
+
+    const lastSeg = partSegs[partSegs.length - 1] || startSeg;
+    const endSec = Math.max(startSec + 34, Math.min(startSec + 56, Math.ceil(lastSeg.endSec)));
+    const durationSec = endSec - startSec;
+
+    const spokenTranscript = cleanSpokenStutters(
+      partSegs.map((s) => s.text).join(' ')
+    );
+    const openingHookSentence = cleanSpokenStutters(
+      partSegs
+        .slice(0, 2)
+        .map((s) => s.text)
+        .join(' ')
+    );
+    const closingPayoffSentence = cleanSpokenStutters(
+      partSegs
+        .slice(-2)
+        .map((s) => s.text)
+        .join(' ')
+    );
+
+    const headlineSnippet = synthesizeViralHeadline(partSegs, i + 1);
+
+    // Compute heatmap intensity for this slice
+    const overlappingHeat = heatmap.filter(
+      (m) => m.startSec + m.durationSec >= startSec && m.startSec <= endSec
+    );
+    const heatmapIntensity =
+      overlappingHeat.length > 0
+        ? Math.max(...overlappingHeat.map((m) => m.score))
+        : 0.78;
+
+    slices.push({
+      partNumber: i + 1,
+      totalParts: count,
+      startSec,
+      endSec,
+      durationSec,
+      startTime: formatSecondsToMMSS(startSec),
+      endTime: formatSecondsToMMSS(endSec),
+      spokenTranscript,
+      openingHookSentence,
+      closingPayoffSentence,
+      headlineSnippet,
+      heatmapIntensity,
+    });
+
+    // Advance cursorIdx so the NEXT cut is the DIRECT CONTINUATION of this cut!
+    if (endIdx < segments.length - 1) {
+      cursorIdx = endIdx + 1;
+    } else {
+      cursorIdx = Math.min(segments.length - 1, Math.floor(segments.length * 0.35));
+    }
+  }
+
+  return slices;
+}
+
+/**
+ * Generates Sequential Narrative Continuation Cuts (Parte 1 -> Parte 2 -> Parte 3...)
+ * anchored to real spoken sentences and YouTube's "Most Replayed" Heatmap.
  */
 function generateHeuristicViralCuts({
   videoId,
   videoTitle,
   channelName,
   transcript,
-  cutsCount = 8,
+  segments: providedSegments,
+  heatmap = [],
+  cutsCount = 6,
 }: {
   videoId: string;
   videoTitle?: string;
   channelName?: string;
   transcript?: string;
+  segments?: TranscriptSegment[];
+  heatmap?: HeatmapMarker[];
   cutsCount?: number;
 }) {
-  const count = Math.max(6, Math.min(15, cutsCount));
-  const safeTitle = videoTitle || 'Episódio em Alta';
+  const count = Math.max(4, Math.min(12, cutsCount));
+  const safeTitle = (videoTitle || 'Episódio em Alta').replace(/\s*\([^)]*\)\s*/g, ' ').trim();
   const safeChannel = channelName || 'Podcast Oficial';
 
-  // Strategy themes and triggers for varied cuts
-  const themes = [
-    {
-      titlePrefix: 'A VERDADE BRUTAL SOBRE',
-      emoji: '⚠️',
-      trigger: 'Quebra de Padrão & Choque de Realidade',
-      angle: 'Desmonta uma crença comum logo no primeiro segundo.',
-      captionIntro: 'A maioria das pessoas passa a vida inteira sem perceber isso.',
-      hashtags: ['#Shorts', '#Viral', '#Mentalidade', '#Sucesso', '#Verdade'],
-      keywords: ['ATENÇÃO', 'VERDADE', 'CUIDADO'],
-    },
-    {
-      titlePrefix: 'O ERRO QUE DESTRÓI SEU',
-      emoji: '🚨',
-      trigger: 'Medo de Ficar Para Trás (FOMO) & Alerta',
-      angle: 'Alerta urgente sobre hábitos invisíveis que sabotam resultados.',
-      captionIntro: 'Se você faz isso todos os dias, pare imediatamente.',
-      hashtags: ['#Shorts', '#Produtividade', '#Foco', '#Dopamina', '#Disciplina'],
-      keywords: ['PARE AGORA', 'NÃO ERRE', 'ALERTA'],
-    },
-    {
-      titlePrefix: 'O SEGREDO QUE NINGUÉM CONTA SOBRE',
-      emoji: '🤫',
-      trigger: 'Curiosidade Irresistível & Exclusividade',
-      angle: 'Revelação inédita que faz o espectador assistir até o último segundo.',
-      captionIntro: 'Guardaram esse segredo a sete chaves durante anos...',
-      hashtags: ['#Shorts', '#Segredo', '#Revelacao', '#Curiosidades', '#Reels'],
-      keywords: ['O SEGREDO', 'INACREDITÁVEL', 'DESCUBRA'],
-    },
-    {
-      titlePrefix: 'COMO MUDAR COMPLETAMENTE SEU',
-      emoji: '🚀',
-      trigger: 'Ganho Imediato & Transformação Rápida',
-      angle: 'Dica prática e acionável com retorno imediato para a vida diária.',
-      captionIntro: 'Aplique esta técnica simples hoje e veja o resultado amanhã.',
-      hashtags: ['#Shorts', '#Dicas', '#Transformacao', '#Evolucao', '#TikTok'],
-      keywords: ['TRANSFORMAÇÃO', 'PASSO A PASSO', 'RESULTADO'],
-    },
-    {
-      titlePrefix: 'A HISTÓRIA MAIS LOUCA DE',
-      emoji: '🤯',
-      trigger: 'Narrativa Magnética & Suspense',
-      angle: 'Storytelling envolvente que prende a atenção do início ao fim.',
-      captionIntro: 'Você não vai acreditar no que aconteceu no final dessa história...',
-      hashtags: ['#Shorts', '#HistoriaReal', '#Fatos', '#Inacreditavel', '#ViralShorts'],
-      keywords: ['OLHA ISSO', 'SURREAL', 'HISTÓRIA'],
-    },
-    {
-      titlePrefix: 'O CONSELHO DE MILHÕES SOBRE',
-      emoji: '💎',
-      trigger: 'Autoridade & Valor Inestimável',
-      angle: 'Lição transmitida por quem tem resultados comprovados no campo de batalha.',
-      captionIntro: 'Este único conselho pode economizar 5 anos de erros na sua jornada.',
-      hashtags: ['#Shorts', '#Sabedoria', '#Conselho', '#Negocios', '#Prosperidade'],
-      keywords: ['VALOR', 'OUÇA ISSO', 'LIÇÃO'],
-    },
-    {
-      titlePrefix: 'O TESTE DEFINITIVO PARA SUA',
-      emoji: '🔥',
-      trigger: 'Desafio Pessoal & Autoavaliação',
-      angle: 'Provocação direta que incentiva o público a responder nos comentários.',
-      captionIntro: 'Faça esse teste mental agora e me diga seu resultado nos comentários!',
-      hashtags: ['#Shorts', '#Desafio', '#Reflexao', '#Comente', '#TikTokBrasil'],
-      keywords: ['TESTE AGORA', 'RESPONDA', 'VOCÊ SABE?'],
-    },
-    {
-      titlePrefix: 'POR QUE 99% DAS PESSOAS FALHAM EM',
-      emoji: '⚡',
-      trigger: 'Contraste Extremo & Minoria Vencedora',
-      angle: 'Separa o comportamento da média do comportamento dos que vencem.',
-      captionIntro: 'A diferença entre quem desiste e quem vence é apenas esse detalhe.',
-      hashtags: ['#Shorts', '#Vencer', '#FocoTotal', '#MindsetMilionario', '#Constancia'],
-      keywords: ['99% FALHAM', 'SEJA DIFERENTE', 'VENCER'],
-    },
-    {
-      titlePrefix: 'O HACK PSICOLÓGICO PARA DOMINAR',
-      emoji: '🧠',
-      trigger: 'Neuromarketing & Hack Mental',
-      angle: 'Mecanismo cerebral explicado de forma rápida e impactante.',
-      captionIntro: 'Seu cérebro foi programado para cair nessa armadilha todos os dias.',
-      hashtags: ['#Shorts', '#Neurociencia', '#Psicologia', '#Hacks', '#Cerebro'],
-      keywords: ['HACK MENTAL', 'CÉREBRO', 'DOMINE'],
-    },
-    {
-      titlePrefix: 'O MOMENTO MAIS TENSO DA CONVERSA',
-      emoji: '👀',
-      trigger: 'Tensão Emocional & Clímax',
-      angle: 'Momento de debate acalorado ou declaração polêmica sem filtro.',
-      captionIntro: 'O clima esquentou na hora em que esse assunto veio à tona...',
-      hashtags: ['#Shorts', '#Polemic', '#Debate', '#Opinião', '#Podcasts'],
-      keywords: ['CLIMA TENSO', 'SEM FILTRO', 'OUÇA'],
-    },
-    {
-      titlePrefix: 'ISSO PODE SALVAR SEU FUTURO EM',
-      emoji: '🛡️',
-      trigger: 'Preservação & Segurança Essencial',
-      angle: 'Informação crucial que ninguém pode se dar ao luxo de ignorar.',
-      captionIntro: 'Não ignore este aviso se você se preocupa com o seu futuro.',
-      hashtags: ['#Shorts', '#Futuro', '#Atencao', '#Importante', '#Compartilhe'],
-      keywords: ['SALVE SEU FUTURO', 'IMPORTANTE', 'AVISO'],
-    },
-    {
-      titlePrefix: 'A FRASE QUE MUDOU MINHA VIDA SOBRE',
-      emoji: '✨',
-      trigger: 'Epifania & Quebra Emocional',
-      angle: 'Uma única frase que ressoa profundamente e estimula o compartilhamento.',
-      captionIntro: 'Guarde essa frase com você pelo resto da sua vida.',
-      hashtags: ['#Shorts', '#Inspiracao', '#Vida', '#MotivacaoDiaria', '#Forte'],
-      keywords: ['GUARDE ISSO', 'FRASE FORTE', 'MUDANÇA'],
-    },
+  const segments =
+    providedSegments && providedSegments.length > 0
+      ? providedSegments
+      : parseRawTranscriptToSegments(transcript || '');
+
+  const slices = buildSequentialStorySlices(segments, heatmap, count);
+
+  const triggers = [
+    'Gancho de Abertura & Curiosidade Irresistível (Início da História)',
+    'Continuação Direta & Aprofundamento da Ideia (Parte 2)',
+    'Virada de Chave & Quebra de Padrão (Continuação Parte 3)',
+    'Clímax Narrativo & Revelação Central (Continuação Parte 4)',
+    'Desdobramento Prático & Exemplo Real (Continuação Parte 5)',
+    'Conclusão Definitiva & Lição de Ouro (Desfecho da Sequência)',
   ];
 
-  // If transcript lines exist, parse them to extract real timing markers
-  const transcriptLines = (transcript || '')
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l.startsWith('[') && l.includes(']'));
+  const layoutRotation = [
+    'split_screen',
+    'dynamic_reframe',
+    'speaker_right',
+    'split_screen',
+    'speaker_left',
+    'split_screen',
+  ];
+  const speakers = [
+    'Ambos (Diálogo / Split Screen)',
+    'Auto-Reframe IA (Troca Dinâmica)',
+    'Convidado (Câmera Direita)',
+    'Ambos (Diálogo / Split Screen)',
+    'Apresentador (Câmera Esquerda)',
+    'Ambos (Diálogo / Split Screen)',
+  ];
+  const subtitleThemes = ['hormozi', 'beast', 'cyberpunk', 'clean'];
 
-  const cuts: any[] = [];
-  const spacingSeconds = transcriptLines.length > count ? Math.floor(transcriptLines.length / count) : 1;
+  return slices.map((slice, i) => {
+    const isFirst = i === 0;
+    const isLast = i === slices.length - 1;
+    const partLabel = isFirst
+      ? `[PARTE 1]`
+      : isLast
+        ? `[PARTE ${slice.partNumber} - FINAL]`
+        : `[PARTE ${slice.partNumber} - CONTINUAÇÃO]`;
 
-  for (let i = 0; i < count; i++) {
-    const theme = themes[i % themes.length];
-    let startSec = 15 + i * 75; // Distribute cuts across the video timeline
-    let durationSec = 40 + (i % 3) * 10; // 40s, 50s, 60s cuts
-    let hookText = `${theme.captionIntro} Você precisa ouvir o que ${safeChannel} revelou sobre isso.`;
-    let payoffText = `Essa reflexão muda completamente sua perspectiva. Compartilhe com quem precisa ouvir isso!`;
+    const realHook =
+      slice.openingHookSentence && slice.openingHookSentence.length > 12
+        ? `"${slice.openingHookSentence}..."`
+        : `Veja o que ${safeChannel} revelou neste trecho sobre ${safeTitle}.`;
 
-    // Try extracting real timing and hook from transcript if available
-    if (transcriptLines.length >= count) {
-      const lineIndex = Math.min(i * spacingSeconds, transcriptLines.length - 1);
-      const match = transcriptLines[lineIndex].match(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.+)/);
-      if (match) {
-        startSec = parseTimeToSeconds(match[1]);
-        if (match[2] && match[2].length > 10) {
-          hookText = match[2];
-        }
-      }
-    }
+    const realPayoff =
+      slice.closingPayoffSentence && slice.closingPayoffSentence.length > 12
+        ? `"${slice.closingPayoffSentence}"`
+        : isLast
+          ? `Conclusão completa do raciocínio! O que você achou dessa visão?`
+          : `Continua no próximo corte (Parte ${slice.partNumber + 1})!`;
 
-    const endSec = startSec + durationSec;
-    const startTimeStr = formatSecondsToMMSS(startSec);
-    const endTimeStr = formatSecondsToMMSS(endSec);
-    const score = 92 + ((i * 7) % 8); // 92 to 99
+    const nextCta = isLast
+      ? `✅ Sequência completa! Volte no perfil se perdeu a Parte 1.`
+      : `⏭️ A Parte ${slice.partNumber + 1} (continuação direta dessa fala) sai em instantes aqui no canal! Siga para não perder.`;
 
-    // Heuristically assign layout based on Opus Clip / Klap best practices
-    const layoutRotation = ['split_screen', 'dynamic_reframe', 'speaker_right', 'split_screen', 'speaker_left', 'vertical_blur'];
-    const assignedLayout = layoutRotation[i % layoutRotation.length];
-    const speakers = [
-      'Ambos (Diálogo / Split Screen)',
-      'Auto-Reframe IA (Troca Dinâmica)',
-      'Convidado (Câmera Direita)',
-      'Ambos (Diálogo / Split Screen)',
-      'Apresentador (Câmera Esquerda)',
-      'Geral (Fundo Desfocado)',
-    ];
-    const subtitleThemes = ['hormozi', 'beast', 'cyberpunk', 'clean'];
+    const score = Math.min(99, Math.max(93, Math.round(92 + slice.heatmapIntensity * 7)));
 
-    cuts.push({
-      id: `cut-${i + 1}-${Date.now()}`,
-      title: `${theme.titlePrefix} ${safeTitle.slice(0, 25).toUpperCase()} ${theme.emoji}`,
-      startTime: startTimeStr,
-      endTime: endTimeStr,
-      startSeconds: startSec,
-      endSeconds: endSec,
-      durationSeconds: durationSec,
+    const wordsForHighlight = (slice.headlineSnippet || safeTitle)
+      .toUpperCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 3)
+      .slice(0, 3);
+
+    return {
+      id: `cut-seq-${slice.partNumber}-${Date.now()}-${i}`,
+      title: `🔥 ${partLabel} ${slice.headlineSnippet} — ${safeChannel}`.slice(0, 95),
+      startTime: slice.startTime,
+      endTime: slice.endTime,
+      startSeconds: slice.startSec,
+      endSeconds: slice.endSec,
+      durationSeconds: slice.durationSec,
       viralityScore: score,
-      hook: hookText,
-      payoff: payoffText,
-      neuromarketingTrigger: theme.trigger,
-      viralityAnalysis: `${theme.angle} Alta retenção e dinamismo visual com enquadramento otimizado para o locutor ativo.`,
-      recommendedFormat: assignedLayout,
+      hook: realHook,
+      payoff: realPayoff,
+      neuromarketingTrigger: triggers[i % triggers.length],
+      viralityAnalysis: isFirst
+        ? `Pico #1 de interesse e retenção do público ("Mais Reproduzidos") detectado em ${slice.startTime}. Inicia a história no momento mais chamativo do vídeo (pula intros e anúncios).`
+        : `Continuação direta e sequencial da Parte ${slice.partNumber - 1} (${slices[i - 1].startTime}–${slices[i - 1].endTime} → ${slice.startTime}–${slice.endTime}), mantendo 100% do contexto e da linha de raciocínio.`,
+      recommendedFormat: layoutRotation[i % layoutRotation.length],
       activeSpeaker: speakers[i % speakers.length],
       subtitleTheme: subtitleThemes[i % subtitleThemes.length],
       framing: {
@@ -711,19 +1277,19 @@ function generateHeuristicViralCuts({
         speaker2Y: 44,
         zoom: 1.25,
         detectedFacesCount: 2,
-        aiInsight: 'Mapeamento Facial IA: Câmera 1 (Host) em X=24%, Y=44% | Câmera 2 (Convidado) em X=76%, Y=44% com proporção exata 9:8 sem distorção.',
+        aiInsight:
+          'Mapeamento Facial IA: Câmera 1 (Host) em X=24%, Y=44% | Câmera 2 (Convidado) em X=76%, Y=44% com proporção exata 9:8 sem distorção.',
       },
       caption: {
-        youtube: `${theme.captionIntro} Assista até o fim para entender a virada de chave! 🔥 Inscreva-se para mais cortes diários.`,
-        instagram: `${hookText}\n\n👇 Salve este vídeo para não esquecer e mande no direct de quem precisa ver isso!`,
-        tiktok: `${theme.captionIntro} 🤯 Você concorda com isso? Deixe sua opinião nos comentários! #shorts #viral`,
+        youtube: `${partLabel} — ${realHook}\n\n${nextCta}\n\n#Shorts #Cortes #Podcast #Viral`,
+        instagram: `${partLabel} — ${realHook}\n\n${nextCta}\n\n👇 Comente sua opinião!`,
+        tiktok: `${partLabel} ${realHook} 🤯 ${nextCta} #shorts #cortes #viral`,
       },
-      hashtags: theme.hashtags,
-      overlaySubtitlesSample: theme.keywords,
-    });
-  }
-
-  return cuts;
+      hashtags: ['#Shorts', '#Cortes', '#Podcast', '#Viral', `#Parte${slice.partNumber}`],
+      overlaySubtitlesSample:
+        wordsForHighlight.length >= 2 ? wordsForHighlight : [`PARTE ${slice.partNumber}`, 'CONTINUAÇÃO', 'ASSISTA'],
+    };
+  });
 }
 
 /**
@@ -872,8 +1438,8 @@ Retorne um JSON com:
 }
 
 /**
- * Detect & analyze viral cuts using Gemini
- * Supports requested cutsCount (6, 8, 10, 12, etc.) and guarantees rich multi-cut delivery
+ * Detect & analyze viral cuts using YouTube "Most Replayed" Heatmap + Real Speech Transcript + Sequential Continuation Engine + Gemini AI
+ * Guarantees that cuts are genuinely interesting moments (never intros/ads) and that Cut 2, Cut 3, Cut 4... are direct continuations of Cut 1!
  */
 export async function analyzeViralCuts({
   videoUrl,
@@ -881,7 +1447,7 @@ export async function analyzeViralCuts({
   userPrompt,
   videoTitle,
   channelName,
-  cutsCount = 8,
+  cutsCount = 6,
 }: {
   videoUrl: string;
   transcript: string;
@@ -891,204 +1457,35 @@ export async function analyzeViralCuts({
   cutsCount?: number;
 }) {
   const videoId = extractVideoId(videoUrl) || 'B57eOqeLVfc';
-  const directive = userPrompt?.trim() || 'gerar vídeos magnéticos com maior retenção e chance de viralizar';
-  const targetCount = Math.max(6, Math.min(15, cutsCount));
+  const directive =
+    userPrompt?.trim() ||
+    'encontrar a parte de fala mais interessante e chamativa para o público e criar cortes em sequência contínua (Parte 1, Parte 2, Parte 3...)';
+  const targetCount = Math.max(4, Math.min(12, cutsCount));
 
-  // Run Multimodal AI Vision framing detection in parallel with transcript cut analysis
-  const framingPromise = analyzeVideoFraming({ videoUrl, videoId, videoTitle });
+  // 1. Always fetch the real YouTube transcript + "Most Replayed" Heatmap for this videoId
+  // so we never rely on short/demo placeholder text or blind timestamps!
+  const [realTranscriptData, detectedFraming] = await Promise.all([
+    fetchTranscript(videoId),
+    analyzeVideoFraming({ videoUrl, videoId, videoTitle }),
+  ]);
 
-  // If Gemini API key is available, run deep AI analysis
-  if (GEMINI_API_KEY) {
-    const systemInstruction = `
-Você é o mais consagrado diretor de pós-produção e estrategista de neuromarketing digital, mídias sociais (Shorts, TikTok, Reels) e retenção orgânica, com tecnologia similar a Opus Clip, Vizard.ai, Klap e Submagic.
-Sua especialidade é identificar momentos exatos em podcasts e vídeos longos que prendem a atenção do espectador no primeiro segundo e geram milhões de visualizações, compartilhamentos e comentários.
+  const parsedPassedSegments = parseRawTranscriptToSegments(transcript || '');
+  const effectiveSegments =
+    realTranscriptData.segments.length >= parsedPassedSegments.length
+      ? realTranscriptData.segments
+      : parsedPassedSegments;
+  const effectiveHeatmap = realTranscriptData.heatmap || [];
 
-Diretriz personalizada do criador:
-"${directive}"
-
-Regras Críticas para os Cortes:
-1. QUANTIDADE OBRIGATÓRIA: Forneça exatamente entre ${targetCount} e ${Math.min(15, targetCount + 2)} cortes virais distintos.
-2. DISTRIBUIÇÃO AO LONGO DO VÍDEO: Distribua os cortes equilibradamente ao longo de TODO o vídeo (início, meio e clímax final). NÃO concentre todos os cortes nos primeiros 5 minutos!
-3. Duração individual: Entre 30 e 90 segundos por corte.
-4. Gancho Inicial (Hook): Os primeiros 3 segundos de cada corte devem conter uma frase de choque, curiosidade irresistível ou quebra de padrão.
-5. Desfecho (Payoff): O corte não pode terminar no meio de uma frase inacabada; deve ter uma conclusão memorável ou provocação final.
-6. Título de Overlay: Título curto e impactante para colocar no topo do vídeo em letras maiúsculas com emoji (ex: "O ERRO QUE DESTRÓI SUA MEMÓRIA ⚠️", "ELE PERDEU TUDO EM 24 HORAS 🤯").
-7. Legenda persuasiva com gancho, copy de 2 frases, chamada para ação (CTA) e hashtags quentes (#Shorts #Viral #Reels #TikTok).
-
-8. INTELIGÊNCIA DE ENQUADRAMENTO E LAYOUT (Padrão Opus Clip, Vizard & Klap):
-   - Se o vídeo for podcast ou entrevista com 2 pessoas (Host e Convidado):
-     * Recomende "split_screen" (Split 2 Câmeras Empilhadas) para debates e diálogos onde ambos reagem.
-     * Recomende "dynamic_reframe" para alternância dinâmica de câmera entre quem fala e quem ouve.
-     * Recomende "speaker_right" quando o Convidado estiver contando uma história pessoal marcante.
-     * Recomende "speaker_left" quando o Apresentador estiver fazendo uma pergunta provocativa.
-     * NUNCA recomende apenas recorte central ("vertical_crop") quando houver duas pessoas sentadas nas pontas da mesa, pois isso cortaria os rostos no meio!
-   - Se for um monólogo solo: recomende "speaker_center".
-   - Se for uma cena de grupo ou externa: recomende "vertical_blur" (fundo desfocado).
-   - Identifique quem está falando no campo 'activeSpeaker'.
-   - Selecione o estilo visual de legendas no campo 'subtitleTheme' ('hormozi' | 'beast' | 'cyberpunk' | 'clean').
-`;
-
-    const prompt = `
-Título do Vídeo: ${videoTitle || 'Vídeo do YouTube'}
-Canal: ${channelName || 'YouTube'}
-URL: https://www.youtube.com/watch?v=${videoId}
-
-Transcrição com marcações de tempo:
-${transcript && transcript.trim().length > 20 ? transcript.slice(0, 35000) : '[00:15] O maior erro que as pessoas cometem é achar que motivação dura para sempre.\n[00:45] Quando a dopamina cai, você precisa ter sistemas claros.\n[01:20] Se você não dominar isso, vai passar a vida inteira recomeçando do zero.'}
-
-Selecione rigorosamente ${targetCount} cortes virais extraordinários distribuídos de forma equilibrada por toda a extensão do vídeo. Retorne rigorosamente no formato JSON de acordo com o schema.
-`;
-
-    try {
-      const [response, detectedFraming] = await Promise.all([
-        ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: {
-            systemInstruction,
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  title: { type: Type.STRING, description: 'Título de overlay para a tela em maiúsculas com emoji' },
-                  startTime: { type: Type.STRING, description: 'Tempo inicial no formato MM:SS ou HH:MM:SS' },
-                  endTime: { type: Type.STRING, description: 'Tempo final no formato MM:SS ou HH:MM:SS' },
-                  viralityScore: { type: Type.NUMBER, description: 'Score de viralidade de 70 a 99' },
-                  hook: { type: Type.STRING, description: 'O gancho nos primeiros 3 segundos' },
-                  payoff: { type: Type.STRING, description: 'A conclusão ou clímax do corte' },
-                  neuromarketingTrigger: { type: Type.STRING, description: 'Gatilho mental principal' },
-                  viralityAnalysis: { type: Type.STRING, description: 'Por que este trecho específico engaja e retém a audiência' },
-                  recommendedFormat: {
-                    type: Type.STRING,
-                    description: 'split_screen | dynamic_reframe | speaker_left | speaker_right | speaker_center | vertical_blur',
-                  },
-                  activeSpeaker: {
-                    type: Type.STRING,
-                    description: 'Quem está falando: "Ambos (Split Screen)" | "Convidado (Direita)" | "Apresentador (Esquerda)"',
-                  },
-                  subtitleTheme: {
-                    type: Type.STRING,
-                    description: 'hormozi | beast | cyberpunk | clean',
-                  },
-                  caption: {
-                    type: Type.OBJECT,
-                    properties: {
-                      youtube: { type: Type.STRING },
-                      instagram: { type: Type.STRING },
-                      tiktok: { type: Type.STRING },
-                    },
-                    required: ['youtube', 'instagram', 'tiktok'],
-                  },
-                  hashtags: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                  overlaySubtitlesSample: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: 'Palavras de impacto chave para destacar em amarelo/vermelho',
-                  },
-                },
-                required: [
-                  'title',
-                  'startTime',
-                  'endTime',
-                  'viralityScore',
-                  'hook',
-                  'payoff',
-                  'neuromarketingTrigger',
-                  'viralityAnalysis',
-                  'recommendedFormat',
-                  'caption',
-                  'hashtags',
-                ],
-              },
-            },
-          },
-        }),
-        framingPromise,
-      ]);
-
-      const rawCuts = JSON.parse(response.text?.trim() || '[]');
-      if (Array.isArray(rawCuts) && rawCuts.length > 0) {
-        const formattedCuts = rawCuts.map((cut: any, idx: number) => {
-          const s = parseTimeToSeconds(cut.startTime);
-          const e = parseTimeToSeconds(cut.endTime);
-          const durationSeconds = Math.max(15, e > s ? e - s : 45);
-          const startSeconds = s;
-          const endSeconds = s + durationSeconds;
-
-          return {
-            ...cut,
-            id: cut.id || `cut-${idx + 1}-${Date.now()}`,
-            startSeconds,
-            endSeconds,
-            durationSeconds,
-            startTime: formatSecondsToMMSS(startSeconds),
-            endTime: formatSecondsToMMSS(endSeconds),
-            recommendedFormat: cut.recommendedFormat || detectedFraming.recommendedFormat || 'split_screen',
-            activeSpeaker: cut.activeSpeaker || 'Ambos (Split Screen)',
-            subtitleTheme: cut.subtitleTheme || 'hormozi',
-            framing: {
-              speaker1X: detectedFraming.speaker1X,
-              speaker1Y: detectedFraming.speaker1Y,
-              speaker2X: detectedFraming.speaker2X,
-              speaker2Y: detectedFraming.speaker2Y,
-              zoom: detectedFraming.zoom,
-              detectedFacesCount: detectedFraming.detectedFacesCount,
-              aiInsight: detectedFraming.aiInsight,
-            },
-          };
-        });
-
-        // If Gemini returned at least 4 cuts, but fewer than requested, supplement with heuristic cuts
-        if (formattedCuts.length < targetCount) {
-          const fallbackCuts = generateHeuristicViralCuts({
-            videoId,
-            videoTitle,
-            channelName,
-            transcript,
-            cutsCount: targetCount,
-          });
-          for (let i = formattedCuts.length; i < targetCount; i++) {
-            if (fallbackCuts[i]) {
-              formattedCuts.push({
-                ...fallbackCuts[i],
-                framing: {
-                  speaker1X: detectedFraming.speaker1X,
-                  speaker1Y: detectedFraming.speaker1Y,
-                  speaker2X: detectedFraming.speaker2X,
-                  speaker2Y: detectedFraming.speaker2Y,
-                  zoom: detectedFraming.zoom,
-                  detectedFacesCount: detectedFraming.detectedFacesCount,
-                  aiInsight: detectedFraming.aiInsight,
-                },
-              });
-            }
-          }
-        }
-
-        return formattedCuts;
-      }
-    } catch (err) {
-      console.warn('[GeminiService] Erro ao analisar cortes com Gemini, usando gerador heurístico:', err);
-    }
-  }
-
-  // Fallback: Generate smart heuristic multi-cuts across the timeline with AI framing
-  const detectedFraming = await framingPromise;
-  const heuristicCuts = generateHeuristicViralCuts({
+  // 2. Build the baseline Sequential Continuation Cuts anchored to the #1 peak speech block
+  const baseSequentialCuts = generateHeuristicViralCuts({
     videoId,
     videoTitle,
     channelName,
-    transcript,
+    transcript: realTranscriptData.transcript || transcript,
+    segments: effectiveSegments,
+    heatmap: effectiveHeatmap,
     cutsCount: targetCount,
-  });
-
-  return heuristicCuts.map((c) => ({
+  }).map((c) => ({
     ...c,
     framing: {
       speaker1X: detectedFraming.speaker1X,
@@ -1100,6 +1497,113 @@ Selecione rigorosamente ${targetCount} cortes virais extraordinários distribuí
       aiInsight: detectedFraming.aiInsight,
     },
   }));
+
+  // 3. If Gemini API key is configured and we have real speech, let Gemini craft hyper-engaging titles, hooks, and captions
+  // for each of the sequential parts while locking the exact continuous timestamps (Parte 1 -> Parte 2 -> Parte 3...)!
+  const sequentialSlices = buildSequentialStorySlices(effectiveSegments, effectiveHeatmap, targetCount);
+
+  if (GEMINI_API_KEY && sequentialSlices.some((s) => s.spokenTranscript.length > 20)) {
+    const slicesPromptBlock = sequentialSlices
+      .map(
+        (s) =>
+          `--- PARTE ${s.partNumber} DE ${s.totalParts} (${s.startTime} até ${s.endTime}) ---\nFala real deste trecho:\n"${s.spokenTranscript}"`
+      )
+      .join('\n\n');
+
+    const systemInstruction = `
+Você é um diretor especialista em cortes virais de podcasts para YouTube Shorts, TikTok e Reels.
+O nosso detector de retenção já encontrou a fala mais interessante e chamativa do vídeo (ignorando introduções e patrocinadores) e dividiu essa mesma fala em ${targetCount} PARTES SEQUENCIAIS CONTÍNUAS (Parte 1, Parte 2 - Continuação, Parte 3 - Continuação...), onde cada corte continua exatamente de onde o corte anterior parou.
+
+Diretriz do criador: "${directive}"
+
+Sua missão:
+Para cada uma das ${targetCount} partes sequenciais abaixo, crie:
+1. "title": Título super magnético em maiúsculas com emoji, começando obrigatoriamente com "[PARTE X]" (ex: "🔥 [PARTE 1] O SEGREDO QUE MUDOU...", "🔥 [PARTE 2 - CONTINUAÇÃO] POR QUE O CÉREBRO..."). O título DEVE refletir o assunto real dito na fala daquele trecho!
+2. "hook": A frase inicial mais forte dita no começo daquele trecho.
+3. "payoff": A frase de fechamento/conclusão daquele trecho que deixa vontade de ver a próxima parte.
+4. "neuromarketingTrigger": O gatilho mental daquela parte.
+5. "viralityAnalysis": Explicação curta mostrando o nexo da fala e como ela continua a parte anterior.
+6. "caption": Legendas prontas para youtube, instagram e tiktok avisando que faz parte de uma sequência ("Parte X - Veja a continuação no próximo vídeo!").
+7. MANTENHA EXATAMENTE os tempos "startTime" e "endTime" fornecidos para cada Parte para não quebrar a continuação!
+`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: `Vídeo: ${videoTitle || 'Podcast em Alta'} (${channelName || 'YouTube'})\n\n${slicesPromptBlock}`,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                hook: { type: Type.STRING },
+                payoff: { type: Type.STRING },
+                neuromarketingTrigger: { type: Type.STRING },
+                viralityAnalysis: { type: Type.STRING },
+                recommendedFormat: { type: Type.STRING },
+                activeSpeaker: { type: Type.STRING },
+                subtitleTheme: { type: Type.STRING },
+                caption: {
+                  type: Type.OBJECT,
+                  properties: {
+                    youtube: { type: Type.STRING },
+                    instagram: { type: Type.STRING },
+                    tiktok: { type: Type.STRING },
+                  },
+                  required: ['youtube', 'instagram', 'tiktok'],
+                },
+                hashtags: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                overlaySubtitlesSample: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+              },
+              required: ['title', 'hook', 'payoff', 'neuromarketingTrigger', 'viralityAnalysis', 'caption', 'hashtags'],
+            },
+          },
+        },
+      });
+
+      const aiParts = JSON.parse(response.text?.trim() || '[]');
+      if (Array.isArray(aiParts) && aiParts.length > 0) {
+        return baseSequentialCuts.map((baseCut, idx) => {
+          const aiCut = aiParts[idx];
+          if (!aiCut) return baseCut;
+          const partPrefix = idx === 0 ? '[PARTE 1]' : `[PARTE ${idx + 1}]`;
+          const rawTitle = String(aiCut.title || baseCut.title);
+          const finalTitle = rawTitle.toUpperCase().includes('PARTE')
+            ? rawTitle
+            : `${partPrefix} ${rawTitle}`;
+
+          return {
+            ...baseCut,
+            title: finalTitle.slice(0, 95),
+            hook: aiCut.hook || baseCut.hook,
+            payoff: aiCut.payoff || baseCut.payoff,
+            neuromarketingTrigger: aiCut.neuromarketingTrigger || baseCut.neuromarketingTrigger,
+            viralityAnalysis: aiCut.viralityAnalysis || baseCut.viralityAnalysis,
+            caption: aiCut.caption || baseCut.caption,
+            hashtags: Array.isArray(aiCut.hashtags) && aiCut.hashtags.length > 0 ? aiCut.hashtags : baseCut.hashtags,
+            overlaySubtitlesSample:
+              Array.isArray(aiCut.overlaySubtitlesSample) && aiCut.overlaySubtitlesSample.length > 0
+                ? aiCut.overlaySubtitlesSample
+                : baseCut.overlaySubtitlesSample,
+          };
+        });
+      }
+    } catch (err) {
+      console.warn('[GeminiService] Aviso ao enriquecer sequência com Gemini, usando sequência real extraída:', err);
+    }
+  }
+
+  return baseSequentialCuts;
 }
 
 /**

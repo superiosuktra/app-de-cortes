@@ -68,20 +68,20 @@ async function handleTrending(req: Request, res: Response) {
 videoRouter.get('/trending', handleTrending);
 videoRouter.post('/trending', handleTrending);
 
-// 4. Detect & Analyze Viral Cuts with Gemini + Multimodal Framing
-videoRouter.post('/analyze', aiRateLimiter, async (req: Request, res: Response) => {
+// 4. Detect & Analyze Viral Cuts with Gemini + Multimodal Framing + Sequential Continuation Engine
+async function handleAnalyze(req: Request, res: Response) {
   try {
     const { videoUrl, transcript, userPrompt, videoTitle, channelName, cutsCount } = req.body;
     const safeYt = normalizeSafeYouTubeUrl(videoUrl);
-    const cleanUrl = safeYt?.canonicalUrl || videoUrl;
+    const cleanUrl = safeYt?.canonicalUrl || videoUrl || 'https://www.youtube.com/watch?v=B57eOqeLVfc';
 
     const cuts = await analyzeViralCuts({
       videoUrl: cleanUrl,
-      transcript,
+      transcript: transcript || '',
       userPrompt,
       videoTitle,
       channelName,
-      cutsCount: cutsCount ? Number(cutsCount) : 8,
+      cutsCount: cutsCount ? Number(cutsCount) : 6,
     });
 
     res.json({
@@ -93,19 +93,25 @@ videoRouter.post('/analyze', aiRateLimiter, async (req: Request, res: Response) 
     console.error('[VideoRoutes] Analyze error:', error);
     res.status(500).json({ error: error.message || 'Erro ao analisar cortes com IA.' });
   }
-});
+}
+videoRouter.post('/analyze', aiRateLimiter, handleAnalyze);
+videoRouter.post('/generate-cuts', aiRateLimiter, handleAnalyze);
 
 // 4b. Multimodal Gemini Vision Framing Detection (Scene Frames 1, 2, 3)
 videoRouter.post('/analyze-framing', aiRateLimiter, async (req: Request, res: Response) => {
   try {
-    const { videoUrl, videoId, videoTitle } = req.body;
+    const { videoUrl, videoId, videoTitle, title } = req.body;
     const safeYt = normalizeSafeYouTubeUrl(videoUrl || videoId);
     const framing = await analyzeVideoFraming({
       videoUrl: safeYt?.canonicalUrl || videoUrl,
       videoId: safeYt?.videoId || extractVideoId(videoId || videoUrl || '') || 'B57eOqeLVfc',
-      videoTitle,
+      videoTitle: videoTitle || title,
     });
-    res.json(framing);
+    res.json({
+      success: true,
+      framing,
+      ...framing,
+    });
   } catch (error: any) {
     console.error('[VideoRoutes] Analyze framing error:', error);
     res.status(500).json({ error: error.message || 'Erro ao detectar enquadramento com IA Vision.' });
