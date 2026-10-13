@@ -17,7 +17,27 @@ export const socialRouter = Router();
 // 1. Unified Social Media Post Endpoint (YouTube, Instagram, TikTok)
 socialRouter.post('/post-social', async (req: Request, res: Response) => {
   try {
-    const { platform, token, refreshToken, clientId, clientSecret, title, caption, privacy = 'public', videoUrl, startTime, endTime, format, hook } = req.body;
+    const {
+      platform,
+      token,
+      refreshToken,
+      clientId,
+      clientSecret,
+      title,
+      caption,
+      privacy = 'public',
+      videoUrl,
+      startTime,
+      endTime,
+      format,
+      hook,
+      framing,
+      subtitles,
+      teaserOffsetSec,
+      teaserDurationSec,
+      teaserText,
+      partBadge,
+    } = req.body;
     if (!platform) {
       return res.status(400).json({ error: 'Plataforma não especificada.' });
     }
@@ -87,6 +107,12 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
         endTime,
         format,
         hook,
+        framing,
+        subtitles,
+        teaserOffsetSec,
+        teaserDurationSec,
+        teaserText,
+        partBadge,
       });
 
       if (uploadResult.success) {
@@ -121,6 +147,12 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
             endTime,
             format,
             hook,
+            framing,
+            subtitles,
+            teaserOffsetSec,
+            teaserDurationSec,
+            teaserText,
+            partBadge,
           });
           if (retryUpload.success) {
             return res.json({

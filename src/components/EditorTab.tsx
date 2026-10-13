@@ -124,7 +124,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
   const handleDownloadRealCut = async () => {
     setIsRenderingCut(true);
-    setRenderProgressMsg('Baixando trecho em 1080p e renderizando layout IA sem distorção...');
+    setRenderProgressMsg('Renderizando Gancho Cold-Open (4s) + Corte 1080p com Legenda Limpa...');
     try {
       const res = await fetch('/api/download-youtube-cut', {
         method: 'POST',
@@ -137,6 +137,11 @@ export const EditorTab: React.FC<EditorTabProps> = ({
           subtitleTheme,
           title: overlayTitle,
           hook: customHook,
+          subtitles: selectedCut?.overlaySubtitlesSample,
+          teaserOffsetSec: selectedCut?.teaserOffsetSec,
+          teaserDurationSec: selectedCut?.teaserDurationSec || 4,
+          teaserText: selectedCut?.teaserText,
+          partBadge: selectedCut?.partBadge,
           framing: {
             speaker1X,
             speaker1Y,
@@ -769,22 +774,40 @@ export const EditorTab: React.FC<EditorTabProps> = ({
               </div>
             </div>
 
-            {/* Overlay Title Customizer */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Type className="w-3.5 h-3.5 text-yellow-400" />
-                  Título de Overlay na Tela (Gancho Visual)
+            {/* Cold-Open Climax Hook & Video Metadata Title */}
+            <div className="space-y-3 p-4 bg-gradient-to-r from-amber-950/30 via-[#0e0f17] to-purple-950/30 border border-amber-500/30 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Opção 3 Ativa: Gancho Cold-Open Clímax (00:00–00:04) + Tela Zero Poluição
                 </span>
-                <span className="text-[10px] text-zinc-500">Aparece no topo do Short</span>
-              </label>
-              <input
-                type="text"
-                value={overlayTitle}
-                onChange={(e) => setOverlayTitle(e.target.value)}
-                placeholder="Ex: ESSE MOMENTO MUDOU TUDO 🚨"
-                className="w-full px-3.5 py-2.5 bg-[#0e0f17] border border-zinc-800 rounded-xl text-sm font-bold text-yellow-400 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
-              />
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black">
+                  {selectedCut?.partBadge || 'PARTE 1'}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                O vídeo renderizado começa com os <strong>4 segundos mais explosivos do próprio corte</strong> (
+                <code className="text-amber-300 font-mono">
+                  {selectedCut?.teaserStartTime || startTime} → {selectedCut?.teaserEndTime || endTime}
+                </code>
+                : <em>"{selectedCut?.teaserText || customHook || overlayTitle}"</em>) antes de tocar a história completa, com legenda dinâmica limpa de <strong>2 palavras</strong> sem caixas cobrindo o rosto.
+              </p>
+
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-bold text-zinc-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-yellow-400" />
+                    Título do Vídeo (Para o Post no YouTube / TikTok / Reels — Não polui a tela)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={overlayTitle}
+                  onChange={(e) => setOverlayTitle(e.target.value)}
+                  placeholder="Ex: 🔥 [PARTE 1] O SEGREDO DA DISCIPLINA..."
+                  className="w-full px-3.5 py-2.5 bg-[#0e0f17] border border-zinc-800 rounded-xl text-sm font-bold text-yellow-400 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
             </div>
 
             {/* Actions Bar */}
@@ -917,9 +940,9 @@ export const EditorTab: React.FC<EditorTabProps> = ({
           <div className="w-full flex items-center justify-between mb-3 px-2">
             <span className="text-xs font-extrabold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
               <Smartphone className="w-4 h-4 text-pink-400" />
-              Simulador de Visualização Vertical (9:16)
+              Simulador Vertical (Tela Limpa • 2 Palavras)
             </span>
-            <span className="text-[10px] text-emerald-400 font-bold">Áudio Único Sem Eco ✓</span>
+            <span className="text-[10px] text-emerald-400 font-bold">Opção 3 Ativa ✓</span>
           </div>
 
           <ShortsPhonePreview
@@ -933,8 +956,13 @@ export const EditorTab: React.FC<EditorTabProps> = ({
             subtitleTheme={subtitleTheme}
             activeSpeaker={selectedCut?.activeSpeaker}
             overlayTitle={overlayTitle}
+            partBadge={selectedCut?.partBadge}
             hook={customHook}
-            subtitles={selectedCut?.overlaySubtitlesSample || ['VEJA O QUE ACONTECEU', 'MOMENTO IMPRESSIONANTE', 'PRESTE ATENÇÃO NISSO']}
+            subtitles={selectedCut?.overlaySubtitlesSample || ['ARMA PODEROSA', 'SEJA COMPETITIVO', 'NUNCA ACOMODE']}
+            teaserOffsetSec={selectedCut?.teaserOffsetSec}
+            teaserDurationSec={selectedCut?.teaserDurationSec || 4}
+            teaserText={selectedCut?.teaserText}
+            retentionStrategyOption={selectedCut?.retentionStrategyOption || 3}
             speaker1X={speaker1X}
             speaker1Y={speaker1Y}
             speaker2X={speaker2X}

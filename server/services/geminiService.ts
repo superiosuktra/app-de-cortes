@@ -1036,6 +1036,104 @@ interface SequentialSlice {
   closingPayoffSentence: string;
   headlineSnippet: string;
   heatmapIntensity: number;
+  teaserOffsetSec: number;
+  teaserDurationSec: number;
+  teaserStartTime: string;
+  teaserEndTime: string;
+  teaserText: string;
+  cleanTwoWordSubtitles: string[];
+}
+
+function buildCleanTwoWordSubtitles(spokenTranscript: string, fallbackHeadline: string): string[] {
+  const source = spokenTranscript && spokenTranscript.length > 10 ? spokenTranscript : fallbackHeadline;
+  const words = source
+    .toUpperCase()
+    .replace(/[^\p{L}\p{N}\s?!]/gu, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+
+  const chunks: string[] = [];
+  let i = 0;
+  while (i < words.length && chunks.length < 14) {
+    const w1 = words[i];
+    const w2 = words[i + 1] || '';
+    const w3 = words[i + 2] || '';
+    if (w2 && `${w1} ${w2} ${w3}`.length <= 14 && w3) {
+      chunks.push(`${w1} ${w2} ${w3}`);
+      i += 3;
+    } else if (w2 && `${w1} ${w2}`.length <= 16) {
+      chunks.push(`${w1} ${w2}`);
+      i += 2;
+    } else {
+      chunks.push(w1.slice(0, 16));
+      i += 1;
+    }
+  }
+  return chunks.length > 0 ? chunks : ['OLHA ISSO', 'PRESTE ATENÇÃO', 'ATÉ O FIM'];
+}
+
+function extractClimaxTeaserFromSlice(
+  partSegs: TranscriptSegment[],
+  sliceStartSec: number,
+  sliceDurationSec: number
+): {
+  teaserOffsetSec: number;
+  teaserDurationSec: number;
+  teaserStartTime: string;
+  teaserEndTime: string;
+  teaserText: string;
+} {
+  const defaultOffset = Math.max(10, Math.min(sliceDurationSec - 6, Math.floor(sliceDurationSec * 0.62)));
+  const teaserDur = 4;
+
+  if (!partSegs || partSegs.length === 0) {
+    const absStart = sliceStartSec + defaultOffset;
+    return {
+      teaserOffsetSec: defaultOffset,
+      teaserDurationSec: teaserDur,
+      teaserStartTime: formatSecondsToMMSS(absStart),
+      teaserEndTime: formatSecondsToMMSS(absStart + teaserDur),
+      teaserText: 'Veja o clímax dessa fala nos próximos segundos!',
+    };
+  }
+
+  // Search the second half / middle-to-end of the cut (where the climax/punchline happens)
+  let bestSeg = partSegs[Math.floor(partSegs.length * 0.65)] || partSegs[partSegs.length - 1];
+  let bestScore = -999;
+
+  for (let idx = 0; idx < partSegs.length; idx++) {
+    const s = partSegs[idx];
+    const relOffset = s.startSec - sliceStartSec;
+    // Must be at least 10s into the cut so we don't repeat the first sentence
+    if (relOffset < 10 || relOffset > sliceDurationSec - 4) continue;
+
+    const lower = s.text.toLowerCase();
+    let sc = relOffset >= sliceDurationSec * 0.45 ? 15 : 5;
+    for (const hp of HOOK_PHRASES) {
+      if (lower.includes(hp)) sc += 20;
+    }
+    for (const tp of HIGH_IMPACT_TOPICS) {
+      if (lower.includes(tp)) sc += 14;
+    }
+    if (s.text.includes('?') || s.text.includes('!')) sc += 12;
+    if (sc > bestScore && s.text.trim().length >= 14) {
+      bestScore = sc;
+      bestSeg = s;
+    }
+  }
+
+  const rawOffset = Math.floor(bestSeg.startSec - sliceStartSec);
+  const safeOffset = Math.max(10, Math.min(sliceDurationSec - 5, rawOffset));
+  const absTeaserStart = sliceStartSec + safeOffset;
+  const cleanedTeaser = cleanSpokenStutters(bestSeg.text);
+
+  return {
+    teaserOffsetSec: safeOffset,
+    teaserDurationSec: teaserDur,
+    teaserStartTime: formatSecondsToMMSS(absTeaserStart),
+    teaserEndTime: formatSecondsToMMSS(absTeaserStart + teaserDur),
+    teaserText: cleanedTeaser || 'Assista até o final para ver esse momento!',
+  };
 }
 
 /**
@@ -1056,6 +1154,7 @@ function buildSequentialStorySlices(
     return Array.from({ length: count }, (_, idx) => {
       const s = baseStart + idx * partDur;
       const e = s + partDur;
+      const tAbs = s + 28;
       return {
         partNumber: idx + 1,
         totalParts: count,
@@ -1069,6 +1168,12 @@ function buildSequentialStorySlices(
         closingPayoffSentence: '',
         headlineSnippet: `PARTE ${idx + 1}`,
         heatmapIntensity: 0.85,
+        teaserOffsetSec: 28,
+        teaserDurationSec: 4,
+        teaserStartTime: formatSecondsToMMSS(tAbs),
+        teaserEndTime: formatSecondsToMMSS(tAbs + 4),
+        teaserText: 'Momento mais impactante do corte colocado nos primeiros 4 segundos!',
+        cleanTwoWordSubtitles: [`PARTE ${idx + 1}`, 'OLHA ISSO', 'ATÉ O FIM'],
       };
     });
   }
@@ -1123,6 +1228,8 @@ function buildSequentialStorySlices(
     );
 
     const headlineSnippet = synthesizeViralHeadline(partSegs, i + 1);
+    const teaserInfo = extractClimaxTeaserFromSlice(partSegs, startSec, durationSec);
+    const cleanTwoWordSubtitles = buildCleanTwoWordSubtitles(spokenTranscript, headlineSnippet);
 
     // Compute heatmap intensity for this slice
     const overlappingHeat = heatmap.filter(
@@ -1146,6 +1253,8 @@ function buildSequentialStorySlices(
       closingPayoffSentence,
       headlineSnippet,
       heatmapIntensity,
+      ...teaserInfo,
+      cleanTwoWordSubtitles,
     });
 
     // Advance cursorIdx so the NEXT cut is the DIRECT CONTINUATION of this cut!
@@ -1161,7 +1270,7 @@ function buildSequentialStorySlices(
 
 /**
  * Generates Sequential Narrative Continuation Cuts (Parte 1 -> Parte 2 -> Parte 3...)
- * anchored to real spoken sentences and YouTube's "Most Replayed" Heatmap.
+ * anchored to real spoken sentences, YouTube's "Most Replayed" Heatmap, and Option 3 Cold-Open Climax Teaser.
  */
 function generateHeuristicViralCuts({
   videoId,
@@ -1192,12 +1301,12 @@ function generateHeuristicViralCuts({
   const slices = buildSequentialStorySlices(segments, heatmap, count);
 
   const triggers = [
-    'Gancho de Abertura & Curiosidade Irresistível (Início da História)',
-    'Continuação Direta & Aprofundamento da Ideia (Parte 2)',
-    'Virada de Chave & Quebra de Padrão (Continuação Parte 3)',
-    'Clímax Narrativo & Revelação Central (Continuação Parte 4)',
-    'Desdobramento Prático & Exemplo Real (Continuação Parte 5)',
-    'Conclusão Definitiva & Lição de Ouro (Desfecho da Sequência)',
+    'Cold-Open Teaser de Clímax (00:00–00:04) + Gancho de Abertura (Opção 3)',
+    'Cold-Open Teaser de Clímax + Continuação Direta da Ideia (Parte 2)',
+    'Cold-Open Teaser de Clímax + Virada de Chave (Continuação Parte 3)',
+    'Cold-Open Teaser de Clímax + Revelação Central (Continuação Parte 4)',
+    'Cold-Open Teaser de Clímax + Exemplo Real (Continuação Parte 5)',
+    'Cold-Open Teaser de Clímax + Conclusão Definitiva (Desfecho da Sequência)',
   ];
 
   const layoutRotation = [
@@ -1216,7 +1325,8 @@ function generateHeuristicViralCuts({
     'Apresentador (Câmera Esquerda)',
     'Ambos (Diálogo / Split Screen)',
   ];
-  const subtitleThemes = ['hormozi', 'beast', 'cyberpunk', 'clean'];
+  // Default to clean / hormozi 2-word minimal stroke without heavy boxes
+  const subtitleThemes = ['clean', 'hormozi', 'clean', 'beast'];
 
   return slices.map((slice, i) => {
     const isFirst = i === 0;
@@ -1228,9 +1338,11 @@ function generateHeuristicViralCuts({
         : `[PARTE ${slice.partNumber} - CONTINUAÇÃO]`;
 
     const realHook =
-      slice.openingHookSentence && slice.openingHookSentence.length > 12
-        ? `"${slice.openingHookSentence}..."`
-        : `Veja o que ${safeChannel} revelou neste trecho sobre ${safeTitle}.`;
+      slice.teaserText && slice.teaserText.length > 10
+        ? `⚡ [GANCHO 00:00–00:04]: "${slice.teaserText}" → Início em ${slice.startTime}: "${slice.openingHookSentence}..."`
+        : slice.openingHookSentence && slice.openingHookSentence.length > 12
+          ? `"${slice.openingHookSentence}..."`
+          : `Veja o que ${safeChannel} revelou neste trecho sobre ${safeTitle}.`;
 
     const realPayoff =
       slice.closingPayoffSentence && slice.closingPayoffSentence.length > 12
@@ -1243,14 +1355,7 @@ function generateHeuristicViralCuts({
       ? `✅ Sequência completa! Volte no perfil se perdeu a Parte 1.`
       : `⏭️ A Parte ${slice.partNumber + 1} (continuação direta dessa fala) sai em instantes aqui no canal! Siga para não perder.`;
 
-    const score = Math.min(99, Math.max(93, Math.round(92 + slice.heatmapIntensity * 7)));
-
-    const wordsForHighlight = (slice.headlineSnippet || safeTitle)
-      .toUpperCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, '')
-      .split(/\s+/)
-      .filter((w) => w.length > 3)
-      .slice(0, 3);
+    const score = Math.min(99, Math.max(94, Math.round(93 + slice.heatmapIntensity * 6)));
 
     return {
       id: `cut-seq-${slice.partNumber}-${Date.now()}-${i}`,
@@ -1265,8 +1370,8 @@ function generateHeuristicViralCuts({
       payoff: realPayoff,
       neuromarketingTrigger: triggers[i % triggers.length],
       viralityAnalysis: isFirst
-        ? `Pico #1 de interesse e retenção do público ("Mais Reproduzidos") detectado em ${slice.startTime}. Inicia a história no momento mais chamativo do vídeo (pula intros e anúncios).`
-        : `Continuação direta e sequencial da Parte ${slice.partNumber - 1} (${slices[i - 1].startTime}–${slices[i - 1].endTime} → ${slice.startTime}–${slice.endTime}), mantendo 100% do contexto e da linha de raciocínio.`,
+        ? `Estratégia Opção 3 Ativa: Abre nos primeiros 4s com o clímax do próprio corte (${slice.teaserStartTime}–${slice.teaserEndTime}: "${slice.teaserText}") para prender 100% da atenção e em seguida inicia a fala em ${slice.startTime} com tela limpa e legenda dinâmica de 2 palavras.`
+        : `Estratégia Opção 3 Ativa: Abre com Teaser de Clímax de 4s (${slice.teaserStartTime}–${slice.teaserEndTime}) e segue na continuação direta da Parte ${slice.partNumber - 1} (${slices[i - 1].endTime} → ${slice.startTime}).`,
       recommendedFormat: layoutRotation[i % layoutRotation.length],
       activeSpeaker: speakers[i % speakers.length],
       subtitleTheme: subtitleThemes[i % subtitleThemes.length],
@@ -1278,16 +1383,22 @@ function generateHeuristicViralCuts({
         zoom: 1.25,
         detectedFacesCount: 2,
         aiInsight:
-          'Mapeamento Facial IA: Câmera 1 (Host) em X=24%, Y=44% | Câmera 2 (Convidado) em X=76%, Y=44% com proporção exata 9:8 sem distorção.',
+          'Mapeamento Facial IA: Câmera 1 (Host) em X=24%, Y=44% | Câmera 2 (Convidado) em X=76%, Y=44% com tela limpa sem caixas poluindo o rosto.',
       },
       caption: {
-        youtube: `${partLabel} — ${realHook}\n\n${nextCta}\n\n#Shorts #Cortes #Podcast #Viral`,
-        instagram: `${partLabel} — ${realHook}\n\n${nextCta}\n\n👇 Comente sua opinião!`,
-        tiktok: `${partLabel} ${realHook} 🤯 ${nextCta} #shorts #cortes #viral`,
+        youtube: `${partLabel} — "${slice.teaserText}"\n\n${nextCta}\n\n#Shorts #Cortes #Podcast #Viral`,
+        instagram: `${partLabel} — "${slice.teaserText}"\n\n${nextCta}\n\n👇 Comente sua opinião!`,
+        tiktok: `${partLabel} "${slice.teaserText}" 🤯 ${nextCta} #shorts #cortes #viral`,
       },
       hashtags: ['#Shorts', '#Cortes', '#Podcast', '#Viral', `#Parte${slice.partNumber}`],
-      overlaySubtitlesSample:
-        wordsForHighlight.length >= 2 ? wordsForHighlight : [`PARTE ${slice.partNumber}`, 'CONTINUAÇÃO', 'ASSISTA'],
+      overlaySubtitlesSample: slice.cleanTwoWordSubtitles,
+      partBadge: `PARTE ${slice.partNumber}`,
+      teaserOffsetSec: slice.teaserOffsetSec,
+      teaserDurationSec: slice.teaserDurationSec,
+      teaserStartTime: slice.teaserStartTime,
+      teaserEndTime: slice.teaserEndTime,
+      teaserText: slice.teaserText,
+      retentionStrategyOption: 3,
     };
   });
 }

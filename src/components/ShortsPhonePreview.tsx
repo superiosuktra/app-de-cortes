@@ -41,8 +41,13 @@ interface ShortsPhonePreviewProps {
   subtitleTheme?: SubtitleTheme;
   activeSpeaker?: string;
   overlayTitle?: string;
+  partBadge?: string;
   hook?: string;
   subtitles?: string[];
+  teaserOffsetSec?: number;
+  teaserDurationSec?: number;
+  teaserText?: string;
+  retentionStrategyOption?: 1 | 2 | 3;
   initialPlatform?: SocialPlatform;
   onPlatformChange?: (platform: SocialPlatform) => void;
   channelName?: string;
@@ -56,6 +61,40 @@ interface ShortsPhonePreviewProps {
 // Fallback to verified 100% active YouTube video if videoId is dead/empty
 const RELIABLE_FALLBACK_VIDEO_ID = 'B57eOqeLVfc';
 
+/**
+ * Strips emojis and splits any long string into clean 2-3 word chunks (max 16 chars)
+ * so the screen is NEVER polluted with giant paragraphs.
+ */
+function normalizeCleanSubtitleChunks(rawList?: string[], fallbackHook?: string): string[] {
+  const source = rawList && rawList.length > 0 ? rawList : [fallbackHook || 'PRESTE ATENÇÃO'];
+  const allWords = source
+    .join(' ')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/["'«»“”„]/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  let i = 0;
+  while (i < allWords.length && chunks.length < 18) {
+    const w1 = allWords[i].toUpperCase();
+    const w2 = allWords[i + 1]?.toUpperCase() || '';
+    const w3 = allWords[i + 2]?.toUpperCase() || '';
+    if (w2 && w3 && (w1 + ' ' + w2 + ' ' + w3).length <= 15) {
+      chunks.push(`${w1} ${w2} ${w3}`);
+      i += 3;
+    } else if (w2 && (w1 + ' ' + w2).length <= 16) {
+      chunks.push(`${w1} ${w2}`);
+      i += 2;
+    } else {
+      chunks.push(w1.slice(0, 16));
+      i += 1;
+    }
+  }
+  return chunks.length > 0 ? chunks : ['OLHA ISSO', 'PRESTE ATENÇÃO'];
+}
+
 export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   videoId,
   videoUrl,
@@ -66,9 +105,14 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   format,
   subtitleTheme = 'hormozi',
   activeSpeaker,
-  overlayTitle = 'O MOMENTO QUE MUDOU TUDO 🚨',
+  overlayTitle = '',
+  partBadge,
   hook,
-  subtitles = ['ISSO ACONTECEU', 'QUANDO MENOS ESPERAVA', 'PRESTE ATENÇÃO NISSO'],
+  subtitles = ['ARMA PODEROSA', 'SEJA COMPETITIVO', 'NUNCA ACOMODE'],
+  teaserOffsetSec = 24,
+  teaserDurationSec = 4,
+  teaserText = 'SER COMPETITIVO É UMA ARMA',
+  retentionStrategyOption = 3,
   initialPlatform = 'youtube',
   onPlatformChange,
   channelName = 'cortes_virais',
@@ -87,7 +131,25 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   const [previewMode, setPreviewMode] = useState<'embed' | 'poster'>('embed');
   const [showSafeZones, setShowSafeZones] = useState<boolean>(false);
   const [activeDynamicCam, setActiveDynamicCam] = useState<1 | 2>(2);
+  const [isPlayingColdOpen, setIsPlayingColdOpen] = useState<boolean>(false);
   const duration = Math.max(1, endSeconds - startSeconds);
+
+  const cleanSubtitles = React.useMemo(
+    () => normalizeCleanSubtitleChunks(subtitles, hook),
+    [subtitles, hook]
+  );
+
+  const cleanTeaserChunks = React.useMemo(
+    () => normalizeCleanSubtitleChunks([teaserText], hook),
+    [teaserText, hook]
+  );
+
+  // Extract discreet Part Badge ("PARTE 1") if present in partBadge or overlayTitle
+  const resolvedPartBadge = React.useMemo(() => {
+    if (partBadge) return partBadge.toUpperCase();
+    const match = overlayTitle?.match(/PARTE\s*\d+(?:\s*-\s*FINAL)?/i);
+    return match ? match[0].toUpperCase() : '';
+  }, [partBadge, overlayTitle]);
 
   // Sync initial platform if parent prop changes
   useEffect(() => {
@@ -104,6 +166,15 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
     }, 4500);
     return () => clearInterval(camInterval);
   }, [format]);
+
+  // Cold-Open Climax Teaser timer (auto-switches back to full cut after 4 seconds when triggered)
+  useEffect(() => {
+    if (!isPlayingColdOpen) return;
+    const timer = setTimeout(() => {
+      setIsPlayingColdOpen(false);
+    }, (teaserDurationSec || 4) * 1000);
+    return () => clearTimeout(timer);
+  }, [isPlayingColdOpen, teaserDurationSec]);
 
   const handleSetPlatform = (p: SocialPlatform) => {
     setPlatform(p);
@@ -122,27 +193,34 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
     thumbnailUrl ||
     `https://img.youtube.com/vi/${safeVideoId}/maxresdefault.jpg`;
 
-  // Subtitle animator loop
+  // Fast 2-word karaoke subtitle animator (950ms per 2-word chunk — Submagic / CapCut cadence)
   useEffect(() => {
-    if (!subtitles || subtitles.length === 0) return;
+    const activeList = isPlayingColdOpen ? cleanTeaserChunks : cleanSubtitles;
+    if (!activeList || activeList.length === 0) return;
     const interval = setInterval(() => {
-      setActiveWordIndex((prev) => (prev + 1) % subtitles.length);
-    }, 1800);
+      setActiveWordIndex((prev) => (prev + 1) % activeList.length);
+    }, 950);
     return () => clearInterval(interval);
-  }, [subtitles]);
+  }, [cleanSubtitles, cleanTeaserChunks, isPlayingColdOpen]);
+
+  // Calculate playback window (Cold-Open Climax Teaser vs Main Cut)
+  const effectiveStartSeconds = isPlayingColdOpen
+    ? Math.min(endSeconds - 4, startSeconds + Math.max(8, teaserOffsetSec))
+    : startSeconds;
+  const effectiveEndSeconds = isPlayingColdOpen
+    ? Math.min(endSeconds, effectiveStartSeconds + (teaserDurationSec || 4))
+    : endSeconds;
 
   // Primary YouTube No-Cookie embed URL (plays audio when unmuted)
   const primaryEmbedUrl = `https://www.youtube-nocookie.com/embed/${safeVideoId}?autoplay=1&mute=${
     isMuted ? '1' : '0'
-  }&start=${startSeconds}&end=${endSeconds}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
+  }&start=${effectiveStartSeconds}&end=${effectiveEndSeconds}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
 
   // Secondary YouTube embed URL: ALWAYS MUTED (mute=1) to eliminate 100% of audio echo in split_screen and vertical_blur!
-  const mutedEmbedUrl = `https://www.youtube-nocookie.com/embed/${safeVideoId}?autoplay=1&mute=1&start=${startSeconds}&end=${endSeconds}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
+  const mutedEmbedUrl = `https://www.youtube-nocookie.com/embed/${safeVideoId}?autoplay=1&mute=1&start=${effectiveStartSeconds}&end=${effectiveEndSeconds}&controls=0&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`;
 
   /**
    * Computes exact 1:1 distortion-free CSS positioning for a 16:9 YouTube iframe inside a 9:16 or 9:8 crop container.
-   * By keeping aspectRatio: '16 / 9' on the iframe and translating by (-X%, -Y%) from the viewport center (50%, 50%),
-   * YouTube never adds internal black bars and faces are never stretched!
    */
   const getSmartCropIframeStyle = (focusX: number, focusY: number, zoomLevel: number = 1.25): React.CSSProperties => {
     const clampedX = Math.max(18, Math.min(82, focusX));
@@ -167,6 +245,13 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
     tiktok: { likes: '428.5K', comments: '3,892', bookmarks: '78.4K', shares: '15.2K' },
     instagram: { likes: '92,4 mil', comments: '1.294', shares: '19,3 mil' },
   };
+
+  // Split current 2-word chunk so we can highlight the last word in vibrant color (Submagic karaoke effect)
+  const activeChunkList = isPlayingColdOpen ? cleanTeaserChunks : cleanSubtitles;
+  const currentChunkText = activeChunkList[activeWordIndex % activeChunkList.length] || 'OLHA ISSO';
+  const chunkWords = currentChunkText.split(' ');
+  const firstWords = chunkWords.length > 1 ? chunkWords.slice(0, -1).join(' ') + ' ' : '';
+  const highlightedWord = chunkWords[chunkWords.length - 1] || currentChunkText;
 
   return (
     <div className="relative flex flex-col items-center select-none animate-fadeIn">
@@ -222,13 +307,18 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         {/* Screen Area (9:16 Aspect) */}
         <div className="relative w-full h-full rounded-[36px] overflow-hidden bg-black flex flex-col items-center justify-center">
           
-          {/* OPTIONAL SAFE ZONE GUIDES OVERLAY (Opus Clip / Vizard Standard) */}
+          {/* OPTIONAL SAFE ZONE GUIDES OVERLAY (Hidden by default to keep screen 100% clean) */}
           {showSafeZones && (
             <div className="absolute inset-0 z-40 pointer-events-none">
-              <div className="absolute top-14 bottom-24 left-3 right-14 border-2 border-dashed border-emerald-400/70 rounded-xl flex items-start justify-start p-1.5">
-                <span className="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 text-[8px] font-mono font-bold uppercase">
-                  Zona Segura de Rosto & Legenda
+              <div className="absolute top-14 bottom-24 left-3 right-14 border-2 border-dashed border-emerald-400/70 rounded-xl flex flex-col justify-between p-2">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 text-[8px] font-mono font-bold uppercase w-fit">
+                  Zona Segura • Câm 2: {speaker2X}% | Câm 1: {speaker1X}%
                 </span>
+                {activeSpeaker && (
+                  <span className="px-1.5 py-0.5 rounded bg-black/80 text-zinc-300 text-[8px] font-mono w-fit">
+                    Voz: {activeSpeaker}
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -236,11 +326,16 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
           {/* TOP STATUS / PLATFORM HEADER OVERLAY */}
           {platform === 'youtube' && (
             <div className="absolute top-11 left-3 right-3 z-30 flex items-center justify-between text-white pointer-events-none drop-shadow">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <span className="w-4 h-4 rounded bg-red-600 flex items-center justify-center text-[10px] font-black">
                   ▶
                 </span>
                 <span className="font-extrabold text-xs tracking-tight">Shorts</span>
+                {resolvedPartBadge && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-black/65 backdrop-blur-sm border border-white/15 text-[9px] font-black text-amber-300 tracking-wider">
+                    {resolvedPartBadge}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <Search className="w-4 h-4 text-white" />
@@ -251,7 +346,13 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
 
           {platform === 'tiktok' && (
             <div className="absolute top-11 left-4 right-4 z-30 flex items-center justify-between text-white pointer-events-none drop-shadow">
-              <div className="w-4" />
+              {resolvedPartBadge ? (
+                <span className="px-1.5 py-0.5 rounded bg-black/65 backdrop-blur-sm border border-white/15 text-[8px] font-black text-amber-300">
+                  {resolvedPartBadge}
+                </span>
+              ) : (
+                <div className="w-4" />
+              )}
               <div className="flex items-center gap-3.5 text-xs font-bold">
                 <span className="text-zinc-400">Seguindo</span>
                 <div className="relative">
@@ -265,10 +366,24 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
 
           {platform === 'instagram' && (
             <div className="absolute top-11 left-4 right-4 z-30 flex items-center justify-between text-white pointer-events-none drop-shadow">
-              <span className="text-sm font-black tracking-tight flex items-center gap-1">
-                Reels
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-black tracking-tight">Reels</span>
+                {resolvedPartBadge && (
+                  <span className="px-1.5 py-0.5 rounded bg-black/65 backdrop-blur-sm border border-white/15 text-[9px] font-black text-amber-300">
+                    {resolvedPartBadge}
+                  </span>
+                )}
+              </div>
               <Camera className="w-4 h-4 text-white" />
+            </div>
+          )}
+
+          {/* DISCREET COLD-OPEN CLIMAX INDICATOR PILL (Only visible while previewing the 4s climax hook) */}
+          {isPlayingColdOpen && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/95 text-black text-[9px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1 animate-pulse">
+                <span>⚡ GANCHO CLÍMAX (00:00–00:04)</span>
+              </span>
             </div>
           )}
 
@@ -302,10 +417,10 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
               )}
 
               {format === 'split_screen' ? (
-                /* Dual Camera Vertical Stack (Exact 9:8 per half, Zero Stretching, Single Audio Track) */
+                /* Dual Camera Vertical Stack (Exact 9:8 per half, Zero Visual Pollution, Clean 2px Seam) */
                 <div className="relative z-10 w-full h-full flex flex-col">
                   {/* Top: Convidado (Speaker 2) - Primary Audio Source */}
-                  <div className="relative w-full h-1/2 overflow-hidden bg-black border-b border-yellow-400/80 shadow-md">
+                  <div className="relative w-full h-1/2 overflow-hidden bg-black">
                     <iframe
                       src={primaryEmbedUrl}
                       title="Guest Camera (Top - Primary Audio)"
@@ -313,18 +428,10 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                       style={getSmartCropIframeStyle(speaker2X, speaker2Y, zoom)}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     />
-                    <div className="absolute top-10 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-yellow-400/40 text-[9px] font-black text-yellow-300 flex items-center gap-1 shadow">
-                      <Mic className="w-2.5 h-2.5 text-yellow-400" />
-                      <span>CÂMERA 2 • X:{speaker2X}%</span>
-                    </div>
                   </div>
 
-                  {/* High Contrast Divider Bar */}
-                  <div className="relative w-full h-[3px] bg-gradient-to-r from-yellow-400 via-pink-500 to-yellow-400 z-20 shadow-[0_0_8px_rgba(250,204,21,0.8)] flex items-center justify-center">
-                    <span className="px-2 py-0.5 rounded-full bg-black text-[7px] font-black tracking-widest text-white border border-yellow-400/50 uppercase shadow">
-                      IA DUAL CAM 9:8 ⚡ SEM ECO
-                    </span>
-                  </div>
+                  {/* Clean Subtle 2px Dark Seam (Zero visual pollution) */}
+                  <div className="relative w-full h-[2px] bg-black/90 z-20" />
 
                   {/* Bottom: Host (Speaker 1) - ALWAYS MUTED to prevent Audio Echo */}
                   <div className="relative w-full h-1/2 overflow-hidden bg-black">
@@ -335,10 +442,6 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                       style={getSmartCropIframeStyle(speaker1X, speaker1Y, zoom)}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     />
-                    <div className="absolute top-2 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-cyan-400/40 text-[9px] font-black text-cyan-300 flex items-center gap-1 shadow">
-                      <Mic className="w-2.5 h-2.5 text-cyan-400" />
-                      <span>CÂMERA 1 • X:{speaker1X}%</span>
-                    </div>
                   </div>
                 </div>
               ) : format === 'dynamic_reframe' ? (
@@ -358,12 +461,6 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                     }}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
-                  <div className="absolute top-11 left-3 z-20 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-pink-500/50 text-[9px] font-bold text-pink-300 flex items-center gap-1.5 shadow">
-                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping" />
-                    <span>
-                      IA AUTO-REFRAME: {activeDynamicCam === 2 ? `CÂM 2 (${speaker2X}%)` : `CÂM 1 (${speaker1X}%)`}
-                    </span>
-                  </div>
                 </div>
               ) : format === 'speaker_left' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
@@ -374,10 +471,6 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                     style={getSmartCropIframeStyle(speaker1X, speaker1Y, zoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
-                  <div className="absolute top-12 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-cyan-400/40 text-[9px] font-bold text-cyan-300 flex items-center gap-1">
-                    <Mic className="w-2.5 h-2.5 text-cyan-400" />
-                    <span>FOCO CÂM 1 (X:{speaker1X}%, Y:{speaker1Y}%)</span>
-                  </div>
                 </div>
               ) : format === 'speaker_right' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
@@ -388,10 +481,6 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                     style={getSmartCropIframeStyle(speaker2X, speaker2Y, zoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
-                  <div className="absolute top-12 left-3 z-20 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-yellow-400/40 text-[9px] font-bold text-yellow-300 flex items-center gap-1">
-                    <Mic className="w-2.5 h-2.5 text-yellow-400" />
-                    <span>FOCO CÂM 2 (X:{speaker2X}%, Y:{speaker2Y}%)</span>
-                  </div>
                 </div>
               ) : format === 'vertical_crop' || format === 'speaker_center' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
@@ -438,76 +527,42 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                 className="w-full h-full object-cover opacity-90 scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/60 pointer-events-none" />
-              {/* Animated Audio Equalizer Waveform */}
-              <div className="absolute top-28 flex items-end gap-1 pointer-events-none opacity-80">
-                <span className="w-1.5 h-6 bg-pink-500 rounded-full animate-bounce duration-500" />
-                <span className="w-1.5 h-10 bg-yellow-400 rounded-full animate-bounce duration-700" />
-                <span className="w-1.5 h-14 bg-cyan-400 rounded-full animate-bounce duration-300" />
-                <span className="w-1.5 h-8 bg-purple-500 rounded-full animate-bounce duration-600" />
-                <span className="w-1.5 h-12 bg-pink-400 rounded-full animate-bounce duration-400" />
-              </div>
             </div>
           )}
 
-          {/* OVERLAY: TOP IMPACT HEADLINE (Hormozi / Viral Hook) */}
-          {overlayTitle && (
-            <div className="absolute top-16 left-3 right-3 z-30 pointer-events-none flex flex-col items-center">
-              <div className="bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-yellow-400/60 shadow-lg shadow-black/90 text-center animate-bounce duration-1000">
-                <span className="text-yellow-400 font-black text-xs sm:text-sm tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
-                  {overlayTitle}
+          {/* OVERLAY: CLEAN 2-WORD DYNAMIC KARAOKE SUBTITLES (Zero Background Box, Centered on Split Seam) */}
+          {activeChunkList.length > 0 && (
+            <div
+              className={`absolute left-3 right-3 z-30 pointer-events-none text-center flex items-center justify-center ${
+                format === 'split_screen'
+                  ? 'top-1/2 -translate-y-1/2'
+                  : 'bottom-28'
+              }`}
+            >
+              <p
+                className="font-black text-lg sm:text-xl tracking-wide uppercase leading-none select-none transition-transform duration-150"
+                style={{
+                  textShadow:
+                    '0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 4px 12px rgba(0,0,0,0.95)',
+                }}
+              >
+                <span className="text-white">{firstWords}</span>
+                <span
+                  className={
+                    isPlayingColdOpen
+                      ? 'text-amber-300'
+                      : subtitleTheme === 'beast'
+                      ? 'text-emerald-400'
+                      : subtitleTheme === 'cyberpunk'
+                      ? 'text-cyan-300'
+                      : subtitleTheme === 'clean'
+                      ? 'text-white'
+                      : 'text-yellow-300'
+                  }
+                >
+                  {highlightedWord}
                 </span>
-              </div>
-            </div>
-          )}
-
-          {/* ACTIVE SPEAKER BADGE */}
-          {activeSpeaker && activeSpeaker !== 'ambos' && (
-            <div className="absolute top-28 left-3 z-30 pointer-events-none">
-              <span className="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm border border-white/20 text-[9px] font-bold text-zinc-200 flex items-center gap-1 shadow">
-                <Mic className="w-2.5 h-2.5 text-pink-400" />
-                {activeSpeaker === 'host' ? 'Host Falando' : 'Convidado Falando'}
-              </span>
-            </div>
-          )}
-
-          {/* OVERLAY: CENTER DYNAMIC SUBTITLES ANIMATION */}
-          {subtitles && subtitles.length > 0 && (
-            <div className="absolute bottom-28 left-4 right-4 z-30 pointer-events-none text-center">
-              {subtitleTheme === 'hormozi' && (
-                <div className="inline-block bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border-2 border-yellow-400 shadow-[0_4px_20px_rgba(250,204,21,0.5)]">
-                  <p className="font-black text-sm sm:text-base tracking-wider text-white uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
-                    <span className="text-yellow-400 font-black underline decoration-yellow-400 decoration-2">
-                      {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
-                    </span>
-                  </p>
-                </div>
-              )}
-
-              {subtitleTheme === 'beast' && (
-                <div className="inline-block bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border-2 border-green-400 shadow-[0_4px_20px_rgba(34,197,94,0.5)]">
-                  <p className="font-black text-sm sm:text-base tracking-wider text-green-400 uppercase drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]">
-                    <span className="text-white mr-1 font-black">💥</span>
-                    {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
-                  </p>
-                </div>
-              )}
-
-              {subtitleTheme === 'cyberpunk' && (
-                <div className="inline-block bg-[#0f051d]/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border-2 border-pink-500 shadow-[0_4px_20px_rgba(236,72,153,0.5)]">
-                  <p className="font-black text-sm sm:text-base tracking-wider uppercase bg-gradient-to-r from-pink-400 via-fuchsia-300 to-cyan-400 bg-clip-text text-transparent drop-shadow">
-                    <span className="mr-1 text-pink-400">⚡</span>
-                    {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
-                  </p>
-                </div>
-              )}
-
-              {subtitleTheme === 'clean' && (
-                <div className="inline-block bg-zinc-900/85 backdrop-blur-md px-3 py-1 rounded-lg border border-white/20 shadow-md">
-                  <p className="font-bold text-xs sm:text-sm tracking-wide text-zinc-100 uppercase">
-                    {subtitles[activeWordIndex] || hook || 'PRESTE MUITA ATENÇÃO'}
-                  </p>
-                </div>
-              )}
+              </p>
             </div>
           )}
 
@@ -755,6 +810,19 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         </button>
 
         <button
+          onClick={() => setIsPlayingColdOpen(!isPlayingColdOpen)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+            isPlayingColdOpen
+              ? 'bg-amber-500 text-black border-amber-300 shadow-md shadow-amber-900/40 animate-pulse'
+              : 'bg-amber-950/50 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+          }`}
+          title="Testar Gancho Cold-Open Clímax (exibe os 4s mais impactantes do meio do corte logo no início 00:00-00:04)"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{isPlayingColdOpen ? '⚡ Tocando Clímax (4s)' : '⚡ Ver Gancho 4s'}</span>
+        </button>
+
+        <button
           onClick={() => setShowSafeZones(!showSafeZones)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
             showSafeZones
@@ -768,8 +836,8 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         </button>
 
         <div className="text-xs text-zinc-300 px-2 font-mono flex items-center gap-1">
-          <span className="text-pink-400 font-bold">{duration}s</span>
-          <span className="text-zinc-500">corte</span>
+          <span className="text-pink-400 font-bold">+4s</span>
+          <span className="text-zinc-500">/ {duration}s</span>
         </div>
       </div>
     </div>

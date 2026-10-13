@@ -54,6 +54,13 @@ export interface ViralCut {
   };
   hashtags: string[];
   overlaySubtitlesSample?: string[];
+  partBadge?: string;
+  teaserOffsetSec?: number;
+  teaserDurationSec?: number;
+  teaserStartTime?: string;
+  teaserEndTime?: string;
+  teaserText?: string;
+  retentionStrategyOption?: 1 | 2 | 3;
 }
 
 export interface TrendingVideo {

@@ -49,6 +49,11 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       title = 'corte_viral',
       hook = '',
       framing,
+      subtitles,
+      teaserOffsetSec,
+      teaserDurationSec,
+      teaserText,
+      partBadge,
     } = req.body;
 
     const safeYt = normalizeSafeYouTubeUrl(videoUrl);
@@ -69,6 +74,11 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       overlayTitle: title,
       hook,
       framing,
+      subtitles: Array.isArray(subtitles) ? subtitles : undefined,
+      teaserOffsetSec: typeof teaserOffsetSec === 'number' ? teaserOffsetSec : undefined,
+      teaserDurationSec: typeof teaserDurationSec === 'number' ? teaserDurationSec : undefined,
+      teaserText: typeof teaserText === 'string' ? teaserText : undefined,
+      partBadge: typeof partBadge === 'string' ? partBadge : undefined,
     });
 
     if (!isPathInsideDir(renderedPath, TEMP_DIR)) {

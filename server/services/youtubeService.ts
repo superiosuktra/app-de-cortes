@@ -314,6 +314,12 @@ export async function uploadVideoToYouTube({
   startTime,
   endTime,
   format,
+  framing,
+  subtitles,
+  teaserOffsetSec,
+  teaserDurationSec,
+  teaserText,
+  partBadge,
 }: {
   token: string;
   title: string;
@@ -326,6 +332,18 @@ export async function uploadVideoToYouTube({
   startTime?: string;
   endTime?: string;
   format?: string;
+  framing?: {
+    speaker1X?: number;
+    speaker1Y?: number;
+    speaker2X?: number;
+    speaker2Y?: number;
+    zoom?: number;
+  };
+  subtitles?: string[];
+  teaserOffsetSec?: number;
+  teaserDurationSec?: number;
+  teaserText?: string;
+  partBadge?: string;
 }): Promise<{
   success: boolean;
   videoId?: string;
@@ -357,9 +375,15 @@ export async function uploadVideoToYouTube({
             videoUrl,
             startTime: startTime || '00:00',
             endTime: endTime || '00:30',
-            format: format || 'vertical_blur',
+            format: format || 'split_screen',
             overlayTitle: cleanTitle,
             hook: cleanHook,
+            framing,
+            subtitles,
+            teaserOffsetSec,
+            teaserDurationSec,
+            teaserText,
+            partBadge,
           });
           createdCutFile = true;
           console.log(`[YouTube Upload] Corte real processado com sucesso: ${tmpVideoPath}`);

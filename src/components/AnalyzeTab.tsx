@@ -83,6 +83,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
   queueCount = 0,
 }) => {
   const [cutsCount, setCutsCount] = useState<number>(8);
+  const [retentionStrategyOption, setRetentionStrategyOption] = useState<1 | 2 | 3>(3);
   const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false);
   const [isLoadingTranscript, setIsLoadingTranscript] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -384,8 +385,60 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
               </div>
 
               <p className="text-[10px] text-zinc-400 leading-tight">
-                A IA analisa e distribui os <strong>{cutsCount} cortes</strong> ao longo de todo o vídeo (início, meio e ápice) para você alimentar seu canal com múltiplos vídeos.
+                A IA analisa e distribui os <strong>{cutsCount} cortes</strong> em sequência contínua a partir do momento de maior retenção.
               </p>
+            </div>
+
+            {/* 3-Option Viral Retention & Clean Screen Strategy Selector (Default: Option 3) */}
+            <div className="space-y-2.5 p-3.5 bg-[#171825] border border-amber-500/30 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Estratégia de Retenção & Tela Limpa</span>
+                </label>
+                <span className="text-[10px] font-black bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/40">
+                  Opção {retentionStrategyOption} Ativa
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                {[
+                  {
+                    id: 1 as const,
+                    title: '1. Corte Direto Tradicional',
+                    desc: 'Inicia em 00:00 sem prévia de clímax, com legenda simples embaixo.',
+                  },
+                  {
+                    id: 2 as const,
+                    title: '2. Legenda Dinâmica Central',
+                    desc: 'Legenda de 2 a 3 palavras no centro da tela sem caixa de fundo.',
+                  },
+                  {
+                    id: 3 as const,
+                    title: '3. Cold-Open Clímax (4s) + Legenda 2 Palavras + Zero Poluição ⭐',
+                    desc: 'Pega os 4s mais impactantes do meio do corte e coloca no início (00:00–00:04) para prender o público + tela 100% limpa sem letreiros gigantes.',
+                  },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setRetentionStrategyOption(opt.id)}
+                    className={`w-full p-2.5 rounded-xl text-left transition-all border ${
+                      retentionStrategyOption === opt.id
+                        ? 'bg-gradient-to-r from-amber-950/60 via-purple-950/50 to-pink-950/60 border-amber-400/70 text-white shadow-md'
+                        : 'bg-[#0f1017] hover:bg-zinc-900 border-zinc-800 text-zinc-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold text-amber-300">{opt.title}</span>
+                      {retentionStrategyOption === opt.id && (
+                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-300 mt-0.5 leading-snug">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Auto-Post Queue Toggle Card (User Request) */}
@@ -671,21 +724,41 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                   )}
                 </div>
 
-                {/* Neuromarketing & Hook Info */}
+                {/* Neuromarketing & Cold-Open Climax Hook Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-[#0d0e15] border border-zinc-800/80 rounded-xl space-y-1">
-                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
-                      <Brain className="w-3 h-3" />
-                      Gatilho Psicológico
+                  <div className="p-3 bg-gradient-to-r from-amber-950/30 to-[#0d0e15] border border-amber-500/40 rounded-xl space-y-1">
+                    <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-wider flex items-center justify-between">
+                      <span>⚡ Gancho Cold-Open Clímax (00:00–00:04)</span>
+                      <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-[9px] font-mono">
+                        {cut.teaserStartTime || cut.startTime} → {cut.teaserEndTime || cut.endTime}
+                      </span>
                     </span>
-                    <p className="text-zinc-200 font-semibold">{cut.neuromarketingTrigger}</p>
+                    <p className="text-zinc-100 font-bold italic line-clamp-2">
+                      "{cut.teaserText || cut.payoff || cut.hook}"
+                    </p>
+                    <p className="text-[10px] text-amber-200/80">
+                      Copiado do clímax e colocado nos primeiros 4s antes de iniciar o corte.
+                    </p>
                   </div>
 
                   <div className="p-3 bg-[#0d0e15] border border-zinc-800/80 rounded-xl space-y-1">
-                    <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-1">
-                      ⚡ Gancho Inicial (Primeiros 3s)
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                      <Brain className="w-3 h-3" />
+                      Gatilho & Legenda Limpa (2 Palavras)
                     </span>
-                    <p className="text-zinc-200 italic line-clamp-2">"{cut.hook}"</p>
+                    <p className="text-zinc-200 font-semibold line-clamp-1">{cut.neuromarketingTrigger}</p>
+                    {cut.overlaySubtitlesSample && cut.overlaySubtitlesSample.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {cut.overlaySubtitlesSample.slice(0, 4).map((chunk, cIdx) => (
+                          <span
+                            key={cIdx}
+                            className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-[9px] font-black text-yellow-300 uppercase"
+                          >
+                            {chunk}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 

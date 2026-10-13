@@ -38,12 +38,44 @@ export function getYtdlpPath(): string {
 /**
  * Escapes a string to be safely written into a temporary text file or filter for FFmpeg
  */
-function sanitizeTextContent(text: string, maxLength: number = 70): string {
+/**
+ * Escapes a string to be safely used in FFmpeg drawtext (strips emojis so Arial never renders tofu □ boxes)
+ */
+function sanitizeCleanCaptionText(text: string, maxLength: number = 22): string {
   return (text || '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/["'\\]/g, '')
+    .replace(/\[[^\]]*\]/g, '') // remove [PARTE 1] etc.
+    .replace(/[^\p{L}\p{N}\s?!]/gu, ' ') // strip emojis & special symbols
+    .replace(/\s+/g, ' ')
     .trim()
+    .toUpperCase()
     .slice(0, maxLength);
+}
+
+function buildShortTwoWordChunks(hookOrTitle: string): string[] {
+  const clean = (hookOrTitle || '')
+    .replace(/⚡\s*\[GANCHO[^\]]*\]:?/gi, '')
+    .replace(/Início em \d{2}:\d{2}:?/gi, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/[^\p{L}\p{N}\s?!]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+
+  const words = clean.split(/\s+/).filter((w) => w.length > 0);
+  const chunks: string[] = [];
+  let i = 0;
+  while (i < words.length && chunks.length < 16) {
+    const w1 = words[i];
+    const w2 = words[i + 1] || '';
+    if (w2 && `${w1} ${w2}`.length <= 16) {
+      chunks.push(`${w1} ${w2}`);
+      i += 2;
+    } else {
+      chunks.push(w1.slice(0, 16));
+      i += 1;
+    }
+  }
+  return chunks.length > 0 ? chunks : ['PRESTE ATENCAO', 'OLHA ISSO', 'ATE O FIM'];
 }
 
 function formatSecondsToMMSS(seconds: number): string {
@@ -59,13 +91,19 @@ export interface FramingOptions {
   speaker2X?: number;
   speaker2Y?: number;
   zoom?: number;
+  teaserOffsetSec?: number;
+  teaserDurationSec?: number;
 }
 
 /**
- * Builds distortion-free FFmpeg filter complexes based on viral clipping platform standards (Opus Clip / Vizard / Klap)
- * Guarantees exact 1:1 pixel aspect ratio (9:8 for each half of split_screen, 9:16 for full vertical crops).
+ * Builds distortion-free FFmpeg filter complexes based on viral clipping platform standards (Opus Clip / Submagic / Klap)
+ * Guarantees exact 1:1 pixel aspect ratio (9:8 for each half of split_screen, 9:16 for full vertical crops) and clean screen without clutter.
  */
-export function buildLayoutFilter(format: string = 'split_screen', framing?: FramingOptions): string {
+export function buildLayoutFilter(
+  format: string = 'split_screen',
+  framing?: FramingOptions,
+  inputLabel: string = '[0:v]'
+): string {
   const s1x = Number((Math.max(5, Math.min(95, Number(framing?.speaker1X ?? 24))) / 100).toFixed(3));
   const s1y = Number((Math.max(5, Math.min(95, Number(framing?.speaker1Y ?? 44))) / 100).toFixed(3));
   const s2x = Number((Math.max(5, Math.min(95, Number(framing?.speaker2X ?? 76))) / 100).toFixed(3));
@@ -82,39 +120,31 @@ export function buildLayoutFilter(format: string = 'split_screen', framing?: Fra
 
   switch (format) {
     case 'split_screen':
-      // Dual-camera stacked layout with exact 9:8 crop per half (Zero face stretching!)
-      // Top = Guest (Speaker 2), Bottom = Host (Speaker 1)
-      return `[0:v]crop=${splitCw}:${splitCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[top];[0:v]crop=${splitCw}:${splitCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[bottom];[top][bottom]vstack=inputs=2,drawbox=x=0:y=957:w=1080:h=6:color=yellow@0.85:t=fill,setsar=1[v]`;
+      // Dual-camera stacked layout with exact 9:8 crop per half and subtle 2px dark divider (Zero visual pollution!)
+      return `${inputLabel}split=2[s_top][s_bot];[s_top]crop=${splitCw}:${splitCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[top];[s_bot]crop=${splitCw}:${splitCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[bottom];[top][bottom]vstack=inputs=2,drawbox=x=0:y=959:w=1080:h=2:color=black@0.8:t=fill,setsar=1[v]`;
 
     case 'dynamic_reframe':
-      // Klap / Opus Clip Auto-Reframe: switches active camera between Speaker 2 and Speaker 1 every 5 seconds in full 9:16
-      return `[0:v]crop=${fullCw}:${fullCh}:if(lt(mod(t\\,10)\\,5)\\,clip(iw*${s2x}-ow/2\\,0\\,iw-ow)\\,clip(iw*${s1x}-ow/2\\,0\\,iw-ow)):if(lt(mod(t\\,10)\\,5)\\,clip(ih*${s2y}-oh/2\\,0\\,ih-oh)\\,clip(ih*${s1y}-oh/2\\,0\\,ih-oh)),scale=1080:1920:flags=lanczos,setsar=1[v]`;
+      return `${inputLabel}crop=${fullCw}:${fullCh}:if(lt(mod(t\\,10)\\,5)\\,clip(iw*${s2x}-ow/2\\,0\\,iw-ow)\\,clip(iw*${s1x}-ow/2\\,0\\,iw-ow)):if(lt(mod(t\\,10)\\,5)\\,clip(ih*${s2y}-oh/2\\,0\\,ih-oh)\\,clip(ih*${s1y}-oh/2\\,0\\,ih-oh)),scale=1080:1920:flags=lanczos,setsar=1[v]`;
 
     case 'speaker_left':
-      // Full 9:16 focused on Speaker 1 (Host / Left coordinate detected by AI Vision)
-      return `[0:v]crop=${fullCw}:${fullCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
+      return `${inputLabel}crop=${fullCw}:${fullCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
 
     case 'speaker_right':
-      // Full 9:16 focused on Speaker 2 (Guest / Right coordinate detected by AI Vision)
-      return `[0:v]crop=${fullCw}:${fullCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
+      return `${inputLabel}crop=${fullCw}:${fullCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
 
     case 'speaker_center':
     case 'vertical_crop':
-      // Centered 9:16 crop for solo speakers or monologues
-      return `[0:v]crop=${fullCw}:${fullCh}:(iw-ow)/2:clip(ih*0.45-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
+      return `${inputLabel}crop=${fullCw}:${fullCh}:(iw-ow)/2:clip(ih*0.45-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
 
     case 'square':
-      // 1:1 Social Feed
-      return `[0:v]crop=min(iw\\,ih):min(iw\\,ih),scale=1080:1080:flags=lanczos,setsar=1[v]`;
+      return `${inputLabel}crop=min(iw\\,ih):min(iw\\,ih),scale=1080:1080:flags=lanczos,setsar=1[v]`;
 
     case 'original':
-      // 16:9 Widescreen with sharp Lanczos scaling
-      return `[0:v]scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v]`;
+      return `${inputLabel}scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1[v]`;
 
     case 'vertical_blur':
     default:
-      // Cinematic blur fit: 16:9 in center, dark blurred background top and bottom
-      return `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5,drawbox=x=0:y=0:w=1080:h=1920:color=black@0.4:t=fill[bg];[0:v]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`;
+      return `${inputLabel}split=2[vb_bg][vb_fg];[vb_bg]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5,drawbox=x=0:y=0:w=1080:h=1920:color=black@0.4:t=fill[bg];[vb_fg]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`;
   }
 }
 
@@ -165,7 +195,6 @@ export async function downloadYouTubeSlice({
     return outBase;
   }
 
-  // Look for any generated file with this prefix in TEMP_DIR
   const prefix = `yt_raw_${randomSuffix}`;
   const files = fs.readdirSync(TEMP_DIR).filter((f) => f.startsWith(prefix));
   if (files.length > 0) {
@@ -179,7 +208,7 @@ export async function downloadYouTubeSlice({
 }
 
 /**
- * Downloads a YouTube video slice AND renders it to a vertical 9:16 Short with title overlay
+ * Downloads a YouTube video slice AND renders it to a vertical 9:16 Short with Cold-Open Climax Teaser + Clean 2-Word Subtitles
  */
 export async function downloadAndProcessYouTubeCut({
   videoUrl,
@@ -189,6 +218,11 @@ export async function downloadAndProcessYouTubeCut({
   overlayTitle = '',
   hook = '',
   framing,
+  subtitles,
+  teaserOffsetSec,
+  teaserDurationSec,
+  teaserText,
+  partBadge,
 }: {
   videoUrl: string;
   startTime: string;
@@ -197,6 +231,11 @@ export async function downloadAndProcessYouTubeCut({
   overlayTitle?: string;
   hook?: string;
   framing?: FramingOptions;
+  subtitles?: string[];
+  teaserOffsetSec?: number;
+  teaserDurationSec?: number;
+  teaserText?: string;
+  partBadge?: string;
 }): Promise<string> {
   let rawSlicePath: string | null = null;
   try {
@@ -214,6 +253,11 @@ export async function downloadAndProcessYouTubeCut({
       overlayTitle,
       hook,
       framing,
+      subtitles,
+      teaserOffsetSec,
+      teaserDurationSec,
+      teaserText,
+      partBadge,
     });
 
     return renderedPath;
@@ -227,8 +271,9 @@ export async function downloadAndProcessYouTubeCut({
 }
 
 /**
- * Renders a video cut to vertical 9:16 Short format using FFmpeg with visually lossless settings
- * Uses execFilePromise (no shell spawning) to prevent command injection vulnerabilities.
+ * Renders a video cut to vertical 9:16 Short format using FFmpeg with Option 3 Retention Architecture:
+ * 1. Cold-Open Climax Teaser (places the 4s climax from inside the cut at 00:00-00:04 before the main story)
+ * 2. Clean 2-word dynamic karaoke captions (Submagic / CapCut style) at the center line with zero giant boxes
  */
 export async function renderRealCutVideo({
   inputFilePath,
@@ -238,6 +283,10 @@ export async function renderRealCutVideo({
   overlayTitle = '',
   hook = '',
   framing,
+  subtitles,
+  teaserOffsetSec,
+  teaserDurationSec,
+  teaserText,
 }: {
   inputFilePath: string;
   startTime: string;
@@ -246,6 +295,11 @@ export async function renderRealCutVideo({
   overlayTitle?: string;
   hook?: string;
   framing?: FramingOptions;
+  subtitles?: string[];
+  teaserOffsetSec?: number;
+  teaserDurationSec?: number;
+  teaserText?: string;
+  partBadge?: string;
 }): Promise<string> {
   const startSec = parseTimeToSeconds(startTime || '00:00');
   const endSec = parseTimeToSeconds(endTime || '00:30');
@@ -256,27 +310,122 @@ export async function renderRealCutVideo({
   const fontPath = getSystemFont();
   const ffmpegCmd = getFfmpegPath();
 
-  let filterComplex = buildLayoutFilter(format, framing);
-  let outputMapLabel = '[v]';
+  let fontArg = '';
+  if (fontPath) {
+    const escapedFont = fontPath.replace(/\\/g, '/').replace(':', '\\:');
+    fontArg = `fontfile='${escapedFont}':`;
+  }
 
-  // Hormozi / Submagic style headline hook and subtitles overlay
-  if (overlayTitle) {
-    const safeTitle = sanitizeTextContent(overlayTitle, 55)
-      .replace(/[':\\,;[\]]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    let fontArg = '';
-    if (fontPath) {
-      const escapedFont = fontPath.replace(/\\/g, '/').replace(':', '\\:');
-      fontArg = `fontfile='${escapedFont}':`;
+  // Build clean 2-word subtitle chunks (no giant top rectangle!)
+  const chunks =
+    subtitles && subtitles.length > 0
+      ? buildShortTwoWordChunks(subtitles.join(' '))
+      : buildShortTwoWordChunks(teaserText || hook || overlayTitle);
+  const subY = format === 'split_screen' ? 932 : 1360;
+
+  // Build timed 2-word drawtext chain (Submagic / CapCut clean stroke style)
+  const buildCleanSubtitleDraws = (totalDur: number): string => {
+    const drawParts: string[] = [];
+    let tCursor = 0.2;
+    const step = 2.1;
+    let idx = 0;
+    while (tCursor < totalDur - 0.5 && idx < 28) {
+      const phrase = sanitizeCleanCaptionText(chunks[idx % chunks.length], 18);
+      if (phrase) {
+        const tEnd = Math.min(totalDur, Number((tCursor + step - 0.1).toFixed(2)));
+        const tStart = Number(tCursor.toFixed(2));
+        const color = idx === 0 || idx % 3 === 0 ? '#fde047' : 'white';
+        drawParts.push(
+          `drawtext=${fontArg}text='${phrase}':fontcolor=${color}:fontsize=52:borderw=4:bordercolor=black@0.95:shadowcolor=black@0.85:shadowx=2:shadowy=3:x=(w-text_w)/2:y=${subY}:enable='between(t\\,${tStart}\\,${tEnd})'`
+        );
+      }
+      tCursor += step;
+      idx++;
     }
+    return drawParts.join(',');
+  };
 
-    // Top Headline Box (Safe zone: y=180 to y=340, high contrast black background + yellow text)
-    filterComplex += `;[v]drawbox=x=50:y=190:w=980:h=160:color=black@0.85:t=fill,drawbox=x=50:y=190:w=980:h=160:color=yellow@0.85:t=4,drawtext=${fontArg}text='${safeTitle}':fontcolor=yellow:fontsize=46:borderw=3:bordercolor=black:x=(w-text_w)/2:y=248[vout]`;
+  // Option 3: If cut is >= 18s, prepend the 4-second Cold-Open Climax Teaser from inside the cut itself!
+  const useColdOpenTeaser = duration >= 18;
+  if (useColdOpenTeaser) {
+    const teaserDur = Number(teaserDurationSec || framing?.teaserDurationSec || 4);
+    const relTeaserOffset = Number(
+      teaserOffsetSec ??
+        framing?.teaserOffsetSec ??
+        Math.max(10, Math.min(duration - 5, Math.floor(duration * 0.62)))
+    );
+    const absTeaserStart = startSec + Math.max(8, Math.min(duration - teaserDur - 1, relTeaserOffset));
+    const totalDurationWithTeaser = duration + teaserDur;
+
+    const layoutChain = buildLayoutFilter(format, framing, '[raw_v]');
+    const subtitleChain = buildCleanSubtitleDraws(totalDurationWithTeaser);
+    const filterComplex = `[0:v]setpts=PTS-STARTPTS[v0];[0:a]asetpts=PTS-STARTPTS,afade=t=out:st=${(teaserDur - 0.15).toFixed(2)}:d=0.15[a0];[1:v]setpts=PTS-STARTPTS,fade=t=in:st=0:d=0.2[v1];[1:a]asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.15[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[raw_v][raw_a];${layoutChain}${subtitleChain ? `;[v]${subtitleChain}[vout]` : ''}`;
+    const finalVLabel = subtitleChain ? '[vout]' : '[v]';
+
+    try {
+      const coldOpenArgs = [
+        '-y',
+        '-ss',
+        String(absTeaserStart),
+        '-t',
+        String(teaserDur),
+        '-i',
+        inputFilePath,
+        '-ss',
+        String(startSec),
+        '-t',
+        String(duration),
+        '-i',
+        inputFilePath,
+        '-filter_complex',
+        filterComplex,
+        '-map',
+        finalVLabel,
+        '-map',
+        '[raw_a]',
+        '-af',
+        'highpass=f=80,loudnorm=I=-14:TP=-1.5:LRA=11',
+        '-c:v',
+        'libx264',
+        '-preset',
+        'fast',
+        '-crf',
+        '18',
+        '-pix_fmt',
+        'yuv420p',
+        '-b:v',
+        '6500k',
+        '-maxrate',
+        '9000k',
+        '-bufsize',
+        '14000k',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '192k',
+        '-movflags',
+        '+faststart',
+        outPath,
+      ];
+
+      await execFilePromise(ffmpegCmd, coldOpenArgs, { timeout: 150000 });
+      if (fs.existsSync(outPath) && fs.statSync(outPath).size > 1000) {
+        return outPath;
+      }
+    } catch (coldOpenErr) {
+      console.warn('[FFmpeg] Fallback para renderização direta sem concat:', (coldOpenErr as any)?.message);
+    }
+  }
+
+  // Standard clean render (or fallback for short/silent clips) — NO giant top box!
+  let filterComplex = buildLayoutFilter(format, framing, '[0:v]');
+  let outputMapLabel = '[v]';
+  const subtitleChain = buildCleanSubtitleDraws(duration);
+  if (subtitleChain) {
+    filterComplex += `;[v]${subtitleChain}[vout]`;
     outputMapLabel = '[vout]';
   }
 
-  // Execute FFmpeg directly via execFilePromise (shell-free) with broadcast audio normalization
   const ffmpegArgs = [
     '-y',
     '-ss',
