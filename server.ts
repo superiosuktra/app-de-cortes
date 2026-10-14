@@ -2,6 +2,7 @@ import http from 'http';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import './server/queue/videoWorker.js'; // Inicializa o worker em background
 import { PORT, NODE_ENV, ROOT_DIR, cleanOldTempFiles } from './server/config.js';
 import { videoRouter } from './server/routes/videoRoutes.js';
 import { cutRouter } from './server/routes/cutRoutes.js';
@@ -13,6 +14,9 @@ import {
   sanitizeRequestMiddleware,
   createRateLimiter,
 } from './server/middleware/security.js';
+
+import { initDb } from './server/db.js';
+initDb();
 
 const app = express();
 const httpServer = http.createServer(app);
