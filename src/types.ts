@@ -9,7 +9,7 @@ export type VideoFormat =
   | 'original'
   | 'square';
 
-export type SubtitleTheme = 'hormozi' | 'beast' | 'cyberpunk' | 'clean';
+export type SubtitleTheme = 'clean' | 'none' | 'hormozi' | 'beast' | 'cyberpunk';
 
 export interface SmartFramingConfig {
   speaker1X: number; // 0..100 horizontal center for Speaker 1 (Host/Left)

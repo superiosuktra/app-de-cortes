@@ -84,6 +84,57 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
   const [isGooglePopupOpen, setIsGooglePopupOpen] = useState<boolean>(false);
   const [isConnectingGoogle, setIsConnectingGoogle] = useState<boolean>(false);
   const [googleQuickPasteInput, setGoogleQuickPasteInput] = useState<string>('');
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [geminiStatus, setGeminiStatus] = useState<{ configured: boolean; model: string; testing: boolean; message?: string }>({
+    configured: false,
+    model: 'gemini-2.5-flash',
+    testing: false,
+  });
+
+  useEffect(() => {
+    fetch('/api/gemini/status')
+      .then((r) => r.json())
+      .then((res) => {
+        setGeminiStatus((prev) => ({
+          ...prev,
+          configured: Boolean(res.configured),
+          model: res.model || 'gemini-2.5-flash',
+        }));
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleVerifyGemini = async () => {
+    setGeminiStatus((prev) => ({ ...prev, testing: true, message: '' }));
+    try {
+      const res = await fetchJson<any>('/api/gemini/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: geminiApiKey }),
+      });
+      if (res.ok && res.data?.valid) {
+        setGeminiStatus({
+          configured: true,
+          model: res.data.model || 'gemini-2.5-flash',
+          testing: false,
+          message: '✅ Conectado com sucesso ao seu Google AI Studio!',
+        });
+        confetti({ particleCount: 40, spread: 60 });
+      } else {
+        setGeminiStatus((prev) => ({
+          ...prev,
+          testing: false,
+          message: `❌ ${res.data?.error || 'Chave inválida.'}`,
+        }));
+      }
+    } catch (err: any) {
+      setGeminiStatus((prev) => ({
+        ...prev,
+        testing: false,
+        message: `❌ ${err.message}`,
+      }));
+    }
+  };
 
   useEffect(() => {
     if (credentials) {
@@ -539,6 +590,115 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
 
       {/* Platform Cards Grid */}
       <div className="space-y-6">
+
+        {/* ============================================================ */}
+        {/* 0. GOOGLE AI STUDIO (GEMINI API) CARD */}
+        {/* ============================================================ */}
+        <div className="bg-[#141520] border border-zinc-800 hover:border-cyan-500/40 rounded-3xl p-6 sm:p-7 shadow-xl space-y-6 transition-all">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-800/80">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-cyan-600/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-md">
+                <Sparkles className="w-6 h-6 text-cyan-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-white">Google AI Studio</h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
+                    Gemini 2.5 Flash
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400">Inteligência Artificial oficial da Google para detecção de cortes, ganchos e reframing</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-extrabold flex items-center gap-1.5 ${
+                  geminiStatus.configured
+                    ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700/50'
+                }`}
+              >
+                {geminiStatus.configured ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Conectado</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Não Vinculado</span>
+                  </>
+                )}
+              </span>
+
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <span>Obter Chave no Google Studio</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 text-xs text-zinc-300 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-white text-sm">
+                <Key className="w-4 h-4 text-cyan-400" />
+                <span>Como vincular seu Google AI Studio ao projeto:</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-zinc-400 pl-1">
+                <li>Acesse o <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-cyan-400 underline font-semibold">Google AI Studio (aistudio.google.com)</a> e entre com sua conta Google.</li>
+                <li>Clique no botão azul <strong>&quot;Create API key&quot;</strong> (é 100% gratuito).</li>
+                <li>Copie a chave gerada (começa com <code className="text-cyan-300 font-mono">AIzaSy...</code>) e cole no campo abaixo.</li>
+              </ol>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                <span>Chave de API do Google AI Studio (GEMINI_API_KEY)</span>
+                {geminiStatus.configured && (
+                  <span className="text-[11px] text-emerald-400 font-normal">Chave ativa no servidor</span>
+                )}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  placeholder={geminiStatus.configured ? 'Chave já configurada (insira outra para trocar)' : 'Cole sua chave AIzaSy... aqui'}
+                  className="flex-1 bg-zinc-900/90 border border-zinc-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 font-mono"
+                />
+                <button
+                  type="button"
+                  disabled={geminiStatus.testing || (!geminiApiKey.trim() && !geminiStatus.configured)}
+                  onClick={handleVerifyGemini}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-cyan-950/40 cursor-pointer"
+                >
+                  {geminiStatus.testing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Validando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Vincular Google Studio</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {geminiStatus.message && (
+                <p className={`text-xs font-semibold mt-1.5 ${geminiStatus.message.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {geminiStatus.message}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ============================================================ */}
         {/* 1. YOUTUBE DATA API V3 CARD */}

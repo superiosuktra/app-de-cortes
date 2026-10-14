@@ -62,8 +62,8 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 }) => {
   const [startTime, setStartTime] = useState<string>('00:15');
   const [endTime, setEndTime] = useState<string>('01:00');
-  const [format, setFormat] = useState<VideoFormat>('split_screen');
-  const [subtitleTheme, setSubtitleTheme] = useState<SubtitleTheme>('hormozi');
+  const [format, setFormat] = useState<VideoFormat>('speaker_center');
+  const [subtitleTheme, setSubtitleTheme] = useState<SubtitleTheme>('none');
   const [overlayTitle, setOverlayTitle] = useState<string>('ESSE MOMENTO MUDOU TUDO 🚨');
   const [customHook, setCustomHook] = useState<string>('');
   const [ffmpegCommand, setFfmpegCommand] = useState<string>('');
@@ -73,13 +73,13 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [renderProgressMsg, setRenderProgressMsg] = useState<string>('');
 
   // AI Vision Smart Framing State (Opus Clip / Vizard / Klap Standard)
-  const [speaker1X, setSpeaker1X] = useState<number>(24);
-  const [speaker1Y, setSpeaker1Y] = useState<number>(44);
-  const [speaker2X, setSpeaker2X] = useState<number>(76);
-  const [speaker2Y, setSpeaker2Y] = useState<number>(44);
-  const [zoom, setZoom] = useState<number>(1.25);
+  const [speaker1X, setSpeaker1X] = useState<number>(38);
+  const [speaker1Y, setSpeaker1Y] = useState<number>(30);
+  const [speaker2X, setSpeaker2X] = useState<number>(62);
+  const [speaker2Y, setSpeaker2Y] = useState<number>(30);
+  const [zoom, setZoom] = useState<number>(1.0);
   const [aiInsight, setAiInsight] = useState<string>(
-    'IA Vision: Câmera 1 (Host) em X=24%, Y=44% | Câmera 2 (Convidado) em X=76%, Y=44% com proporção exata 9:8 sem distorção.'
+    'IA Vision: Enquadramento vertical 9:16 calibrado com respiro natural (Y=30%) e centro perfeito (X=50%) sem poluição visual.'
   );
   const [isAnalyzingFraming, setIsAnalyzingFraming] = useState<boolean>(false);
   const [activeCameraTarget, setActiveCameraTarget] = useState<1 | 2>(2);
@@ -182,16 +182,16 @@ export const EditorTab: React.FC<EditorTabProps> = ({
       setEndTime(selectedCut.endTime);
       setOverlayTitle(selectedCut.title || 'MOMENTO VIRAL 🚨');
       setCustomHook(selectedCut.hook || '');
-      setFormat(selectedCut.recommendedFormat || 'split_screen');
+      setFormat(selectedCut.recommendedFormat || 'speaker_center');
       if (selectedCut.subtitleTheme) {
         setSubtitleTheme(selectedCut.subtitleTheme);
       }
       if (selectedCut.framing) {
-        setSpeaker1X(selectedCut.framing.speaker1X ?? 24);
-        setSpeaker1Y(selectedCut.framing.speaker1Y ?? 44);
-        setSpeaker2X(selectedCut.framing.speaker2X ?? 76);
-        setSpeaker2Y(selectedCut.framing.speaker2Y ?? 44);
-        setZoom(selectedCut.framing.zoom ?? 1.25);
+        setSpeaker1X(selectedCut.framing.speaker1X ?? 38);
+        setSpeaker1Y(selectedCut.framing.speaker1Y ?? 30);
+        setSpeaker2X(selectedCut.framing.speaker2X ?? 62);
+        setSpeaker2Y(selectedCut.framing.speaker2Y ?? 30);
+        setZoom(selectedCut.framing.zoom ?? 1.0);
         if (selectedCut.framing.aiInsight) {
           setAiInsight(selectedCut.framing.aiInsight);
         }
@@ -219,7 +219,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
     let filter = '';
     if (format === 'split_screen') {
-      filter = `-filter_complex "[0:v]crop=${splitCw}:${splitCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[top];[0:v]crop=${splitCw}:${splitCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[bot];[top][bot]vstack=inputs=2,drawbox=y=957:color=yellow@0.85:width=iw:height=6:t=fill,setsar=1[v]" -map "[v]" -map 0:a?`;
+      filter = `-filter_complex "[0:v]crop=${splitCw}:${splitCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[top];[0:v]crop=${splitCw}:${splitCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[bot];[top][bot]vstack=inputs=2,drawbox=x=0:y=959:w=1080:h=2:color=black@0.8:t=fill,setsar=1[v]" -map "[v]" -map 0:a?`;
     } else if (format === 'dynamic_reframe') {
       filter = `-filter_complex "[0:v]crop=${fullCw}:${fullCh}:if(lt(mod(t\\,10)\\,5)\\,clip(iw*${s2x}-ow/2\\,0\\,iw-ow)\\,clip(iw*${s1x}-ow/2\\,0\\,iw-ow)):if(lt(mod(t\\,10)\\,5)\\,clip(ih*${s2y}-oh/2\\,0\\,ih-oh)\\,clip(ih*${s1y}-oh/2\\,0\\,ih-oh)),scale=1080:1920:flags=lanczos,setsar=1[v]" -map "[v]" -map 0:a?`;
     } else if (format === 'speaker_left') {
@@ -227,7 +227,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
     } else if (format === 'speaker_right') {
       filter = `-vf "crop=${fullCw}:${fullCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1"`;
     } else if (format === 'vertical_crop' || format === 'speaker_center') {
-      filter = `-vf "crop=${fullCw}:${fullCh}:(iw-ow)/2:clip(ih*0.45-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1"`;
+      filter = `-vf "crop=${fullCw}:${fullCh}:(iw-ow)/2:clip(ih*0.30-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1"`;
     } else if (format === 'vertical_blur') {
       filter = `-filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:5[bg];[0:v]scale=1080:-2:flags=lanczos[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]" -map "[v]" -map 0:a?`;
     } else if (format === 'square') {
@@ -688,55 +688,55 @@ export const EditorTab: React.FC<EditorTabProps> = ({
                 <span className="text-[10px] text-zinc-400 font-semibold mr-1">Presets Rápidos:</span>
                 <button
                   onClick={() => {
-                    setSpeaker1X(24);
-                    setSpeaker1Y(44);
-                    setSpeaker2X(76);
-                    setSpeaker2Y(44);
-                    setZoom(1.25);
-                    setFormat('split_screen');
+                    setSpeaker1X(50);
+                    setSpeaker1Y(30);
+                    setSpeaker2X(50);
+                    setSpeaker2Y(30);
+                    setZoom(1.0);
+                    setFormat('speaker_center');
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-200 transition"
+                  className="px-2.5 py-1 rounded-lg bg-purple-900/60 hover:bg-purple-800 border border-purple-500/40 text-[10px] font-bold text-purple-200 transition"
                 >
-                  🎙️ Mesa Podcast Padrão (24% / 76%)
+                  🎯 Solo Centralizado (50% • 9:16)
                 </button>
                 <button
                   onClick={() => {
-                    setSpeaker1X(18);
-                    setSpeaker1Y(45);
-                    setSpeaker2X(82);
-                    setSpeaker2Y(45);
-                    setZoom(1.35);
+                    setSpeaker1X(38);
+                    setSpeaker1Y(30);
+                    setSpeaker2X(62);
+                    setSpeaker2Y(30);
+                    setZoom(1.0);
                     setFormat('split_screen');
                   }}
                   className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-200 transition"
                 >
-                  ↔️ Mesa Larga / Ponta a Ponta (18% / 82%)
+                  🎙️ Mesa Podcast Dupla (38% / 62%)
                 </button>
                 <button
                   onClick={() => {
                     setSpeaker1X(34);
-                    setSpeaker1Y(42);
+                    setSpeaker1Y(30);
                     setSpeaker2X(66);
-                    setSpeaker2Y(42);
-                    setZoom(1.2);
+                    setSpeaker2Y(30);
+                    setZoom(1.0);
                     setFormat('split_screen');
                   }}
                   className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-200 transition"
                 >
-                  👥 Sofá / Dupla Próxima (34% / 66%)
+                  👥 Sofá / Dupla (34% / 66%)
                 </button>
                 <button
                   onClick={() => {
-                    setSpeaker1X(50);
-                    setSpeaker1Y(42);
-                    setSpeaker2X(50);
-                    setSpeaker2Y(42);
-                    setZoom(1.2);
-                    setFormat('speaker_center');
+                    setSpeaker1X(38);
+                    setSpeaker1Y(30);
+                    setSpeaker2X(62);
+                    setSpeaker2Y(30);
+                    setZoom(1.0);
+                    setFormat('dynamic_reframe');
                   }}
                   className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold text-zinc-200 transition"
                 >
-                  👤 Solo Centralizado (50%)
+                  🔄 Auto-Reframe IA (38/62)
                 </button>
               </div>
             </div>
@@ -954,6 +954,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
             endSeconds={endSec}
             format={format}
             subtitleTheme={subtitleTheme}
+            showSubtitles={subtitleTheme !== 'none'}
             activeSpeaker={selectedCut?.activeSpeaker}
             overlayTitle={overlayTitle}
             partBadge={selectedCut?.partBadge}

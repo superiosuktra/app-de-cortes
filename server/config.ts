@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -23,6 +24,8 @@ export const STATE_FILE = path.join(DATA_DIR, 'app_state.json');
 // Environment Configuration
 export const PORT = Number(process.env.PORT) || 3000;
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+export const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
+export const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-2.5-flash';
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 
 /**

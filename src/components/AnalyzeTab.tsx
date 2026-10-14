@@ -712,13 +712,15 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                     <span className="px-2 py-1 rounded-xl text-[10px] font-semibold bg-zinc-900/80 border border-zinc-800/80 text-zinc-400 flex items-center gap-1">
                       <Sparkles className="w-2.5 h-2.5 text-yellow-400" />
                       <span>
-                        {cut.subtitleTheme === 'hormozi'
+                        {cut.subtitleTheme === 'none'
+                          ? 'Vídeo 100% Limpo'
+                          : cut.subtitleTheme === 'hormozi'
                           ? 'Legenda Hormozi'
                           : cut.subtitleTheme === 'beast'
                           ? 'Legenda MrBeast'
                           : cut.subtitleTheme === 'cyberpunk'
                           ? 'Legenda Cyberpunk'
-                          : 'Legenda Clean'}
+                          : 'Legenda Discreta'}
                       </span>
                     </span>
                   )}

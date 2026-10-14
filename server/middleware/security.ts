@@ -190,3 +190,47 @@ export function isPathInsideDir(filePath: string, allowedDir: string): boolean {
   const resolvedDir = path.resolve(allowedDir);
   return resolvedFile.startsWith(resolvedDir + path.sep) || resolvedFile === resolvedDir;
 }
+
+/**
+ * 7. Parse MM:SS or HH:MM:SS to total seconds
+ */
+export function parseTimeToSeconds(t: string | number): number {
+  if (typeof t === 'number') return t;
+  if (!t || typeof t !== 'string') return NaN;
+  const parts = t.trim().split(':').map(Number);
+  if (parts.some(isNaN)) return NaN;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return NaN;
+}
+
+/**
+ * 8. Strict Cut Interval Validation (Bounds, duration, ordering)
+ */
+export function validateCutInterval(
+  startTime: string | number,
+  endTime: string | number,
+  maxDuration = 180
+): { valid: boolean; error?: string; startSec?: number; endSec?: number } {
+  const startSec = parseTimeToSeconds(startTime);
+  const endSec = parseTimeToSeconds(endTime);
+
+  if (isNaN(startSec) || isNaN(endSec) || !isFinite(startSec) || !isFinite(endSec)) {
+    return { valid: false, error: 'Intervalo de corte inválido (valores não numéricos).' };
+  }
+  if (startSec < 0 || endSec <= 0) {
+    return { valid: false, error: 'Tempos de corte não podem ser negativos ou zero.' };
+  }
+  if (startSec >= endSec) {
+    return { valid: false, error: 'O tempo inicial deve ser menor que o tempo final.' };
+  }
+  const duration = endSec - startSec;
+  if (duration < 3) {
+    return { valid: false, error: 'O corte deve ter no mínimo 3 segundos de duração.' };
+  }
+  if (duration > maxDuration) {
+    return { valid: false, error: `A duração do corte não pode exceder ${maxDuration} segundos.` };
+  }
+  return { valid: true, startSec, endSec };
+}

@@ -189,12 +189,12 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
     }
 
     if (platform === 'instagram') {
-      const igResult = await postToInstagram({ token: cleanToken, caption });
+      const igResult = await postToInstagram({ token: cleanToken, caption, videoUrl });
       return res.json(igResult);
     }
 
     if (platform === 'tiktok') {
-      const ttResult = await postToTikTok({ token: cleanToken, caption });
+      const ttResult = await postToTikTok({ token: cleanToken, caption, videoUrl });
       return res.json(ttResult);
     }
 

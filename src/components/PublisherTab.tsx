@@ -1172,16 +1172,17 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
                 channelName={videoInfo?.author || 'cortes_virais'}
                 startSeconds={currentCut?.startSeconds || 15}
                 endSeconds={currentCut?.endSeconds || 55}
-                format={currentCut?.recommendedFormat || 'split_screen'}
-                subtitleTheme={currentCut?.subtitleTheme || 'hormozi'}
+                format={currentCut?.recommendedFormat || 'speaker_center'}
+                subtitleTheme={currentCut?.subtitleTheme || 'none'}
+                showSubtitles={currentCut?.subtitleTheme ? currentCut.subtitleTheme !== 'none' : false}
                 activeSpeaker={currentCut?.activeSpeaker}
                 overlayTitle={title || currentCut?.title || 'ESSE MOMENTO MUDOU TUDO 🚨'}
                 hook={caption.slice(0, 85) || currentCut?.hook}
-                speaker1X={currentCut?.framing?.speaker1X ?? 24}
-                speaker1Y={currentCut?.framing?.speaker1Y ?? 44}
-                speaker2X={currentCut?.framing?.speaker2X ?? 76}
-                speaker2Y={currentCut?.framing?.speaker2Y ?? 44}
-                zoom={currentCut?.framing?.zoom ?? 1.25}
+                speaker1X={currentCut?.framing?.speaker1X ?? 38}
+                speaker1Y={currentCut?.framing?.speaker1Y ?? 30}
+                speaker2X={currentCut?.framing?.speaker2X ?? 62}
+                speaker2Y={currentCut?.framing?.speaker2Y ?? 30}
+                zoom={currentCut?.framing?.zoom ?? 1.0}
                 initialPlatform={previewPlatform}
                 onPlatformChange={(p) => {
                   setPreviewPlatform(p);

@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import { GoogleGenAI } from '@google/genai';
+import { GEMINI_TEXT_MODEL } from '../config.js';
 import {
   extractVideoId,
   fetchVideoMetadata,
@@ -154,3 +156,56 @@ videoRouter.post('/ffmpeg-command', (req: Request, res: Response) => {
     res.status(500).json({ error: error.message || 'Erro ao gerar comando FFmpeg.' });
   }
 });
+
+// 7. Verify Google AI Studio Gemini API Key
+videoRouter.post('/gemini/verify', async (req: Request, res: Response) => {
+  try {
+    const { apiKey } = req.body;
+    const keyToTest = (apiKey || process.env.GEMINI_API_KEY || '').trim();
+    if (!keyToTest) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Nenhuma chave de API do Google AI Studio fornecida. Obtenha sua chave gratuita em aistudio.google.com',
+      });
+    }
+
+    const testAi = new GoogleGenAI({
+      apiKey: keyToTest,
+      httpOptions: {
+        headers: { 'User-Agent': 'aistudio-build' },
+      },
+    });
+
+    const response = await testAi.models.generateContent({
+      model: GEMINI_TEXT_MODEL,
+      contents: 'Responda apenas: OK',
+    });
+
+    if (response.text) {
+      process.env.GEMINI_API_KEY = keyToTest;
+      return res.json({
+        valid: true,
+        model: GEMINI_TEXT_MODEL,
+        message: 'Chave do Google AI Studio validada com sucesso! Todos os recursos de IA foram ativados.',
+      });
+    }
+
+    return res.status(400).json({ valid: false, error: 'Resposta vazia da API do Google AI Studio.' });
+  } catch (err: any) {
+    return res.status(400).json({
+      valid: false,
+      error: err?.message || 'Falha ao autenticar com a API do Google AI Studio. Verifique se a chave é válida.',
+    });
+  }
+});
+
+// 8. Get Google AI Studio Status
+videoRouter.get('/gemini/status', (_req: Request, res: Response) => {
+  const hasKey = Boolean(process.env.GEMINI_API_KEY?.trim());
+  res.json({
+    configured: hasKey,
+    model: GEMINI_TEXT_MODEL,
+    hasEnvKey: hasKey,
+  });
+});
+

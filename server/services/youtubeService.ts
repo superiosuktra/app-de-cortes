@@ -375,7 +375,7 @@ export async function uploadVideoToYouTube({
             videoUrl,
             startTime: startTime || '00:00',
             endTime: endTime || '00:30',
-            format: format || 'split_screen',
+            format: format || 'speaker_center',
             overlayTitle: cleanTitle,
             hook: cleanHook,
             framing,

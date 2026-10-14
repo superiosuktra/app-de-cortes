@@ -181,31 +181,38 @@ export const FORMAT_OPTIONS = [
 
 export const SUBTITLE_THEMES = [
   {
+    id: 'none',
+    name: 'Sem Legenda (Vídeo 100% Limpo)',
+    color: '#71717A', // Zinc
+    accent: '#18181B',
+    desc: 'Remove qualquer texto ou legenda pulando na tela para deixar o vídeo 100% limpo e focado no conteúdo.',
+  },
+  {
+    id: 'clean',
+    name: 'Discreta / Elegante',
+    color: '#FFFFFF', // White
+    accent: '#18181B',
+    desc: 'Branco elegante com sombra suave e estilo discreto, sem caixas gigantes nem animações agressivas.',
+  },
+  {
     id: 'hormozi',
     name: 'Alex Hormozi',
     color: '#FACC15', // Yellow
     accent: '#000000',
-    desc: 'Texto branco em caixa alta com palavras de choque destacadas em amarelo e borda preta grossa.',
+    desc: 'Texto branco em caixa alta com palavras de choque destacadas em amarelo e borda preta.',
   },
   {
     id: 'beast',
     name: 'MrBeast',
     color: '#22C55E', // Green
     accent: '#000000',
-    desc: 'Verde neon vibrante com alta saturação e ganchos dinâmicos de retenção acelerada.',
+    desc: 'Verde vibrante para vídeos dinâmicos de alta energia.',
   },
   {
     id: 'cyberpunk',
     name: 'Cyberpunk Neon',
     color: '#EC4899', // Pink / Magenta
     accent: '#7C3AED',
-    desc: 'Fúcsia e roxo de alto contraste para vídeos de tecnologia, IA e mistério.',
-  },
-  {
-    id: 'clean',
-    name: 'Clean Minimal',
-    color: '#FFFFFF', // White
-    accent: '#18181B',
-    desc: 'Branco elegante com sombra suave e estilo discreto para negócios e finanças.',
+    desc: 'Fúcsia e roxo de alto contraste para tech e mistério.',
   },
 ] as const;

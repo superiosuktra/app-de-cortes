@@ -100,15 +100,15 @@ export interface FramingOptions {
  * Guarantees exact 1:1 pixel aspect ratio (9:8 for each half of split_screen, 9:16 for full vertical crops) and clean screen without clutter.
  */
 export function buildLayoutFilter(
-  format: string = 'split_screen',
+  format: string = 'speaker_center',
   framing?: FramingOptions,
   inputLabel: string = '[0:v]'
 ): string {
-  const s1x = Number((Math.max(5, Math.min(95, Number(framing?.speaker1X ?? 24))) / 100).toFixed(3));
-  const s1y = Number((Math.max(5, Math.min(95, Number(framing?.speaker1Y ?? 44))) / 100).toFixed(3));
-  const s2x = Number((Math.max(5, Math.min(95, Number(framing?.speaker2X ?? 76))) / 100).toFixed(3));
-  const s2y = Number((Math.max(5, Math.min(95, Number(framing?.speaker2Y ?? 44))) / 100).toFixed(3));
-  const z = Number(Math.max(1.0, Math.min(1.8, Number(framing?.zoom ?? 1.25))).toFixed(2));
+  const s1x = Number((Math.max(5, Math.min(95, Number(framing?.speaker1X ?? 38))) / 100).toFixed(3));
+  const s1y = Number((Math.max(5, Math.min(95, Number(framing?.speaker1Y ?? 30))) / 100).toFixed(3));
+  const s2x = Number((Math.max(5, Math.min(95, Number(framing?.speaker2X ?? 62))) / 100).toFixed(3));
+  const s2y = Number((Math.max(5, Math.min(95, Number(framing?.speaker2Y ?? 30))) / 100).toFixed(3));
+  const z = Number(Math.max(1.0, Math.min(1.15, Number(framing?.zoom ?? 1.02))).toFixed(2));
 
   // For 9:16 full-screen vertical (1080x1920): crop aspect ratio is exactly 9/16 (0.5625)
   const fullCh = `trunc(ih/${z}/2)*2`;
@@ -120,7 +120,7 @@ export function buildLayoutFilter(
 
   switch (format) {
     case 'split_screen':
-      // Dual-camera stacked layout with exact 9:8 crop per half and subtle 2px dark divider (Zero visual pollution!)
+      // Dual-camera stacked layout with exact 9:8 crop per half, full natural headroom (ih*sY) and subtle 2px dark divider
       return `${inputLabel}split=2[s_top][s_bot];[s_top]crop=${splitCw}:${splitCh}:clip(iw*${s2x}-ow/2\\,0\\,iw-ow):clip(ih*${s2y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[top];[s_bot]crop=${splitCw}:${splitCh}:clip(iw*${s1x}-ow/2\\,0\\,iw-ow):clip(ih*${s1y}-oh/2\\,0\\,ih-oh),scale=1080:960:flags=lanczos[bottom];[top][bottom]vstack=inputs=2,drawbox=x=0:y=959:w=1080:h=2:color=black@0.8:t=fill,setsar=1[v]`;
 
     case 'dynamic_reframe':
@@ -134,7 +134,7 @@ export function buildLayoutFilter(
 
     case 'speaker_center':
     case 'vertical_crop':
-      return `${inputLabel}crop=${fullCw}:${fullCh}:(iw-ow)/2:clip(ih*0.45-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
+      return `${inputLabel}crop=${fullCw}:${fullCh}:(iw-ow)/2:clip(ih*0.30-oh/2\\,0\\,ih-oh),scale=1080:1920:flags=lanczos,setsar=1[v]`;
 
     case 'square':
       return `${inputLabel}crop=min(iw\\,ih):min(iw\\,ih),scale=1080:1080:flags=lanczos,setsar=1[v]`;
@@ -171,7 +171,6 @@ export async function downloadYouTubeSlice({
 
   const args = [
     '--no-playlist',
-    '--no-check-certificates',
     '--user-agent',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     '--extractor-args',
@@ -214,7 +213,8 @@ export async function downloadAndProcessYouTubeCut({
   videoUrl,
   startTime,
   endTime,
-  format = 'split_screen',
+  format = 'speaker_center',
+  subtitleTheme = 'none',
   overlayTitle = '',
   hook = '',
   framing,
@@ -228,6 +228,7 @@ export async function downloadAndProcessYouTubeCut({
   startTime: string;
   endTime: string;
   format?: string;
+  subtitleTheme?: string;
   overlayTitle?: string;
   hook?: string;
   framing?: FramingOptions;
@@ -250,6 +251,7 @@ export async function downloadAndProcessYouTubeCut({
       startTime: '00:00',
       endTime: formatSecondsToMMSS(duration),
       format,
+      subtitleTheme,
       overlayTitle,
       hook,
       framing,
@@ -279,7 +281,8 @@ export async function renderRealCutVideo({
   inputFilePath,
   startTime,
   endTime,
-  format = 'split_screen',
+  format = 'speaker_center',
+  subtitleTheme = 'none',
   overlayTitle = '',
   hook = '',
   framing,
@@ -292,6 +295,7 @@ export async function renderRealCutVideo({
   startTime: string;
   endTime: string;
   format?: string;
+  subtitleTheme?: string;
   overlayTitle?: string;
   hook?: string;
   framing?: FramingOptions;
@@ -323,8 +327,11 @@ export async function renderRealCutVideo({
       : buildShortTwoWordChunks(teaserText || hook || overlayTitle);
   const subY = format === 'split_screen' ? 932 : 1360;
 
-  // Build timed 2-word drawtext chain (Submagic / CapCut clean stroke style)
+  // Build timed 2-word drawtext chain (Skipped when subtitleTheme === 'none' for 100% clean video)
   const buildCleanSubtitleDraws = (totalDur: number): string => {
+    if (subtitleTheme === 'none') {
+      return '';
+    }
     const drawParts: string[] = [];
     let tCursor = 0.2;
     const step = 2.1;
@@ -359,7 +366,7 @@ export async function renderRealCutVideo({
 
     const layoutChain = buildLayoutFilter(format, framing, '[raw_v]');
     const subtitleChain = buildCleanSubtitleDraws(totalDurationWithTeaser);
-    const filterComplex = `[0:v]setpts=PTS-STARTPTS[v0];[0:a]asetpts=PTS-STARTPTS,afade=t=out:st=${(teaserDur - 0.15).toFixed(2)}:d=0.15[a0];[1:v]setpts=PTS-STARTPTS,fade=t=in:st=0:d=0.2[v1];[1:a]asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.15[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[raw_v][raw_a];${layoutChain}${subtitleChain ? `;[v]${subtitleChain}[vout]` : ''}`;
+    const filterComplex = `[0:v]setpts=PTS-STARTPTS[v0];[0:a]asetpts=PTS-STARTPTS,afade=t=out:st=${(teaserDur - 0.15).toFixed(2)}:d=0.15[a0];[1:v]setpts=PTS-STARTPTS,fade=t=in:st=0:d=0.2[v1];[1:a]asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.15[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[raw_v][raw_a];[raw_a]highpass=f=80,loudnorm=I=-14:TP=-1.5:LRA=11[aout];${layoutChain}${subtitleChain ? `;[v]${subtitleChain}[vout]` : ''}`;
     const finalVLabel = subtitleChain ? '[vout]' : '[v]';
 
     try {
@@ -382,9 +389,7 @@ export async function renderRealCutVideo({
         '-map',
         finalVLabel,
         '-map',
-        '[raw_a]',
-        '-af',
-        'highpass=f=80,loudnorm=I=-14:TP=-1.5:LRA=11',
+        '[aout]',
         '-c:v',
         'libx264',
         '-preset',

@@ -27,6 +27,7 @@ import {
   Film,
   Image as ImageIcon,
   Check,
+  Type,
 } from 'lucide-react';
 import { VideoFormat, SubtitleTheme, SocialPlatform } from '../types';
 
@@ -39,6 +40,7 @@ interface ShortsPhonePreviewProps {
   endSeconds: number;
   format: VideoFormat;
   subtitleTheme?: SubtitleTheme;
+  showSubtitles?: boolean;
   activeSpeaker?: string;
   overlayTitle?: string;
   partBadge?: string;
@@ -103,7 +105,8 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   startSeconds,
   endSeconds,
   format,
-  subtitleTheme = 'hormozi',
+  subtitleTheme = 'clean',
+  showSubtitles = false,
   activeSpeaker,
   overlayTitle = '',
   partBadge,
@@ -116,14 +119,15 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   initialPlatform = 'youtube',
   onPlatformChange,
   channelName = 'cortes_virais',
-  speaker1X = 24,
-  speaker1Y = 44,
-  speaker2X = 76,
-  speaker2Y = 44,
-  zoom = 1.25,
+  speaker1X = 38,
+  speaker1Y = 30,
+  speaker2X = 62,
+  speaker2Y = 30,
+  zoom = 1.0,
 }) => {
   const [platform, setPlatform] = useState<SocialPlatform>(initialPlatform);
   const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [isSubtitleVisible, setIsSubtitleVisible] = useState<boolean>(showSubtitles);
   const [activeWordIndex, setActiveWordIndex] = useState<number>(0);
   const [isLiked, setIsLiked] = useState<boolean>(false);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
@@ -132,7 +136,21 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
   const [showSafeZones, setShowSafeZones] = useState<boolean>(false);
   const [activeDynamicCam, setActiveDynamicCam] = useState<1 | 2>(2);
   const [isPlayingColdOpen, setIsPlayingColdOpen] = useState<boolean>(false);
+  const [quickCropOverride, setQuickCropOverride] = useState<{
+    s1x?: number;
+    s2x?: number;
+    sY?: number;
+    z?: number;
+    fmt?: VideoFormat;
+  } | null>(null);
   const duration = Math.max(1, endSeconds - startSeconds);
+
+  // Resolved framing considering 1-click quick crop overrides
+  const effectiveFormat = quickCropOverride?.fmt || format;
+  const effectiveS1X = quickCropOverride?.s1x ?? speaker1X;
+  const effectiveS2X = quickCropOverride?.s2x ?? speaker2X;
+  const effectiveSY = quickCropOverride?.sY ?? speaker1Y;
+  const effectiveZoom = quickCropOverride?.z ?? zoom;
 
   const cleanSubtitles = React.useMemo(
     () => normalizeCleanSubtitleChunks(subtitles, hook),
@@ -221,20 +239,33 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
 
   /**
    * Computes exact 1:1 distortion-free CSS positioning for a 16:9 YouTube iframe inside a 9:16 or 9:8 crop container.
+   * Guarantees 100% natural headroom (hair/forehead never cut off), rule-of-thirds eye level, and clamps X to valid video bounds.
    */
-  const getSmartCropIframeStyle = (focusX: number, focusY: number, zoomLevel: number = 1.25): React.CSSProperties => {
+  const getSmartCropIframeStyle = (
+    focusX: number = 50,
+    focusY: number = 30,
+    zoomLevel: number = 1.0
+  ): React.CSSProperties => {
+    // Clamping focusX between 18% and 82% prevents showing empty black borders
     const clampedX = Math.max(18, Math.min(82, focusX));
-    const clampedY = Math.max(22, Math.min(78, focusY));
-    const safeZoom = Math.max(1.0, Math.min(1.8, zoomLevel));
+    // Safe zoom: default 1.0 (100% height), capped at 1.15 to avoid massive heads cutting off foreheads and chins
+    const safeZoom = Math.max(1.0, Math.min(1.15, zoomLevel));
+    // Height is exactly 101% to fill container without subpixel gaps
+    const heightPercent = Math.round(101 * safeZoom);
+
+    // At zoom 1.0, translate(-clampedX%, -50%) centers vertically with 0px cut off at top and bottom.
+    // If zoomed in slightly (e.g. 1.05), anchor slightly towards top to protect headroom (hair).
+    const translateY = safeZoom <= 1.02 ? 50 : 48;
+
     return {
       position: 'absolute',
       top: '50%',
       left: '50%',
-      height: `${Math.round(108 * safeZoom)}%`,
+      height: `${heightPercent}%`,
       width: 'auto',
       aspectRatio: '16 / 9',
       maxWidth: 'none',
-      transform: `translate(-${clampedX}%, -${clampedY}%)`,
+      transform: `translate(-${clampedX}%, -${translateY}%)`,
       pointerEvents: 'none',
     };
   };
@@ -403,21 +434,21 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
           ) : previewMode === 'embed' ? (
             /* YouTube Embed with Distortion-Free 16:9 Smart Crop & Single Audio Stream */
             <>
-              {format === 'vertical_blur' && (
+              {effectiveFormat === 'vertical_blur' && (
                 <div className="absolute inset-0 z-0 overflow-hidden">
                   <iframe
                     src={mutedEmbedUrl}
                     title="Background Blur (Muted)"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    style={getSmartCropIframeStyle(50, 50, 1.35)}
+                    style={getSmartCropIframeStyle(50, 30, 1.15)}
                     className="filter blur-xl opacity-55"
                     allow="autoplay; encrypted-media"
                   />
                 </div>
               )}
 
-              {format === 'split_screen' ? (
-                /* Dual Camera Vertical Stack (Exact 9:8 per half, Zero Visual Pollution, Clean 2px Seam) */
+              {effectiveFormat === 'split_screen' ? (
+                /* Dual Camera Vertical Stack (Exact 9:8 per half, Zero Visual Pollution, Clean 2px Seam, 100% Headroom) */
                 <div className="relative z-10 w-full h-full flex flex-col">
                   {/* Top: Convidado (Speaker 2) - Primary Audio Source */}
                   <div className="relative w-full h-1/2 overflow-hidden bg-black">
@@ -425,7 +456,7 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                       src={primaryEmbedUrl}
                       title="Guest Camera (Top - Primary Audio)"
                       referrerPolicy="strict-origin-when-cross-origin"
-                      style={getSmartCropIframeStyle(speaker2X, speaker2Y, zoom)}
+                      style={getSmartCropIframeStyle(effectiveS2X, effectiveSY, effectiveZoom)}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     />
                   </div>
@@ -439,12 +470,12 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                       src={mutedEmbedUrl}
                       title="Host Camera (Bottom - Muted)"
                       referrerPolicy="strict-origin-when-cross-origin"
-                      style={getSmartCropIframeStyle(speaker1X, speaker1Y, zoom)}
+                      style={getSmartCropIframeStyle(effectiveS1X, effectiveSY, effectiveZoom)}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     />
                   </div>
                 </div>
-              ) : format === 'dynamic_reframe' ? (
+              ) : effectiveFormat === 'dynamic_reframe' ? (
                 /* Klap / Opus Clip Auto-Reframe: Smoothly switches between Speaker 2 and Speaker 1 */
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
                   <iframe
@@ -453,42 +484,42 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
                     referrerPolicy="strict-origin-when-cross-origin"
                     style={{
                       ...getSmartCropIframeStyle(
-                        activeDynamicCam === 2 ? speaker2X : speaker1X,
-                        activeDynamicCam === 2 ? speaker2Y : speaker1Y,
-                        zoom
+                        activeDynamicCam === 2 ? effectiveS2X : effectiveS1X,
+                        effectiveSY,
+                        effectiveZoom
                       ),
                       transition: 'transform 650ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
                 </div>
-              ) : format === 'speaker_left' ? (
+              ) : effectiveFormat === 'speaker_left' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
                   <iframe
                     src={primaryEmbedUrl}
                     title="Left Speaker Preview"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    style={getSmartCropIframeStyle(speaker1X, speaker1Y, zoom)}
+                    style={getSmartCropIframeStyle(effectiveS1X, effectiveSY, effectiveZoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
                 </div>
-              ) : format === 'speaker_right' ? (
+              ) : effectiveFormat === 'speaker_right' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
                   <iframe
                     src={primaryEmbedUrl}
                     title="Right Speaker Preview"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    style={getSmartCropIframeStyle(speaker2X, speaker2Y, zoom)}
+                    style={getSmartCropIframeStyle(effectiveS2X, effectiveSY, effectiveZoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
                 </div>
-              ) : format === 'vertical_crop' || format === 'speaker_center' ? (
+              ) : effectiveFormat === 'vertical_crop' || effectiveFormat === 'speaker_center' ? (
                 <div className="relative z-10 w-full h-full overflow-hidden bg-black">
                   <iframe
                     src={primaryEmbedUrl}
                     title="Center Speaker 9:16 Preview"
                     referrerPolicy="strict-origin-when-cross-origin"
-                    style={getSmartCropIframeStyle(50, 45, zoom)}
+                    style={getSmartCropIframeStyle(50, effectiveSY, effectiveZoom)}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   />
                 </div>
@@ -530,39 +561,35 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
             </div>
           )}
 
-          {/* OVERLAY: CLEAN 2-WORD DYNAMIC KARAOKE SUBTITLES (Zero Background Box, Centered on Split Seam) */}
-          {activeChunkList.length > 0 && (
+          {/* OVERLAY: CLEAN DISCREET SUBTITLES (Zero Visual Pollution, Hidden by Default, Calm & Non-Intrusive) */}
+          {isSubtitleVisible && subtitleTheme !== 'none' && activeChunkList.length > 0 && (
             <div
-              className={`absolute left-3 right-3 z-30 pointer-events-none text-center flex items-center justify-center ${
-                format === 'split_screen'
+              className={`absolute left-4 right-14 z-30 pointer-events-none text-center flex items-center justify-center ${
+                effectiveFormat === 'split_screen'
                   ? 'top-1/2 -translate-y-1/2'
-                  : 'bottom-28'
+                  : 'bottom-20'
               }`}
             >
-              <p
-                className="font-black text-lg sm:text-xl tracking-wide uppercase leading-none select-none transition-transform duration-150"
-                style={{
-                  textShadow:
-                    '0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 4px 12px rgba(0,0,0,0.95)',
-                }}
-              >
-                <span className="text-white">{firstWords}</span>
-                <span
-                  className={
-                    isPlayingColdOpen
-                      ? 'text-amber-300'
-                      : subtitleTheme === 'beast'
-                      ? 'text-emerald-400'
-                      : subtitleTheme === 'cyberpunk'
-                      ? 'text-cyan-300'
-                      : subtitleTheme === 'clean'
-                      ? 'text-white'
-                      : 'text-yellow-300'
-                  }
-                >
-                  {highlightedWord}
-                </span>
-              </p>
+              <div className="px-3 py-1 rounded-xl bg-black/65 backdrop-blur-md max-w-[210px] mx-auto border border-white/10 shadow-lg transition-opacity duration-200">
+                <p className="font-bold text-xs sm:text-sm tracking-normal uppercase leading-tight text-white select-none">
+                  <span>{firstWords}</span>
+                  <span
+                    className={
+                      isPlayingColdOpen
+                        ? 'text-amber-300'
+                        : subtitleTheme === 'beast'
+                        ? 'text-emerald-400'
+                        : subtitleTheme === 'cyberpunk'
+                        ? 'text-cyan-300'
+                        : subtitleTheme === 'hormozi'
+                        ? 'text-yellow-300'
+                        : 'text-white font-extrabold'
+                    }
+                  >
+                    {highlightedWord}
+                  </span>
+                </p>
+              </div>
             </div>
           )}
 
@@ -785,8 +812,81 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         </div>
       </div>
 
+      {/* 3.5. 1-Click Quick Framing Adjuster (Garante enquadramento perfeito instantâneo sem cortar cabeças nem ir pras paredes) */}
+      <div className="mt-2.5 flex items-center justify-center gap-1.5 p-1 bg-zinc-950/85 border border-zinc-800/90 rounded-xl shadow max-w-sm">
+        <button
+          onClick={() =>
+            setQuickCropOverride({
+              fmt: 'speaker_center',
+              s1x: 50,
+              s2x: 50,
+              sY: 30,
+              z: 1.0,
+            })
+          }
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+            effectiveFormat === 'speaker_center' && effectiveS1X === 50
+              ? 'bg-purple-600 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+          }`}
+          title="Centralizar 9:16 diretamente no orador com 100% de respiro (sem cortar cabeça nem zoom excessivo)"
+        >
+          <span>🎯 Centralizar (50%)</span>
+        </button>
+
+        <button
+          onClick={() =>
+            setQuickCropOverride({
+              fmt: 'split_screen',
+              s1x: 38,
+              s2x: 62,
+              sY: 30,
+              z: 1.0,
+            })
+          }
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+            effectiveFormat === 'split_screen' && effectiveS1X === 38
+              ? 'bg-cyan-600 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+          }`}
+          title="Split Screen calibrado para mesas de podcast (Host 38% / Convidado 62%) sem cortar queixo nem cabeças"
+        >
+          <span>👥 Mesa Dupla (38/62)</span>
+        </button>
+
+        <button
+          onClick={() =>
+            setQuickCropOverride({
+              fmt: 'dynamic_reframe',
+              s1x: 38,
+              s2x: 62,
+              sY: 30,
+              z: 1.0,
+            })
+          }
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 ${
+            effectiveFormat === 'dynamic_reframe'
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+          }`}
+          title="Auto-Reframe inteligente (Klap / Opus Clip): foca automaticamente em quem está falando"
+        >
+          <span>🔄 Auto-Reframe</span>
+        </button>
+
+        {quickCropOverride && (
+          <button
+            onClick={() => setQuickCropOverride(null)}
+            className="px-1.5 py-1 rounded-lg text-[10px] font-semibold text-zinc-500 hover:text-zinc-300 transition"
+            title="Resetar para a configuração padrão do corte"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* 4. Bottom Controls Bar: Sound, Mode Toggle & Duration */}
-      <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2 p-2 bg-zinc-950/90 border border-zinc-800 rounded-2xl shadow-xl max-w-sm">
+      <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2 p-2 bg-zinc-950/90 border border-zinc-800 rounded-2xl shadow-xl max-w-sm">
         <button
           onClick={() => setIsMuted(!isMuted)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition shadow-sm"
@@ -820,6 +920,19 @@ export const ShortsPhonePreview: React.FC<ShortsPhonePreviewProps> = ({
         >
           <Sparkles className="w-3.5 h-3.5" />
           <span>{isPlayingColdOpen ? '⚡ Tocando Clímax (4s)' : '⚡ Ver Gancho 4s'}</span>
+        </button>
+
+        <button
+          onClick={() => setIsSubtitleVisible(!isSubtitleVisible)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+            isSubtitleVisible
+              ? 'bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-sm'
+              : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+          }`}
+          title="Ativar ou ocultar legendas da tela (padrão: ocultas para manter o vídeo 100% limpo)"
+        >
+          <Type className="w-3.5 h-3.5" />
+          <span>{isSubtitleVisible ? 'Legenda: Ligada' : 'Legenda: Oculta'}</span>
         </button>
 
         <button

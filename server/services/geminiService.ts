@@ -4,7 +4,7 @@ import { execFile } from 'child_process';
 import util from 'util';
 import { GoogleGenAI, Type } from '@google/genai';
 import { YoutubeTranscript } from 'youtube-transcript';
-import { GEMINI_API_KEY, TEMP_DIR } from '../config.js';
+import { GEMINI_API_KEY, GEMINI_TEXT_MODEL, GEMINI_VISION_MODEL, TEMP_DIR } from '../config.js';
 import { getYtdlpPath } from './ffmpegService.js';
 
 const execFilePromise = util.promisify(execFile);
@@ -179,7 +179,6 @@ async function extractSubtitlesViaYtdlp(videoId: string): Promise<TranscriptSegm
           ytdlpBinary,
           [
             '--no-playlist',
-            '--no-check-certificates',
             '--ignore-errors',
             '--extractor-args',
             'youtube:player_client=android,web;player_skip=webpage,configs',
@@ -620,16 +619,6 @@ const CURATED_POOL = [
     suggestedThemes: ['Curiosidades', 'Espaço', 'História', 'Debate'],
   },
   {
-    title: 'Inteligência Ltda: Especial Médicos e Cirurgiões Renomados',
-    channel: 'Inteligência Ltda',
-    videoId: 'qbTzhB0akt8',
-    url: 'https://www.youtube.com/watch?v=qbTzhB0akt8',
-    duration: '2h 50min',
-    viralityScore: 95,
-    reason: 'Casos médicos inacreditáveis e dicas vitais de sobrevivência e longevidade.',
-    suggestedThemes: ['Saúde', 'Ciência', 'Medicina'],
-  },
-  {
     title: 'Flow Games: O Futuro dos Videogames e Engines Gráficas',
     channel: 'Flow Games',
     videoId: 'e9KzPq-892L',
@@ -706,7 +695,7 @@ Um array de objetos com:
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -1310,23 +1299,23 @@ function generateHeuristicViralCuts({
   ];
 
   const layoutRotation = [
-    'split_screen',
+    'speaker_center',
+    'speaker_center',
     'dynamic_reframe',
-    'speaker_right',
     'split_screen',
-    'speaker_left',
-    'split_screen',
+    'speaker_center',
+    'speaker_center',
   ];
   const speakers = [
-    'Ambos (Diálogo / Split Screen)',
+    'Orador Principal (Câmera 9:16 Central)',
+    'Orador Principal (Câmera 9:16 Central)',
     'Auto-Reframe IA (Troca Dinâmica)',
-    'Convidado (Câmera Direita)',
     'Ambos (Diálogo / Split Screen)',
-    'Apresentador (Câmera Esquerda)',
-    'Ambos (Diálogo / Split Screen)',
+    'Orador Principal (Câmera 9:16 Central)',
+    'Orador Principal (Câmera 9:16 Central)',
   ];
-  // Default to clean / hormozi 2-word minimal stroke without heavy boxes
-  const subtitleThemes = ['clean', 'hormozi', 'clean', 'beast'];
+  // Default to none / clean (tela 100% limpa sem legendas pulando na tela)
+  const subtitleThemes = ['none', 'clean', 'none', 'clean'];
 
   return slices.map((slice, i) => {
     const isFirst = i === 0;
@@ -1376,14 +1365,14 @@ function generateHeuristicViralCuts({
       activeSpeaker: speakers[i % speakers.length],
       subtitleTheme: subtitleThemes[i % subtitleThemes.length],
       framing: {
-        speaker1X: 24,
-        speaker1Y: 44,
-        speaker2X: 76,
-        speaker2Y: 44,
-        zoom: 1.25,
+        speaker1X: 38,
+        speaker1Y: 30,
+        speaker2X: 62,
+        speaker2Y: 30,
+        zoom: 1.0,
         detectedFacesCount: 2,
         aiInsight:
-          'Mapeamento Facial IA: Câmera 1 (Host) em X=24%, Y=44% | Câmera 2 (Convidado) em X=76%, Y=44% com tela limpa sem caixas poluindo o rosto.',
+          'Enquadramento Calibrado IA: Centralizado com respiro natural (Y=30%, X=50%) sem poluição visual ou cortes tortos.',
       },
       caption: {
         youtube: `${partLabel} — "${slice.teaserText}"\n\n${nextCta}\n\n#Shorts #Cortes #Podcast #Viral`,
@@ -1463,7 +1452,7 @@ Retorne um JSON com:
 `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_VISION_MODEL,
         contents: [...inlineParts, { text: visionPrompt }],
         config: {
           responseMimeType: 'application/json',
@@ -1523,27 +1512,27 @@ Retorne um JSON com:
     return {
       detectedFacesCount: 1,
       speaker1X: 50,
-      speaker1Y: 42,
+      speaker1Y: 30,
       speaker2X: 50,
-      speaker2Y: 42,
-      zoom: 1.2,
+      speaker2Y: 30,
+      zoom: 1.0,
       recommendedFormat: 'speaker_center',
       aiInsight:
-        'IA Vision detectou apresentador centralizado (X=50%, Y=42%). Enquadramento 9:16 vertical central calibrado sem distorção.',
+        'IA Vision detectou apresentador centralizado (X=50%, Y=30%). Enquadramento 9:16 vertical central calibrado com respiro natural no topo.',
       frameUrls,
     };
   }
 
   return {
     detectedFacesCount: 2,
-    speaker1X: 24,
-    speaker1Y: 44,
-    speaker2X: 76,
-    speaker2Y: 44,
-    zoom: 1.25,
-    recommendedFormat: 'split_screen',
+    speaker1X: 38,
+    speaker1Y: 30,
+    speaker2X: 62,
+    speaker2Y: 30,
+    zoom: 1.0,
+    recommendedFormat: 'speaker_center',
     aiInsight:
-      'IA Vision analisou os quadros de cena (25%, 50%, 75%) e detectou 2 interlocutores: Câmera 1 (Esquerda X=24%, Y=44%) e Câmera 2 (Direita X=76%, Y=44%) em proporção 9:8 exata.',
+      'IA Vision analisou os interlocutores com enquadramento 9:16 calibrado: Câmera 1 (X=38%, Y=30%) e Câmera 2 (X=62%, Y=30%) mantendo 100% de respiro superior.',
     frameUrls,
   };
 }
@@ -1640,7 +1629,7 @@ Para cada uma das ${targetCount} partes sequenciais abaixo, crie:
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: `Vídeo: ${videoTitle || 'Podcast em Alta'} (${channelName || 'YouTube'})\n\n${slicesPromptBlock}`,
         config: {
           systemInstruction,
@@ -1749,7 +1738,7 @@ Responda diretamente com a legenda formatada pronta para publicação.
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: GEMINI_TEXT_MODEL,
     contents: prompt,
   });
 

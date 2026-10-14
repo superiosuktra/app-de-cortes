@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { UPLOADS_DIR, TEMP_DIR } from '../config.js';
 import { renderRealCutVideo, downloadAndProcessYouTubeCut } from '../services/ffmpegService.js';
 import { uploadVideoToYouTube } from '../services/youtubeService.js';
@@ -11,6 +12,7 @@ import {
   normalizeSafeYouTubeUrl,
   sanitizeTimestamp,
   isPathInsideDir,
+  validateCutInterval,
 } from '../middleware/security.js';
 
 export const cutRouter = Router();
@@ -22,9 +24,12 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
-    const isVideoMime = (file.mimetype || '').startsWith('video/') || file.mimetype === 'application/octet-stream';
-    if (!ALLOWED_VIDEO_EXTENSIONS.has(ext) && !isVideoMime) {
-      return cb(new Error('Formato de arquivo não permitido. Envie apenas arquivos de vídeo (.mp4, .mov, .webm, .mkv).'));
+    const isVideoMime = (file.mimetype || '').startsWith('video/');
+    if (!ALLOWED_VIDEO_EXTENSIONS.has(ext)) {
+      return cb(new Error('Extensão de arquivo não permitida. Envie apenas arquivos (.mp4, .mov, .webm, .mkv).'));
+    }
+    if (!isVideoMime && file.mimetype !== 'application/octet-stream') {
+      return cb(new Error('Tipo MIME inválido para vídeo.'));
     }
     cb(null, true);
   },
@@ -37,6 +42,15 @@ const renderRateLimiter = createRateLimiter({
   message: 'Limite de renderizações de vídeo por minuto atingido. Aguarde a conclusão do processamento atual.',
 });
 
+function handleRouteError(res: Response, err: any, context: string) {
+  const correlationId = crypto.randomUUID();
+  console.error(`[CutRoutes][${context}][${correlationId}]:`, err);
+  return res.status(500).json({
+    error: 'Falha interna ao processar o vídeo. Tente novamente em instantes.',
+    correlationId,
+  });
+}
+
 // 1. Download YouTube Video Slice & Render 9:16 Vertical Cut Directly
 cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, res: Response) => {
   let renderedPath: string | null = null;
@@ -45,7 +59,8 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       videoUrl,
       startTime = '00:00',
       endTime = '00:30',
-      format = 'split_screen',
+      format = 'speaker_center',
+      subtitleTheme = 'none',
       title = 'corte_viral',
       hook = '',
       framing,
@@ -61,6 +76,11 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       return res.status(400).json({ error: 'URL do YouTube inválida ou bloqueada por política de segurança.' });
     }
 
+    const intervalCheck = validateCutInterval(startTime, endTime, 180);
+    if (!intervalCheck.valid) {
+      return res.status(400).json({ error: intervalCheck.error });
+    }
+
     const cleanStart = sanitizeTimestamp(startTime, '00:00');
     const cleanEnd = sanitizeTimestamp(endTime, '00:30');
 
@@ -71,6 +91,7 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       startTime: cleanStart,
       endTime: cleanEnd,
       format,
+      subtitleTheme,
       overlayTitle: title,
       hook,
       framing,
@@ -81,8 +102,8 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       partBadge: typeof partBadge === 'string' ? partBadge : undefined,
     });
 
-    if (!isPathInsideDir(renderedPath, TEMP_DIR)) {
-      throw new Error('Caminho de arquivo de saída inválido.');
+    if (!isPathInsideDir(renderedPath, TEMP_DIR) || !fs.existsSync(renderedPath)) {
+      throw new Error('Caminho de arquivo de saída inválido ou não gerado.');
     }
 
     const safeTitle = (title || 'corte_viral').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
@@ -92,13 +113,12 @@ cutRouter.post('/download-youtube-cut', renderRateLimiter, async (req: Request, 
       } catch {}
     });
   } catch (err: any) {
-    console.error('[CutRoutes] Erro ao cortar vídeo do YouTube:', err);
     if (renderedPath && fs.existsSync(renderedPath)) {
       try {
         fs.unlinkSync(renderedPath);
       } catch {}
     }
-    res.status(500).json({ error: err.message || 'Erro ao processar e baixar corte do YouTube.' });
+    return handleRouteError(res, err, 'download-youtube-cut');
   }
 });
 
@@ -114,7 +134,7 @@ cutRouter.post('/upload-and-cut-short', renderRateLimiter, upload.single('video'
     const {
       startTime = '00:00',
       endTime = '00:30',
-      format = 'split_screen',
+      format = 'speaker_center',
       title = 'Corte Viral #Shorts',
       description = '',
       privacy = 'public',
@@ -123,6 +143,11 @@ cutRouter.post('/upload-and-cut-short', renderRateLimiter, upload.single('video'
       hook = '',
       framing,
     } = req.body;
+
+    const intervalCheck = validateCutInterval(startTime, endTime, 180);
+    if (!intervalCheck.valid) {
+      return res.status(400).json({ error: intervalCheck.error });
+    }
 
     const serverCreds = stateManager.getCredentials();
     const tokenToUse = (token || serverCreds.youtube.accessToken || '').trim();
@@ -174,7 +199,7 @@ cutRouter.post('/upload-and-cut-short', renderRateLimiter, upload.single('video'
       error: uploadResult.error || 'Erro ao enviar o vídeo cortado para o YouTube.',
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Erro ao processar e cortar o arquivo de vídeo.' });
+    return handleRouteError(res, err, 'upload-and-cut-short');
   } finally {
     try {
       if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -185,8 +210,9 @@ cutRouter.post('/upload-and-cut-short', renderRateLimiter, upload.single('video'
 
 // 3. Render Local Video File Cut to MP4 and Download to Computer
 cutRouter.post('/render-download-cut', renderRateLimiter, upload.single('video'), async (req: Request, res: Response) => {
+  let renderedPath = '';
+  const file = req.file;
   try {
-    const file = req.file;
     if (!file || !isPathInsideDir(file.path, UPLOADS_DIR)) {
       return res.status(400).json({ error: 'Nenhum arquivo de vídeo válido foi enviado.' });
     }
@@ -194,12 +220,17 @@ cutRouter.post('/render-download-cut', renderRateLimiter, upload.single('video')
     const {
       startTime = '00:00',
       endTime = '00:30',
-      format = 'split_screen',
+      format = 'speaker_center',
       title = 'corte_viral',
       framing,
     } = req.body;
 
-    const renderedPath = await renderRealCutVideo({
+    const intervalCheck = validateCutInterval(startTime, endTime, 180);
+    if (!intervalCheck.valid) {
+      return res.status(400).json({ error: intervalCheck.error });
+    }
+
+    renderedPath = await renderRealCutVideo({
       inputFilePath: file.path,
       startTime: sanitizeTimestamp(startTime, '00:00'),
       endTime: sanitizeTimestamp(endTime, '00:30'),
@@ -208,14 +239,22 @@ cutRouter.post('/render-download-cut', renderRateLimiter, upload.single('video')
       framing,
     });
 
+    if (!isPathInsideDir(renderedPath, TEMP_DIR) || !fs.existsSync(renderedPath)) {
+      throw new Error('Caminho de arquivo renderizado inválido ou inexistente.');
+    }
+
     const safeTitle = (title || 'corte_viral').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
     res.download(renderedPath, `${safeTitle}.mp4`, () => {
       try {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        if (fs.existsSync(renderedPath)) fs.unlinkSync(renderedPath);
+        if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        if (renderedPath && fs.existsSync(renderedPath)) fs.unlinkSync(renderedPath);
       } catch {}
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Erro ao renderizar o vídeo para download.' });
+    try {
+      if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      if (renderedPath && fs.existsSync(renderedPath)) fs.unlinkSync(renderedPath);
+    } catch {}
+    return handleRouteError(res, err, 'render-download-cut');
   }
 });

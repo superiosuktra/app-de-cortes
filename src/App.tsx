@@ -93,9 +93,17 @@ export default function App() {
       retentionStrategyOption: 3,
       neuromarketingTrigger: 'Gancho Cold-Open Clímax (00:00–00:04) & Início da História',
       viralityAnalysis: 'Pico #1 de interesse e retenção do público ("Mais Reproduzidos") detectado em 38:17. Começa com 4s do clímax em 38:42 e desenvolve a história limpa sem poluição visual.',
-      recommendedFormat: 'split_screen',
-      activeSpeaker: 'Ambos (Diálogo / Split Screen)',
-      subtitleTheme: 'hormozi',
+      recommendedFormat: 'speaker_center',
+      activeSpeaker: 'Renato Cariani (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
       caption: {
         youtube: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes aqui no canal! Siga para não perder.\n\n#Shorts #Cortes #RenatoCariani #Disciplina #Viral',
         instagram: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes no perfil! Siga para acompanhar.',
@@ -124,9 +132,17 @@ export default function App() {
       retentionStrategyOption: 3,
       neuromarketingTrigger: 'Gancho Cold-Open Clímax & Continuação Direta (Parte 2)',
       viralityAnalysis: 'Continuação direta e sequencial da Parte 1 (38:17–39:06 → 39:06–39:55), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'dynamic_reframe',
-      activeSpeaker: 'Auto-Reframe IA (Troca Dinâmica)',
-      subtitleTheme: 'beast',
+      recommendedFormat: 'speaker_center',
+      activeSpeaker: 'Renato Cariani (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
       caption: {
         youtube: '🔥 [PARTE 2 - CONTINUAÇÃO] — Como ele construiu o maior canal de musculação do mundo começando do zero!\n\n⏭️ A Parte 3 (continuação direta) sai em instantes aqui no canal!\n\n#Shorts #Cortes #RenatoCariani #Sucesso',
         instagram: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior canal do mundo!\n\n⏭️ Parte 3 (continuação) já vai ao ar!',
@@ -155,9 +171,17 @@ export default function App() {
       retentionStrategyOption: 3,
       neuromarketingTrigger: 'Gancho Cold-Open Clímax & Quebra de Padrão (Parte 3)',
       viralityAnalysis: 'Continuação direta e sequencial da Parte 2 (39:06–39:55 → 39:55–40:43), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'speaker_right',
-      activeSpeaker: 'Convidado (Câmera Direita)',
-      subtitleTheme: 'cyberpunk',
+      recommendedFormat: 'speaker_center',
+      activeSpeaker: 'Renato Cariani (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
       caption: {
         youtube: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica mental das metas e da competição silenciosa!\n\n⏭️ A Parte 4 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Metas #Foco',
         instagram: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica da competição silenciosa para nunca acomodar.\n\n⏭️ Parte 4 na sequência!',
@@ -186,9 +210,17 @@ export default function App() {
       retentionStrategyOption: 3,
       neuromarketingTrigger: 'Gancho Cold-Open Clímax & Revelação Central (Parte 4)',
       viralityAnalysis: 'Continuação direta e sequencial da Parte 3 (39:55–40:43 → 40:43–41:30), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'split_screen',
-      activeSpeaker: 'Ambos (Diálogo / Split Screen)',
-      subtitleTheme: 'clean',
+      recommendedFormat: 'speaker_center',
+      activeSpeaker: 'Renato Cariani (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
       caption: {
         youtube: '🔥 [PARTE 4 - CONTINUAÇÃO] — Por que 99% das promessas morrem no meio do caminho?\n\n⏭️ A Parte 5 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Constancia #Disciplina',
         instagram: '🔥 [PARTE 4 - CONTINUAÇÃO] — Não pare no meio do caminho antes da linha de chegada!',
@@ -217,9 +249,17 @@ export default function App() {
       retentionStrategyOption: 3,
       neuromarketingTrigger: 'Gancho Cold-Open Clímax & Exemplo Real (Parte 5)',
       viralityAnalysis: 'Continuação direta e sequencial da Parte 4 (40:43–41:30 → 41:30–42:21), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'speaker_left',
-      activeSpeaker: 'Apresentador (Câmera Esquerda)',
-      subtitleTheme: 'hormozi',
+      recommendedFormat: 'speaker_center',
+      activeSpeaker: 'Renato Cariani (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
       caption: {
         youtube: '🔥 [PARTE 5 - CONTINUAÇÃO] — A verdade sobre metas de resultado e ambição saudável!\n\n⏭️ A Parte 6 (Final da sequência) sai em instantes!\n\n#Shorts #Cortes #Negocios #Sucesso',
         instagram: '🔥 [PARTE 5 - CONTINUAÇÃO] — Competitividade faz parte de todo profissional de sucesso.',
@@ -248,9 +288,17 @@ export default function App() {
       retentionStrategyOption: 3,
       neuromarketingTrigger: 'Gancho Cold-Open Clímax & Lição de Ouro (Desfecho Final)',
       viralityAnalysis: 'Desfecho direto e sequencial da Parte 5 (41:30–42:21 → 42:21–43:08), fechando o raciocínio completo com chave de ouro.',
-      recommendedFormat: 'split_screen',
-      activeSpeaker: 'Ambos (Diálogo / Split Screen)',
-      subtitleTheme: 'beast',
+      recommendedFormat: 'speaker_center',
+      activeSpeaker: 'Renato Cariani (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
       caption: {
         youtube: '🔥 [PARTE 6 - FINAL] — A disciplina não é sazonal, é um padrão de vida!\n\n✅ Sequência completa! Volte no canal se perdeu a Parte 1.\n\n#Shorts #Cortes #Disciplina #RenatoCariani #JoelJota',
         instagram: '🔥 [PARTE 6 - FINAL] — Fechando essa sequência incrível sobre disciplina e competitividade! ✅ Veja as partes anteriores no perfil.',
@@ -495,14 +543,27 @@ export default function App() {
   const handleSaveCredentials = (newCreds: PlatformCredentials) => {
     setCredentials(newCreds);
     try {
-      localStorage.setItem(STORAGE_CREDENTIALS_KEY, JSON.stringify(newCreds));
-      // Keep alternate tokens key also in sync
-      const tokensObj = {
-        youtube: newCreds.youtube?.accessToken || '',
-        instagram: newCreds.instagram?.accessToken || '',
-        tiktok: newCreds.tiktok?.accessToken || '',
+      // Store public profile status and usernames in localStorage, without raw unencrypted secrets
+      const safePublicCreds: PlatformCredentials = {
+        youtube: {
+          ...newCreds.youtube,
+          accessToken: newCreds.youtube?.accessToken ? '***stored_in_backend_vault***' : '',
+          refreshToken: newCreds.youtube?.refreshToken ? '***stored_in_backend_vault***' : '',
+          clientSecret: '',
+        },
+        instagram: {
+          ...newCreds.instagram,
+          accessToken: newCreds.instagram?.accessToken ? '***stored_in_backend_vault***' : '',
+          appSecret: '',
+        },
+        tiktok: {
+          ...newCreds.tiktok,
+          accessToken: newCreds.tiktok?.accessToken ? '***stored_in_backend_vault***' : '',
+          clientSecret: '',
+        },
       };
-      localStorage.setItem('viral_shorts_platform_tokens_v1', JSON.stringify(tokensObj));
+      localStorage.setItem(STORAGE_CREDENTIALS_KEY, JSON.stringify(safePublicCreds));
+      localStorage.removeItem('viral_shorts_platform_tokens_v1');
 
       fetch('/api/settings/credentials', {
         method: 'POST',
