@@ -6,6 +6,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { GEMINI_API_KEY, GEMINI_TEXT_MODEL, GEMINI_VISION_MODEL, TEMP_DIR } from '../config.js';
 import { getYtdlpPath } from './ffmpegService.js';
+import { stateManager } from './stateService.js';
 
 const execFilePromise = util.promisify(execFile);
 
@@ -33,16 +34,64 @@ interface CachedTranscriptResult {
 }
 
 const transcriptMemoryCache = new Map<string, CachedTranscriptResult>();
+const geminiClientCache = new Map<string, GoogleGenAI>();
 
-// Shared Gemini client instance
-export const ai = new GoogleGenAI({
-  apiKey: GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
+export function resolveGeminiApiKey(userId?: string): string {
+  const candidates = [
+    userId ? stateManager.getCredentials(userId)?.gemini?.apiKey : '',
+    stateManager.getCredentials('default')?.gemini?.apiKey,
+    process.env.GEMINI_API_KEY,
+    GEMINI_API_KEY,
+  ];
+  for (const raw of candidates) {
+    const trimmed = (raw || '').trim();
+    if (trimmed && !trimmed.startsWith('***') && !trimmed.includes('••••')) {
+      return trimmed;
+    }
+  }
+  return '';
+}
+
+export function getGeminiClient(userId?: string): GoogleGenAI {
+  const apiKey = resolveGeminiApiKey(userId);
+  const cacheKey = apiKey || '__empty__';
+  let client = geminiClientCache.get(cacheKey);
+  if (!client) {
+    client = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+    geminiClientCache.set(cacheKey, client);
+  }
+  return client;
+}
+
+async function generateWithFallback(
+  userId: string | undefined,
+  params: { model: string; contents: any; config?: any }
+) {
+  const client = getGeminiClient(userId);
+  try {
+    return await client.models.generateContent(params);
+  } catch (err: any) {
+    const msg = String(err?.message || '');
+    if (
+      (msg.includes('is no longer available') || msg.includes('404') || msg.includes('NOT_FOUND')) &&
+      params.model !== 'gemini-3.8-flash'
+    ) {
+      return await client.models.generateContent({
+        ...params,
+        model: 'gemini-3.8-flash',
+      });
+    }
+    throw err;
+  }
+}
+
 
 /**
  * Helper: Extract YouTube Video ID from any standard URL or raw ID
@@ -664,7 +713,7 @@ const CURATED_POOL = [
  * Auto Explore Trending Long-form Videos for Viral Shorts
  * Combines real-time YouTube search with AI curation and diversified rotation
  */
-export async function fetchTrendingVideos(niche: string = 'geral') {
+export async function fetchTrendingVideos(niche: string = 'geral', userId?: string) {
   // 1. First Priority: Live Real-Time YouTube Search!
   const liveResults = await searchRealYouTubeVideos(niche);
   if (liveResults && liveResults.length >= 6) {
@@ -673,7 +722,8 @@ export async function fetchTrendingVideos(niche: string = 'geral') {
   }
 
   // 2. Second Priority: Gemini AI with dynamic timestamp & variety
-  if (GEMINI_API_KEY) {
+  const activeKey = resolveGeminiApiKey(userId);
+  if (activeKey) {
     const prompt = `
 Você é um estrategista de conteúdo viral e curador de canais no YouTube.
 Hoje é ${new Date().toLocaleDateString('pt-BR')}.
@@ -694,7 +744,7 @@ Um array de objetos com:
 `;
 
     try {
-      const response = await ai.models.generateContent({
+      const response = await generateWithFallback(userId, {
         model: GEMINI_TEXT_MODEL,
         contents: prompt,
         config: {
@@ -1401,10 +1451,12 @@ export async function analyzeVideoFraming({
   videoUrl,
   videoId: rawId,
   videoTitle,
+  userId,
 }: {
   videoUrl?: string;
   videoId?: string;
   videoTitle?: string;
+  userId?: string;
 }) {
   const videoId = rawId || extractVideoId(videoUrl || '') || 'B57eOqeLVfc';
 
@@ -1434,7 +1486,8 @@ export async function analyzeVideoFraming({
     }
   }
 
-  if (GEMINI_API_KEY && inlineParts.length > 0) {
+  const activeKey = resolveGeminiApiKey(userId);
+  if (activeKey && inlineParts.length > 0) {
     try {
       const visionPrompt = `
 Você é um sistema de Visão Computacional de Auto-Reframe para vídeos verticais 9:16 (como Opus Clip, Vizard.ai e Klap).
@@ -1451,7 +1504,7 @@ Retorne um JSON com:
 - aiInsight: explicação curta e técnica em português sobre o que a IA enxergou nos quadros e como calibrou o corte (ex: "IA Vision detectou 2 participantes em estúdio: Host à esquerda (X=23%, Y=42%) e Convidado à direita (X=77%, Y=43%). Aplicado recorte 9:8 Split Screen sem distorção.").
 `;
 
-      const response = await ai.models.generateContent({
+      const response = await generateWithFallback(userId, {
         model: GEMINI_VISION_MODEL,
         contents: [...inlineParts, { text: visionPrompt }],
         config: {
@@ -1548,6 +1601,7 @@ export async function analyzeViralCuts({
   videoTitle,
   channelName,
   cutsCount = 6,
+  userId,
 }: {
   videoUrl: string;
   transcript: string;
@@ -1555,6 +1609,7 @@ export async function analyzeViralCuts({
   videoTitle?: string;
   channelName?: string;
   cutsCount?: number;
+  userId?: string;
 }) {
   const videoId = extractVideoId(videoUrl) || 'B57eOqeLVfc';
   const directive =
@@ -1566,7 +1621,7 @@ export async function analyzeViralCuts({
   // so we never rely on short/demo placeholder text or blind timestamps!
   const [realTranscriptData, detectedFraming] = await Promise.all([
     fetchTranscript(videoId),
-    analyzeVideoFraming({ videoUrl, videoId, videoTitle }),
+    analyzeVideoFraming({ videoUrl, videoId, videoTitle, userId }),
   ]);
 
   const parsedPassedSegments = parseRawTranscriptToSegments(transcript || '');
@@ -1602,7 +1657,8 @@ export async function analyzeViralCuts({
   // for each of the sequential parts while locking the exact continuous timestamps (Parte 1 -> Parte 2 -> Parte 3...)!
   const sequentialSlices = buildSequentialStorySlices(effectiveSegments, effectiveHeatmap, targetCount);
 
-  if (GEMINI_API_KEY && sequentialSlices.some((s) => s.spokenTranscript.length > 20)) {
+  const activeKey = resolveGeminiApiKey(userId);
+  if (activeKey && sequentialSlices.some((s) => s.spokenTranscript.length > 20)) {
     const slicesPromptBlock = sequentialSlices
       .map(
         (s) =>
@@ -1628,7 +1684,7 @@ Para cada uma das ${targetCount} partes sequenciais abaixo, crie:
 `;
 
     try {
-      const response = await ai.models.generateContent({
+      const response = await generateWithFallback(userId, {
         model: GEMINI_TEXT_MODEL,
         contents: `Vídeo: ${videoTitle || 'Podcast em Alta'} (${channelName || 'YouTube'})\n\n${slicesPromptBlock}`,
         config: {
@@ -1715,12 +1771,14 @@ export async function generateCaption({
   platform,
   trigger,
   customTone,
+  userId,
 }: {
   cutTitle: string;
   hook: string;
   platform?: string;
   trigger?: string;
   customTone?: string;
+  userId?: string;
 }) {
   const prompt = `
 Crie uma legenda de alta conversão para o ${platform || 'YouTube Shorts'}.
@@ -1737,10 +1795,11 @@ Requisitos:
 Responda diretamente com a legenda formatada pronta para publicação.
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithFallback(userId, {
     model: GEMINI_TEXT_MODEL,
     contents: prompt,
   });
 
   return response.text?.trim() || '';
 }
+

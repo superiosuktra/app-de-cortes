@@ -16,10 +16,14 @@ import {
   Bookmark,
   ExternalLink,
   Zap,
+  Trash2,
+  Plus,
+  X,
 } from 'lucide-react';
 import { VideoInfo, ViralCut, VideoFormat, SavedCut, SubtitleTheme } from '../types';
 import { ShortsPhonePreview } from './ShortsPhonePreview';
 import { FORMAT_OPTIONS, SUBTITLE_THEMES } from '../mockData';
+import { authFetch } from '../utils/api';
 import confetti from 'canvas-confetti';
 
 interface EditorTabProps {
@@ -31,6 +35,10 @@ interface EditorTabProps {
   onSaveCut: (cut: SavedCut) => void;
   onNavigateToPublish: (cut: ViralCut) => void;
   onEnqueueCut?: (cut: ViralCut) => void;
+  onClearEditQueue?: () => void;
+  onDeleteEditCut?: (cutId: string) => void;
+  onAddManualCut?: (cut?: Partial<ViralCut>) => void;
+  onRestoreDefaultCuts?: () => void;
 }
 
 function parseTimeToSeconds(timeStr: string): number {
@@ -59,6 +67,10 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   onSaveCut,
   onNavigateToPublish,
   onEnqueueCut,
+  onClearEditQueue,
+  onDeleteEditCut,
+  onAddManualCut,
+  onRestoreDefaultCuts,
 }) => {
   const [startTime, setStartTime] = useState<string>('00:15');
   const [endTime, setEndTime] = useState<string>('01:00');
@@ -71,6 +83,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isRenderingCut, setIsRenderingCut] = useState<boolean>(false);
   const [renderProgressMsg, setRenderProgressMsg] = useState<string>('');
+  const [confirmClearEditQueue, setConfirmClearEditQueue] = useState<boolean>(false);
 
   // AI Vision Smart Framing State (Opus Clip / Vizard / Klap Standard)
   const [speaker1X, setSpeaker1X] = useState<number>(38);
@@ -95,7 +108,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
   const handleDetectAiFraming = async () => {
     setIsAnalyzingFraming(true);
     try {
-      const res = await fetch('/api/analyze-framing', {
+      const res = await authFetch('/api/analyze-framing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,7 +139,7 @@ export const EditorTab: React.FC<EditorTabProps> = ({
     setIsRenderingCut(true);
     setRenderProgressMsg('Renderizando Gancho Cold-Open (4s) + Corte 1080p com Legenda Limpa...');
     try {
-      const res = await fetch('/api/download-youtube-cut', {
+      const res = await authFetch('/api/download-youtube-cut', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -281,38 +294,143 @@ export const EditorTab: React.FC<EditorTabProps> = ({
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Top Cuts Selector Bar (if cuts exist) */}
-      {viralCuts.length > 0 && (
-        <div className="bg-[#141520] border border-zinc-800 rounded-2xl p-4 shadow-lg">
-          <label className="text-xs font-bold text-zinc-300 block mb-2.5">
-            Cortes Sugeridos pela IA (Selecione para carregar os tempos):
-          </label>
+      {/* Top Editing Queue Bar (Fila de Edição) */}
+      <div className="bg-[#141520] border border-zinc-800 rounded-2xl p-4 shadow-lg space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <Scissors className="w-4 h-4 text-pink-400" />
+            <label className="text-xs font-extrabold text-white">
+              Fila de Edição ({viralCuts.length} {viralCuts.length === 1 ? 'corte' : 'cortes'})
+            </label>
+            <span className="text-[11px] text-zinc-400 hidden sm:inline">
+              — Selecione um corte para carregar os tempos ou limpe a fila
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {onAddManualCut && (
+              <button
+                type="button"
+                onClick={() =>
+                  onAddManualCut({
+                    title: overlayTitle || `🔥 [CORTE MANUAL #${viralCuts.length + 1}]`,
+                    startTime,
+                    endTime,
+                    recommendedFormat: format,
+                    subtitleTheme,
+                    hook: customHook || 'Momento selecionado manualmente no editor',
+                  })
+                }
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 text-[11px] font-bold transition"
+                title="Adicionar o intervalo atual como um novo corte na fila de edição"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Novo Corte Manual</span>
+              </button>
+            )}
+
+            {viralCuts.length > 0 && onClearEditQueue && (
+              !confirmClearEditQueue ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearEditQueue(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 text-[11px] font-bold transition"
+                  title="Remover todos os cortes da Fila de Edição"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Limpar Fila de Edição</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-red-950/70 border border-red-500/60 px-2.5 py-1 rounded-xl animate-fadeIn">
+                  <span className="text-[11px] font-bold text-red-200">Limpar {viralCuts.length} cortes?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearEditQueue();
+                      setConfirmClearEditQueue(false);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[11px] font-extrabold transition"
+                  >
+                    Sim, Limpar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearEditQueue(false)}
+                    className="px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-semibold transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
+        {viralCuts.length > 0 ? (
           <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
             {viralCuts.map((cut, idx) => {
               const isSelected = selectedCut?.id === cut.id;
               return (
-                <button
+                <div
                   key={cut.id || idx}
-                  onClick={() => setSelectedCut(cut)}
-                  className={`flex-shrink-0 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                  className={`flex-shrink-0 rounded-xl text-xs font-bold transition-all flex items-center border ${
                     isSelected
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-pink-400 shadow-md shadow-pink-900/40'
                       : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
                   }`}
                 >
-                  <span className="w-5 h-5 rounded-full bg-black/40 text-[10px] flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                  <span className="truncate max-w-[180px]">{cut.title}</span>
-                  <span className="text-[10px] text-zinc-400 font-mono">
-                    [{cut.startTime} → {cut.endTime}]
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCut(cut)}
+                    className="px-3.5 py-2.5 flex items-center gap-2 text-left"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-black/40 text-[10px] flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <span className="truncate max-w-[180px]">{cut.title}</span>
+                    <span className={`text-[10px] font-mono ${isSelected ? 'text-pink-100' : 'text-zinc-400'}`}>
+                      [{cut.startTime} → {cut.endTime}]
+                    </span>
+                  </button>
+                  {onDeleteEditCut && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteEditCut(cut.id);
+                      }}
+                      className={`mr-2 p-1 rounded-lg transition ${
+                        isSelected
+                          ? 'hover:bg-black/30 text-white/80 hover:text-white'
+                          : 'hover:bg-red-950/60 text-zinc-500 hover:text-red-400'
+                      }`}
+                      title="Remover este corte da fila de edição"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3 py-2.5 px-3.5 rounded-xl bg-[#0e0f17] border border-zinc-800/80 text-xs text-zinc-400">
+            <span>
+              Fila de edição limpa! Você pode ajustar os tempos livremente abaixo, analisar um novo vídeo na aba 1 ou criar cortes manuais.
+            </span>
+            {onRestoreDefaultCuts && (
+              <button
+                type="button"
+                onClick={onRestoreDefaultCuts}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-semibold transition"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Restaurar Cortes de Exemplo</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Main Grid: Controls & Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

@@ -3,8 +3,11 @@ import { stateManager } from './stateService.js';
 /**
  * Verify Instagram Graph API Token
  */
-export async function verifyInstagramToken(token: string) {
-  const cleanToken = (token || '').trim();
+export async function verifyInstagramToken(token: string, userId: string = 'default') {
+  const serverCreds = stateManager.getCredentials(userId);
+  const rawToken = (token || '').trim();
+  const isMasked = !rawToken || rawToken.startsWith('***') || rawToken.includes('••••');
+  const cleanToken = isMasked ? (serverCreds.instagram.accessToken || '').trim() : rawToken;
   if (!cleanToken) {
     return { valid: false, error: 'Token não fornecido.' };
   }
@@ -34,18 +37,20 @@ export async function verifyInstagramToken(token: string) {
 
   if (igAccount) {
     const accountName = `@${igAccount.username}`;
-    const serverCreds = stateManager.getCredentials();
-    stateManager.updateCredentials({
-      instagram: {
-        ...serverCreds.instagram,
-        accessToken: cleanToken,
-        status: 'connected',
-        businessAccountId: igAccount.id,
-        accountName,
-        avatar: igAccount.profile_picture_url,
-        verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+    stateManager.updateCredentials(
+      {
+        instagram: {
+          ...serverCreds.instagram,
+          accessToken: cleanToken,
+          status: 'connected',
+          businessAccountId: igAccount.id,
+          accountName,
+          avatar: igAccount.profile_picture_url,
+          verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+        },
       },
-    });
+      userId
+    );
 
     return {
       valid: true,
@@ -66,8 +71,11 @@ export async function verifyInstagramToken(token: string) {
 /**
  * Verify TikTok Content Posting API Token
  */
-export async function verifyTikTokToken(token: string) {
-  const cleanToken = (token || '').trim();
+export async function verifyTikTokToken(token: string, userId: string = 'default') {
+  const serverCreds = stateManager.getCredentials(userId);
+  const rawToken = (token || '').trim();
+  const isMasked = !rawToken || rawToken.startsWith('***') || rawToken.includes('••••');
+  const cleanToken = isMasked ? (serverCreds.tiktok.accessToken || '').trim() : rawToken;
   if (!cleanToken) {
     return { valid: false, error: 'Token não fornecido.' };
   }
@@ -93,17 +101,19 @@ export async function verifyTikTokToken(token: string) {
   const user = data.data?.user;
   const displayName = user?.display_name || 'Conta TikTok';
 
-  const serverCreds = stateManager.getCredentials();
-  stateManager.updateCredentials({
-    tiktok: {
-      ...serverCreds.tiktok,
-      accessToken: cleanToken,
-      status: 'connected',
-      displayName,
-      avatar: user?.avatar_url,
-      verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+  stateManager.updateCredentials(
+    {
+      tiktok: {
+        ...serverCreds.tiktok,
+        accessToken: cleanToken,
+        status: 'connected',
+        displayName,
+        avatar: user?.avatar_url,
+        verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+      },
     },
-  });
+    userId
+  );
 
   return {
     valid: true,

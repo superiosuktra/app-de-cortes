@@ -185,6 +185,8 @@ authRouter.get('/auth/google/callback', async (req: Request, res: Response) => {
       picture,
     };
 
+    const updatedYtCreds = stateManager.getCredentials(userId).youtube;
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(`
       <!DOCTYPE html>
@@ -205,7 +207,16 @@ authRouter.get('/auth/google/callback', async (req: Request, res: Response) => {
                 success: true,
                 token: ${JSON.stringify(sessionToken)},
                 user: ${JSON.stringify(userPayload)},
+                youtube: ${JSON.stringify(updatedYtCreds)},
                 message: 'Conectado com sucesso!'
+              }, '*');
+              window.opener.postMessage({
+                type: 'GOOGLE_OAUTH_SUCCESS',
+                success: true,
+                token: ${JSON.stringify(sessionToken)},
+                user: ${JSON.stringify(userPayload)},
+                youtube: ${JSON.stringify(updatedYtCreds)},
+                message: 'Canal conectado com sucesso!'
               }, '*');
               setTimeout(() => window.close(), 1200);
             }

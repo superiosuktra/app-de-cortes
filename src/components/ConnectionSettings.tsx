@@ -22,7 +22,7 @@ import {
 import { PlatformCredentials } from '../types';
 import { TikTokReviewGuideModal } from './TikTokReviewGuideModal';
 import { LegalPagesModal } from './LegalPagesModal';
-import { fetchJson } from '../utils/api';
+import { fetchJson, authFetch } from '../utils/api';
 import confetti from 'canvas-confetti';
 import { PWAInstallButton } from './PWAInstallButton';
 import { CloudCheck, Laptop } from 'lucide-react';
@@ -92,7 +92,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
   });
 
   useEffect(() => {
-    fetch('/api/gemini/status')
+    authFetch('/api/gemini/status')
       .then((r) => r.json())
       .then((res) => {
         setGeminiStatus((prev) => ({

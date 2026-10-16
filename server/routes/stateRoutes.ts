@@ -14,7 +14,7 @@ stateRouter.get('/storage/state', async (req: Request, res: Response) => {
   const yt = state.credentials?.youtube;
   if (yt?.refreshToken?.startsWith('1//') && (yt.status !== 'connected' || !yt.accessToken)) {
     try {
-      const refreshed = await refreshYouTubeToken({ refreshToken: yt.refreshToken });
+      const refreshed = await refreshYouTubeToken({ refreshToken: yt.refreshToken, userId });
       if (refreshed.success) {
         state = stateManager.getState(userId);
       }
@@ -34,10 +34,11 @@ stateRouter.get('/storage/state', async (req: Request, res: Response) => {
 stateRouter.post('/storage/state', (req: Request, res: Response) => {
   const userId = req.userId || 'default';
   try {
-    const { savedCuts, queue, autoPostSettings, credentials } = req.body;
+    const { savedCuts, viralCuts, queue, autoPostSettings, credentials } = req.body;
     stateManager.updateFullState(
       {
         savedCuts,
+        viralCuts,
         queue,
         autoPostSettings,
         credentials,
@@ -67,6 +68,7 @@ stateRouter.get('/storage/status', (req: Request, res: Response) => {
     persistentStorage: true,
     lastUpdated: state.lastUpdated,
     savedCutsCount: state.savedCuts.length,
+    viralCutsCount: Array.isArray(state.viralCuts) ? state.viralCuts.length : 0,
     queueCount: state.queue.length,
     storagePath: STATE_FILE,
   });

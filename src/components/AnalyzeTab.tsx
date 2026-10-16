@@ -20,6 +20,8 @@ import {
   Users,
   Layout,
   Smartphone,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { VideoInfo, ViralCut, AutoPostSettings } from '../types';
 import { fetchJson } from '../utils/api';
@@ -43,6 +45,8 @@ interface AnalyzeTabProps {
   onEnqueueSingleCut?: (cut: ViralCut) => void;
   onNavigateToPublish?: () => void;
   queueCount?: number;
+  onClearEditQueue?: () => void;
+  onDeleteEditCut?: (cutId: string) => void;
 }
 
 const PRESET_VIDEOS = [
@@ -81,6 +85,8 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
   onEnqueueSingleCut,
   onNavigateToPublish,
   queueCount = 0,
+  onClearEditQueue,
+  onDeleteEditCut,
 }) => {
   const [cutsCount, setCutsCount] = useState<number>(8);
   const [retentionStrategyOption, setRetentionStrategyOption] = useState<1 | 2 | 3>(3);
@@ -91,6 +97,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
   const [copiedCutId, setCopiedCutId] = useState<string | null>(null);
   const [transcriptNotice, setTranscriptNotice] = useState<string>('');
   const [queueNotice, setQueueNotice] = useState<{ count: number; message: string } | null>(null);
+  const [confirmClearEditCuts, setConfirmClearEditCuts] = useState<boolean>(false);
 
   // Fetch video info when url changes or on blur
   const handleFetchVideoInfo = async (urlToFetch: string = videoUrl) => {
@@ -480,6 +487,8 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                       }
                       className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 rounded-lg text-white font-semibold text-[11px] focus:outline-none focus:border-purple-500"
                     >
+                      <option value={5}>5 min (Rápido)</option>
+                      <option value={10}>10 min</option>
                       <option value={15}>15 min</option>
                       <option value={30}>30 min</option>
                       <option value={60}>1 hora</option>
@@ -543,14 +552,14 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
 
         {/* Right Column: AI Recommendations List (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Flame className="w-5 h-5 text-[#ff0055]" />
               <h3 className="text-lg font-extrabold text-white">
-                Recomendações de Cortes da IA
+                Fila de Edição & Cortes da IA
               </h3>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {viralCuts.length > 0 && onEnqueueCuts && (
                 <button
                   onClick={() => {
@@ -567,9 +576,43 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                   <span>Enfileirar Todos ({viralCuts.length})</span>
                 </button>
               )}
+              {viralCuts.length > 0 && onClearEditQueue && (
+                !confirmClearEditCuts ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearEditCuts(true)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 text-xs font-bold transition"
+                    title="Limpar todos os cortes da Fila de Edição"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Limpar Fila de Edição</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 bg-red-950/70 border border-red-500/60 px-2.5 py-1 rounded-xl animate-fadeIn">
+                    <span className="text-[11px] font-bold text-red-200">Limpar tudo?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClearEditQueue();
+                        setConfirmClearEditCuts(false);
+                      }}
+                      className="px-2 py-0.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[11px] font-extrabold transition"
+                    >
+                      Sim
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClearEditCuts(false)}
+                      className="px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-semibold transition"
+                    >
+                      Não
+                    </button>
+                  </div>
+                )
+              )}
               {viralCuts.length > 0 && (
                 <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-fuchsia-950/60 border border-fuchsia-500/30 text-fuchsia-300">
-                  {viralCuts.length} Cortes Magnéticos
+                  {viralCuts.length} Cortes
                 </span>
               )}
             </div>
@@ -583,7 +626,7 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
               </div>
               <div className="max-w-md mx-auto">
                 <h4 className="text-base font-bold text-white mb-1">
-                  Nenhum corte detectado ainda
+                  Nenhum corte na fila de edição
                 </h4>
                 <p className="text-xs text-zinc-400 leading-relaxed">
                   Insira o link de um vídeo do YouTube ao lado (ou clique em um dos presets de teste rápido) e clique no botão <strong>"Detectar Cortes Virais"</strong> para a IA encontrar os melhores momentos.
@@ -655,6 +698,17 @@ export const AnalyzeTab: React.FC<AnalyzeTabProps> = ({
                       <Flame className="w-3.5 h-3.5 text-pink-400 fill-pink-400" />
                       <span>{cut.viralityScore}%</span>
                     </div>
+
+                    {onDeleteEditCut && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteEditCut(cut.id)}
+                        className="p-1.5 rounded-lg bg-zinc-900 hover:bg-red-950/60 border border-zinc-800 hover:border-red-500/40 text-zinc-500 hover:text-red-400 transition"
+                        title="Remover este corte da Fila de Edição"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

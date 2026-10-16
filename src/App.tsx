@@ -17,6 +17,7 @@ const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v2';
 const STORAGE_CREDENTIALS_KEY = 'viral_shorts_full_credentials_v1';
 const STORAGE_QUEUE_KEY = 'viral_shorts_autopost_queue_v2';
 const STORAGE_QUEUE_SETTINGS_KEY = 'viral_shorts_autopost_settings_v2';
+const STORAGE_EDIT_CUTS_KEY = 'viral_shorts_edit_cuts_v2';
 
 const DEFAULT_AUTO_POST_SETTINGS: AutoPostSettings = {
   autoEnqueueOnGenerate: true,
@@ -52,6 +53,243 @@ const INITIAL_CREDENTIALS: PlatformCredentials = {
   },
 };
 
+const DEFAULT_VIRAL_CUTS: ViralCut[] = [
+  {
+    id: 'cut-seq-1',
+    title: '🔥 [PARTE 1] SER UMA PESSOA COMPETITIVA É UMA ARMA PODEROSA — Renato Cariani',
+    partBadge: 'PARTE 1',
+    startTime: '38:17',
+    endTime: '39:06',
+    startSeconds: 2297,
+    endSeconds: 2346,
+    durationSeconds: 49,
+    viralityScore: 99,
+    hook: '"Eu fazia ações e quando eu não tinha esses resultados muito bem claros, eu corria atrás até virar o jogo..."',
+    payoff: '"Ser uma pessoa competitiva é uma arma poderosa — não aceite que qualquer coisa está bom!"',
+    teaserOffsetSec: 25,
+    teaserDurationSec: 4,
+    teaserStartTime: '38:42',
+    teaserEndTime: '38:46',
+    teaserText: 'SER UMA PESSOA COMPETITIVA É UMA ARMA PODEROSA!',
+    retentionStrategyOption: 3,
+    neuromarketingTrigger: 'Gancho Cold-Open Clímax (00:00–00:04) & Início da História',
+    viralityAnalysis: 'Pico #1 de interesse e retenção do público ("Mais Reproduzidos") detectado em 38:17. Começa com 4s do clímax em 38:42 e desenvolve a história limpa sem poluição visual.',
+    recommendedFormat: 'speaker_center',
+    activeSpeaker: 'Renato Cariani (Centralizado)',
+    subtitleTheme: 'none',
+    framing: {
+      speaker1X: 50,
+      speaker1Y: 30,
+      speaker2X: 50,
+      speaker2Y: 30,
+      zoom: 1.0,
+      detectedFacesCount: 1,
+    },
+    caption: {
+      youtube: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes aqui no canal! Siga para não perder.\n\n#Shorts #Cortes #RenatoCariani #Disciplina #Viral',
+      instagram: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes no perfil! Siga para acompanhar.',
+      tiktok: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!" ⏭️ Parte 2 (continuação) no perfil! #cortes #podcast #disciplina #viral',
+    },
+    hashtags: ['#Shorts', '#Cortes', '#Disciplina', '#RenatoCariani', '#Viral'],
+    overlaySubtitlesSample: ['ARMA PODEROSA', 'SEJA COMPETITIVO', 'RESULTADO CLARO', 'CORRA ATRÁS', 'NUNCA ACOMODE', 'VIRE O JOGO'],
+  },
+  {
+    id: 'cut-seq-2',
+    title: '🔥 [PARTE 2 - CONTINUAÇÃO] COMO ELE CRIOU O MAIOR CANAL DE MUSCULAÇÃO DO MUNDO DO ZERO',
+    partBadge: 'PARTE 2',
+    startTime: '39:06',
+    endTime: '39:55',
+    startSeconds: 2346,
+    endSeconds: 2395,
+    durationSeconds: 49,
+    viralityScore: 98,
+    hook: '"Quando eu entrei na área digital e comecei a gravar, construí o maior canal de musculação do mundo começando do zero..."',
+    payoff: '"Hoje é ainda mais competitivo — e é exatamente isso que separa quem cresce de quem para."',
+    teaserOffsetSec: 24,
+    teaserDurationSec: 4,
+    teaserStartTime: '39:30',
+    teaserEndTime: '39:34',
+    teaserText: 'CONSTRUÍ O MAIOR CANAL DO MUNDO COMEÇANDO DO ZERO!',
+    retentionStrategyOption: 3,
+    neuromarketingTrigger: 'Gancho Cold-Open Clímax & Continuação Direta (Parte 2)',
+    viralityAnalysis: 'Continuação direta e sequencial da Parte 1 (38:17–39:06 → 39:06–39:55), mantendo 100% do contexto e da linha de raciocínio.',
+    recommendedFormat: 'speaker_center',
+    activeSpeaker: 'Renato Cariani (Centralizado)',
+    subtitleTheme: 'none',
+    framing: {
+      speaker1X: 50,
+      speaker1Y: 30,
+      speaker2X: 50,
+      speaker2Y: 30,
+      zoom: 1.0,
+      detectedFacesCount: 1,
+    },
+    caption: {
+      youtube: '🔥 [PARTE 2 - CONTINUAÇÃO] — Como ele construiu o maior canal de musculação do mundo começando do zero!\n\n⏭️ A Parte 3 (continuação direta) sai em instantes aqui no canal!\n\n#Shorts #Cortes #RenatoCariani #Sucesso',
+      instagram: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior canal do mundo!\n\n⏭️ Parte 3 (continuação) já vai ao ar!',
+      tiktok: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior do mundo! ⏭️ Parte 3 a seguir! #cortes #podcast #viral',
+    },
+    hashtags: ['#Shorts', '#Cortes', '#Mentalidade', '#Sucesso', '#Viral'],
+    overlaySubtitlesSample: ['MAIOR DO MUNDO', 'COMEÇOU DO ZERO', 'ÁREA DIGITAL', 'CRESCIMENTO REAL', 'SEM PARAR', 'ALTO NÍVEL'],
+  },
+  {
+    id: 'cut-seq-3',
+    title: '🔥 [PARTE 3 - CONTINUAÇÃO] A TÉCNICA DA COMPETIÇÃO SILENCIOSA PARA BATER METAS',
+    partBadge: 'PARTE 3',
+    startTime: '39:55',
+    endTime: '40:43',
+    startSeconds: 2395,
+    endSeconds: 2443,
+    durationSeconds: 48,
+    viralityScore: 98,
+    hook: '"Eu tenho várias competições contra um monte de gente que nem sabe que está competindo comigo..."',
+    payoff: '"Com meta é assim também: você cria um alvo claro para nunca entrar na zona de conforto."',
+    teaserOffsetSec: 23,
+    teaserDurationSec: 4,
+    teaserStartTime: '40:18',
+    teaserEndTime: '40:22',
+    teaserText: 'VOCÊ CRIA UM ALVO CLARO PARA NUNCA ACOMODAR!',
+    retentionStrategyOption: 3,
+    neuromarketingTrigger: 'Gancho Cold-Open Clímax & Quebra de Padrão (Parte 3)',
+    viralityAnalysis: 'Continuação direta e sequencial da Parte 2 (39:06–39:55 → 39:55–40:43), mantendo 100% do contexto e da linha de raciocínio.',
+    recommendedFormat: 'speaker_center',
+    activeSpeaker: 'Renato Cariani (Centralizado)',
+    subtitleTheme: 'none',
+    framing: {
+      speaker1X: 50,
+      speaker1Y: 30,
+      speaker2X: 50,
+      speaker2Y: 30,
+      zoom: 1.0,
+      detectedFacesCount: 1,
+    },
+    caption: {
+      youtube: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica mental das metas e da competição silenciosa!\n\n⏭️ A Parte 4 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Metas #Foco',
+      instagram: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica da competição silenciosa para nunca acomodar.\n\n⏭️ Parte 4 na sequência!',
+      tiktok: '🔥 [PARTE 3 - CONTINUAÇÃO] — Nunca entre na zona de conforto! #cortes #metas #foco #viral',
+    },
+    hashtags: ['#Shorts', '#Cortes', '#Metas', '#Foco', '#AltaPerformance'],
+    overlaySubtitlesSample: ['ALVO CLARO', 'SEM ACOMODAR', 'META FORTE', 'ZONA ZERO', 'JOGO MENTAL', 'VENCE NO SILÊNCIO'],
+  },
+  {
+    id: 'cut-seq-4',
+    title: '🔥 [PARTE 4 - CONTINUAÇÃO] POR QUE QUEM NÃO É CONDICIONADO MORRE NO MEIO DO CAMINHO',
+    partBadge: 'PARTE 4',
+    startTime: '40:43',
+    endTime: '41:30',
+    startSeconds: 2443,
+    endSeconds: 2490,
+    durationSeconds: 47,
+    viralityScore: 97,
+    hook: '"No começo do ano todo mundo faz promessa, mas quando a pessoa não é condicionada ela morre no meio do caminho..."',
+    payoff: '"Quando ela vê a linha de chegada, já perdeu o fôlego porque não treinou a constância."',
+    teaserOffsetSec: 22,
+    teaserDurationSec: 4,
+    teaserStartTime: '41:05',
+    teaserEndTime: '41:09',
+    teaserText: 'QUEM NÃO TREINA A CONSTÂNCIA PARA NO MEIO DO CAMINHO!',
+    retentionStrategyOption: 3,
+    neuromarketingTrigger: 'Gancho Cold-Open Clímax & Revelação Central (Parte 4)',
+    viralityAnalysis: 'Continuação direta e sequencial da Parte 3 (39:55–40:43 → 40:43–41:30), mantendo 100% do contexto e da linha de raciocínio.',
+    recommendedFormat: 'speaker_center',
+    activeSpeaker: 'Renato Cariani (Centralizado)',
+    subtitleTheme: 'none',
+    framing: {
+      speaker1X: 50,
+      speaker1Y: 30,
+      speaker2X: 50,
+      speaker2Y: 30,
+      zoom: 1.0,
+      detectedFacesCount: 1,
+    },
+    caption: {
+      youtube: '🔥 [PARTE 4 - CONTINUAÇÃO] — Por que 99% das promessas morrem no meio do caminho?\n\n⏭️ A Parte 5 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Constancia #Disciplina',
+      instagram: '🔥 [PARTE 4 - CONTINUAÇÃO] — Não pare no meio do caminho antes da linha de chegada!',
+      tiktok: '🔥 [PARTE 4 - CONTINUAÇÃO] — O segredo do condicionamento mental! #cortes #disciplina #viral',
+    },
+    hashtags: ['#Shorts', '#Cortes', '#Constancia', '#Disciplina', '#Mindset'],
+    overlaySubtitlesSample: ['NÃO PARE', 'LINHA FINAL', 'TREINE CONSTÂNCIA', 'FÔLEGO REAL', 'ATÉ O FIM', 'VÁ ALÉM'],
+  },
+  {
+    id: 'cut-seq-5',
+    title: '🔥 [PARTE 5 - CONTINUAÇÃO] METAS DE FATURAMENTO E A MENTALIDADE DOS VENCEDORES',
+    partBadge: 'PARTE 5',
+    startTime: '41:30',
+    endTime: '42:21',
+    startSeconds: 2490,
+    endSeconds: 2541,
+    durationSeconds: 51,
+    viralityScore: 97,
+    hook: '"Lógico que eu quero resultado: eu tenho meta de faturamento e competitividade faz parte de todo profissional de sucesso..."',
+    payoff: '"Quem diz que o importante é só competir nunca construiu nada extraordinário."',
+    teaserOffsetSec: 25,
+    teaserDurationSec: 4,
+    teaserStartTime: '41:55',
+    teaserEndTime: '41:59',
+    teaserText: 'COMPETITIVIDADE FAZ PARTE DE TODO PROFISSIONAL DE SUCESSO!',
+    retentionStrategyOption: 3,
+    neuromarketingTrigger: 'Gancho Cold-Open Clímax & Exemplo Real (Parte 5)',
+    viralityAnalysis: 'Continuação direta e sequencial da Parte 4 (40:43–41:30 → 41:30–42:21), mantendo 100% do contexto e da linha de raciocínio.',
+    recommendedFormat: 'speaker_center',
+    activeSpeaker: 'Renato Cariani (Centralizado)',
+    subtitleTheme: 'none',
+    framing: {
+      speaker1X: 50,
+      speaker1Y: 30,
+      speaker2X: 50,
+      speaker2Y: 30,
+      zoom: 1.0,
+      detectedFacesCount: 1,
+    },
+    caption: {
+      youtube: '🔥 [PARTE 5 - CONTINUAÇÃO] — A verdade sobre metas de resultado e ambição saudável!\n\n⏭️ A Parte 6 (Final da sequência) sai em instantes!\n\n#Shorts #Cortes #Negocios #Sucesso',
+      instagram: '🔥 [PARTE 5 - CONTINUAÇÃO] — Competitividade faz parte de todo profissional de sucesso.',
+      tiktok: '🔥 [PARTE 5 - CONTINUAÇÃO] — "O importante é competir?" Veja essa resposta! #cortes #negocios #viral',
+    },
+    hashtags: ['#Shorts', '#Cortes', '#Negocios', '#Resultados', '#Sucesso'],
+    overlaySubtitlesSample: ['META CLARA', 'RESULTADO FORTE', 'MENTALIDADE REAL', 'JOGUE PRA VENCER', 'ALTA PERFORMANCE', 'SUCESSO REAL'],
+  },
+  {
+    id: 'cut-seq-6',
+    title: '🔥 [PARTE 6 - FINAL] A DISCIPLINA NÃO É SAZONAL: É UM PADRÃO DE VIDA INEGOCIÁVEL',
+    partBadge: 'PARTE 6 - FINAL',
+    startTime: '42:21',
+    endTime: '43:08',
+    startSeconds: 2541,
+    endSeconds: 2588,
+    durationSeconds: 47,
+    viralityScore: 99,
+    hook: '"A disciplina não é um estado sazonal — ela é um padrão de comportamento quando você acorda todos os dias..."',
+    payoff: '"Conclusão definitiva: quando você transforma rotina em identidade, ninguém te para."',
+    teaserOffsetSec: 22,
+    teaserDurationSec: 4,
+    teaserStartTime: '42:43',
+    teaserEndTime: '42:47',
+    teaserText: 'DISCIPLINA NÃO É SAZONAL, É UM PADRÃO DE VIDA!',
+    retentionStrategyOption: 3,
+    neuromarketingTrigger: 'Gancho Cold-Open Clímax & Lição de Ouro (Desfecho Final)',
+    viralityAnalysis: 'Desfecho direto e sequencial da Parte 5 (41:30–42:21 → 42:21–43:08), fechando o raciocínio completo com chave de ouro.',
+    recommendedFormat: 'speaker_center',
+    activeSpeaker: 'Renato Cariani (Centralizado)',
+    subtitleTheme: 'none',
+    framing: {
+      speaker1X: 50,
+      speaker1Y: 30,
+      speaker2X: 50,
+      speaker2Y: 30,
+      zoom: 1.0,
+      detectedFacesCount: 1,
+    },
+    caption: {
+      youtube: '🔥 [PARTE 6 - FINAL] — A disciplina não é sazonal, é um padrão de vida!\n\n✅ Sequência completa! Volte no canal se perdeu a Parte 1.\n\n#Shorts #Cortes #Disciplina #RenatoCariani #JoelJota',
+      instagram: '🔥 [PARTE 6 - FINAL] — Fechando essa sequência incrível sobre disciplina e competitividade! ✅ Veja as partes anteriores no perfil.',
+      tiktok: '🔥 [PARTE 6 - FINAL] — Disciplina é padrão de vida! ✅ Sequência completa no perfil! #cortes #disciplina #viral',
+    },
+    hashtags: ['#Shorts', '#Cortes', '#Disciplina', '#habitos', '#Viral'],
+    overlaySubtitlesSample: ['PADRÃO DE VIDA', 'DISCIPLINA REAL', 'TODO SANTO DIA', 'ROTINA FORTE', 'NINGUÉM TE PARA', 'LIÇÃO FINAL'],
+  },
+];
+
 export default function App() {
   const initialPath = typeof window !== 'undefined' ? window.location.pathname : '';
   const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(
@@ -75,248 +313,15 @@ export default function App() {
   const [userPrompt, setUserPrompt] = useState<string>(
     'encontrar a parte de fala mais interessante e chamativa para o público e criar cortes em sequência contínua (Parte 1, Parte 2, Parte 3...)'
   );
-  const [viralCuts, setViralCuts] = useState<ViralCut[]>([
-    {
-      id: 'cut-seq-1',
-      title: '🔥 [PARTE 1] SER UMA PESSOA COMPETITIVA É UMA ARMA PODEROSA — Renato Cariani',
-      partBadge: 'PARTE 1',
-      startTime: '38:17',
-      endTime: '39:06',
-      startSeconds: 2297,
-      endSeconds: 2346,
-      durationSeconds: 49,
-      viralityScore: 99,
-      hook: '"Eu fazia ações e quando eu não tinha esses resultados muito bem claros, eu corria atrás até virar o jogo..."',
-      payoff: '"Ser uma pessoa competitiva é uma arma poderosa — não aceite que qualquer coisa está bom!"',
-      teaserOffsetSec: 25,
-      teaserDurationSec: 4,
-      teaserStartTime: '38:42',
-      teaserEndTime: '38:46',
-      teaserText: 'SER UMA PESSOA COMPETITIVA É UMA ARMA PODEROSA!',
-      retentionStrategyOption: 3,
-      neuromarketingTrigger: 'Gancho Cold-Open Clímax (00:00–00:04) & Início da História',
-      viralityAnalysis: 'Pico #1 de interesse e retenção do público ("Mais Reproduzidos") detectado em 38:17. Começa com 4s do clímax em 38:42 e desenvolve a história limpa sem poluição visual.',
-      recommendedFormat: 'speaker_center',
-      activeSpeaker: 'Renato Cariani (Centralizado)',
-      subtitleTheme: 'none',
-      framing: {
-        speaker1X: 50,
-        speaker1Y: 30,
-        speaker2X: 50,
-        speaker2Y: 30,
-        zoom: 1.0,
-        detectedFacesCount: 1,
-      },
-      caption: {
-        youtube: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes aqui no canal! Siga para não perder.\n\n#Shorts #Cortes #RenatoCariani #Disciplina #Viral',
-        instagram: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!"\n\n⏭️ A Parte 2 (continuação direta dessa fala) sai em instantes no perfil! Siga para acompanhar.',
-        tiktok: '🔥 [PARTE 1] — "Ser uma pessoa competitiva é uma arma poderosa!" ⏭️ Parte 2 (continuação) no perfil! #cortes #podcast #disciplina #viral',
-      },
-      hashtags: ['#Shorts', '#Cortes', '#Disciplina', '#RenatoCariani', '#Viral'],
-      overlaySubtitlesSample: ['ARMA PODEROSA', 'SEJA COMPETITIVO', 'RESULTADO CLARO', 'CORRA ATRÁS', 'NUNCA ACOMODE', 'VIRE O JOGO'],
-    },
-    {
-      id: 'cut-seq-2',
-      title: '🔥 [PARTE 2 - CONTINUAÇÃO] COMO ELE CRIOU O MAIOR CANAL DE MUSCULAÇÃO DO MUNDO DO ZERO',
-      partBadge: 'PARTE 2',
-      startTime: '39:06',
-      endTime: '39:55',
-      startSeconds: 2346,
-      endSeconds: 2395,
-      durationSeconds: 49,
-      viralityScore: 98,
-      hook: '"Quando eu entrei na área digital e comecei a gravar, construí o maior canal de musculação do mundo começando do zero..."',
-      payoff: '"Hoje é ainda mais competitivo — e é exatamente isso que separa quem cresce de quem para."',
-      teaserOffsetSec: 24,
-      teaserDurationSec: 4,
-      teaserStartTime: '39:30',
-      teaserEndTime: '39:34',
-      teaserText: 'CONSTRUÍ O MAIOR CANAL DO MUNDO COMEÇANDO DO ZERO!',
-      retentionStrategyOption: 3,
-      neuromarketingTrigger: 'Gancho Cold-Open Clímax & Continuação Direta (Parte 2)',
-      viralityAnalysis: 'Continuação direta e sequencial da Parte 1 (38:17–39:06 → 39:06–39:55), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'speaker_center',
-      activeSpeaker: 'Renato Cariani (Centralizado)',
-      subtitleTheme: 'none',
-      framing: {
-        speaker1X: 50,
-        speaker1Y: 30,
-        speaker2X: 50,
-        speaker2Y: 30,
-        zoom: 1.0,
-        detectedFacesCount: 1,
-      },
-      caption: {
-        youtube: '🔥 [PARTE 2 - CONTINUAÇÃO] — Como ele construiu o maior canal de musculação do mundo começando do zero!\n\n⏭️ A Parte 3 (continuação direta) sai em instantes aqui no canal!\n\n#Shorts #Cortes #RenatoCariani #Sucesso',
-        instagram: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior canal do mundo!\n\n⏭️ Parte 3 (continuação) já vai ao ar!',
-        tiktok: '🔥 [PARTE 2 - CONTINUAÇÃO] — Do zero ao maior do mundo! ⏭️ Parte 3 a seguir! #cortes #podcast #viral',
-      },
-      hashtags: ['#Shorts', '#Cortes', '#Mentalidade', '#Sucesso', '#Viral'],
-      overlaySubtitlesSample: ['MAIOR DO MUNDO', 'COMEÇOU DO ZERO', 'ÁREA DIGITAL', 'CRESCIMENTO REAL', 'SEM PARAR', 'ALTO NÍVEL'],
-    },
-    {
-      id: 'cut-seq-3',
-      title: '🔥 [PARTE 3 - CONTINUAÇÃO] A TÉCNICA DA COMPETIÇÃO SILENCIOSA PARA BATER METAS',
-      partBadge: 'PARTE 3',
-      startTime: '39:55',
-      endTime: '40:43',
-      startSeconds: 2395,
-      endSeconds: 2443,
-      durationSeconds: 48,
-      viralityScore: 98,
-      hook: '"Eu tenho várias competições contra um monte de gente que nem sabe que está competindo comigo..."',
-      payoff: '"Com meta é assim também: você cria um alvo claro para nunca entrar na zona de conforto."',
-      teaserOffsetSec: 23,
-      teaserDurationSec: 4,
-      teaserStartTime: '40:18',
-      teaserEndTime: '40:22',
-      teaserText: 'VOCÊ CRIA UM ALVO CLARO PARA NUNCA ACOMODAR!',
-      retentionStrategyOption: 3,
-      neuromarketingTrigger: 'Gancho Cold-Open Clímax & Quebra de Padrão (Parte 3)',
-      viralityAnalysis: 'Continuação direta e sequencial da Parte 2 (39:06–39:55 → 39:55–40:43), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'speaker_center',
-      activeSpeaker: 'Renato Cariani (Centralizado)',
-      subtitleTheme: 'none',
-      framing: {
-        speaker1X: 50,
-        speaker1Y: 30,
-        speaker2X: 50,
-        speaker2Y: 30,
-        zoom: 1.0,
-        detectedFacesCount: 1,
-      },
-      caption: {
-        youtube: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica mental das metas e da competição silenciosa!\n\n⏭️ A Parte 4 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Metas #Foco',
-        instagram: '🔥 [PARTE 3 - CONTINUAÇÃO] — A técnica da competição silenciosa para nunca acomodar.\n\n⏭️ Parte 4 na sequência!',
-        tiktok: '🔥 [PARTE 3 - CONTINUAÇÃO] — Nunca entre na zona de conforto! #cortes #metas #foco #viral',
-      },
-      hashtags: ['#Shorts', '#Cortes', '#Metas', '#Foco', '#AltaPerformance'],
-      overlaySubtitlesSample: ['ALVO CLARO', 'SEM ACOMODAR', 'META FORTE', 'ZONA ZERO', 'JOGO MENTAL', 'VENCE NO SILÊNCIO'],
-    },
-    {
-      id: 'cut-seq-4',
-      title: '🔥 [PARTE 4 - CONTINUAÇÃO] POR QUE QUEM NÃO É CONDICIONADO MORRE NO MEIO DO CAMINHO',
-      partBadge: 'PARTE 4',
-      startTime: '40:43',
-      endTime: '41:30',
-      startSeconds: 2443,
-      endSeconds: 2490,
-      durationSeconds: 47,
-      viralityScore: 97,
-      hook: '"No começo do ano todo mundo faz promessa, mas quando a pessoa não é condicionada ela morre no meio do caminho..."',
-      payoff: '"Quando ela vê a linha de chegada, já perdeu o fôlego porque não treinou a constância."',
-      teaserOffsetSec: 22,
-      teaserDurationSec: 4,
-      teaserStartTime: '41:05',
-      teaserEndTime: '41:09',
-      teaserText: 'QUEM NÃO TREINA A CONSTÂNCIA PARA NO MEIO DO CAMINHO!',
-      retentionStrategyOption: 3,
-      neuromarketingTrigger: 'Gancho Cold-Open Clímax & Revelação Central (Parte 4)',
-      viralityAnalysis: 'Continuação direta e sequencial da Parte 3 (39:55–40:43 → 40:43–41:30), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'speaker_center',
-      activeSpeaker: 'Renato Cariani (Centralizado)',
-      subtitleTheme: 'none',
-      framing: {
-        speaker1X: 50,
-        speaker1Y: 30,
-        speaker2X: 50,
-        speaker2Y: 30,
-        zoom: 1.0,
-        detectedFacesCount: 1,
-      },
-      caption: {
-        youtube: '🔥 [PARTE 4 - CONTINUAÇÃO] — Por que 99% das promessas morrem no meio do caminho?\n\n⏭️ A Parte 5 sai em instantes aqui no canal!\n\n#Shorts #Cortes #Constancia #Disciplina',
-        instagram: '🔥 [PARTE 4 - CONTINUAÇÃO] — Não pare no meio do caminho antes da linha de chegada!',
-        tiktok: '🔥 [PARTE 4 - CONTINUAÇÃO] — O segredo do condicionamento mental! #cortes #disciplina #viral',
-      },
-      hashtags: ['#Shorts', '#Cortes', '#Constancia', '#Disciplina', '#Mindset'],
-      overlaySubtitlesSample: ['NÃO PARE', 'LINHA FINAL', 'TREINE CONSTÂNCIA', 'FÔLEGO REAL', 'ATÉ O FIM', 'VÁ ALÉM'],
-    },
-    {
-      id: 'cut-seq-5',
-      title: '🔥 [PARTE 5 - CONTINUAÇÃO] METAS DE FATURAMENTO E A MENTALIDADE DOS VENCEDORES',
-      partBadge: 'PARTE 5',
-      startTime: '41:30',
-      endTime: '42:21',
-      startSeconds: 2490,
-      endSeconds: 2541,
-      durationSeconds: 51,
-      viralityScore: 97,
-      hook: '"Lógico que eu quero resultado: eu tenho meta de faturamento e competitividade faz parte de todo profissional de sucesso..."',
-      payoff: '"Quem diz que o importante é só competir nunca construiu nada extraordinário."',
-      teaserOffsetSec: 25,
-      teaserDurationSec: 4,
-      teaserStartTime: '41:55',
-      teaserEndTime: '41:59',
-      teaserText: 'COMPETITIVIDADE FAZ PARTE DE TODO PROFISSIONAL DE SUCESSO!',
-      retentionStrategyOption: 3,
-      neuromarketingTrigger: 'Gancho Cold-Open Clímax & Exemplo Real (Parte 5)',
-      viralityAnalysis: 'Continuação direta e sequencial da Parte 4 (40:43–41:30 → 41:30–42:21), mantendo 100% do contexto e da linha de raciocínio.',
-      recommendedFormat: 'speaker_center',
-      activeSpeaker: 'Renato Cariani (Centralizado)',
-      subtitleTheme: 'none',
-      framing: {
-        speaker1X: 50,
-        speaker1Y: 30,
-        speaker2X: 50,
-        speaker2Y: 30,
-        zoom: 1.0,
-        detectedFacesCount: 1,
-      },
-      caption: {
-        youtube: '🔥 [PARTE 5 - CONTINUAÇÃO] — A verdade sobre metas de resultado e ambição saudável!\n\n⏭️ A Parte 6 (Final da sequência) sai em instantes!\n\n#Shorts #Cortes #Negocios #Sucesso',
-        instagram: '🔥 [PARTE 5 - CONTINUAÇÃO] — Competitividade faz parte de todo profissional de sucesso.',
-        tiktok: '🔥 [PARTE 5 - CONTINUAÇÃO] — "O importante é competir?" Veja essa resposta! #cortes #negocios #viral',
-      },
-      hashtags: ['#Shorts', '#Cortes', '#Negocios', '#Resultados', '#Sucesso'],
-      overlaySubtitlesSample: ['META CLARA', 'RESULTADO FORTE', 'MENTALIDADE REAL', 'JOGUE PRA VENCER', 'ALTA PERFORMANCE', 'SUCESSO REAL'],
-    },
-    {
-      id: 'cut-seq-6',
-      title: '🔥 [PARTE 6 - FINAL] A DISCIPLINA NÃO É SAZONAL: É UM PADRÃO DE VIDA INEGOCIÁVEL',
-      partBadge: 'PARTE 6 - FINAL',
-      startTime: '42:21',
-      endTime: '43:08',
-      startSeconds: 2541,
-      endSeconds: 2588,
-      durationSeconds: 47,
-      viralityScore: 99,
-      hook: '"A disciplina não é um estado sazonal — ela é um padrão de comportamento quando você acorda todos os dias..."',
-      payoff: '"Conclusão definitiva: quando você transforma rotina em identidade, ninguém te para."',
-      teaserOffsetSec: 22,
-      teaserDurationSec: 4,
-      teaserStartTime: '42:43',
-      teaserEndTime: '42:47',
-      teaserText: 'DISCIPLINA NÃO É SAZONAL, É UM PADRÃO DE VIDA!',
-      retentionStrategyOption: 3,
-      neuromarketingTrigger: 'Gancho Cold-Open Clímax & Lição de Ouro (Desfecho Final)',
-      viralityAnalysis: 'Desfecho direto e sequencial da Parte 5 (41:30–42:21 → 42:21–43:08), fechando o raciocínio completo com chave de ouro.',
-      recommendedFormat: 'speaker_center',
-      activeSpeaker: 'Renato Cariani (Centralizado)',
-      subtitleTheme: 'none',
-      framing: {
-        speaker1X: 50,
-        speaker1Y: 30,
-        speaker2X: 50,
-        speaker2Y: 30,
-        zoom: 1.0,
-        detectedFacesCount: 1,
-      },
-      caption: {
-        youtube: '🔥 [PARTE 6 - FINAL] — A disciplina não é sazonal, é um padrão de vida!\n\n✅ Sequência completa! Volte no canal se perdeu a Parte 1.\n\n#Shorts #Cortes #Disciplina #RenatoCariani #JoelJota',
-        instagram: '🔥 [PARTE 6 - FINAL] — Fechando essa sequência incrível sobre disciplina e competitividade! ✅ Veja as partes anteriores no perfil.',
-        tiktok: '🔥 [PARTE 6 - FINAL] — Disciplina é padrão de vida! ✅ Sequência completa no perfil! #cortes #disciplina #viral',
-      },
-      hashtags: ['#Shorts', '#Cortes', '#Disciplina', '#habitos', '#Viral'],
-      overlaySubtitlesSample: ['PADRÃO DE VIDA', 'DISCIPLINA REAL', 'TODO SANTO DIA', 'ROTINA FORTE', 'NINGUÉM TE PARA', 'LIÇÃO FINAL'],
-    },
-  ]);
-  const [selectedCut, setSelectedCut] = useState<ViralCut | null>(viralCuts[0]);
+  const [viralCuts, setViralCuts] = useState<ViralCut[]>(DEFAULT_VIRAL_CUTS);
+  const [selectedCut, setSelectedCut] = useState<ViralCut | null>(DEFAULT_VIRAL_CUTS[0]);
   const [savedCuts, setSavedCuts] = useState<SavedCut[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [autoPostSettings, setAutoPostSettings] = useState<AutoPostSettings>(DEFAULT_AUTO_POST_SETTINGS);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoBotStatus, setAutoBotStatus] = useState<AutoBotStatus>({
     isRunning: false,
     step: 0,
@@ -328,6 +333,14 @@ export default function App() {
   const credentialsRef = useRef<PlatformCredentials>(credentials);
   const autoPostSettingsRef = useRef<AutoPostSettings>(autoPostSettings);
   const isPostingRef = useRef<Set<string>>(new Set());
+
+  const showToast = (msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMessage(msg);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
 
   useEffect(() => {
     queueRef.current = queue;
@@ -377,11 +390,15 @@ export default function App() {
           if (res.state.lastUpdated) {
             setLastSavedAt(res.state.lastUpdated);
           }
-          if (Array.isArray(res.state.savedCuts) && res.state.savedCuts.length > 0) {
+          if (Array.isArray(res.state.savedCuts)) {
             setSavedCuts(res.state.savedCuts);
           }
-          if (Array.isArray(res.state.queue) && res.state.queue.length > 0) {
+          if (Array.isArray(res.state.queue)) {
             setQueue(res.state.queue);
+          }
+          if (Array.isArray(res.state.viralCuts)) {
+            setViralCuts(res.state.viralCuts);
+            setSelectedCut(res.state.viralCuts[0] || null);
           }
           if (res.state.autoPostSettings) {
             setAutoPostSettings(res.state.autoPostSettings);
@@ -411,7 +428,7 @@ export default function App() {
     setCredentials(INITIAL_CREDENTIALS);
   };
 
-  // Load saved cuts, queue, settings and credentials from localStorage AND disk backend
+  // Load saved cuts, edit cuts, queue, settings and credentials from localStorage AND disk backend
   useEffect(() => {
     const isLegacyRandomCut = (item: any): boolean => {
       if (!item) return false;
@@ -424,8 +441,18 @@ export default function App() {
     };
 
     try {
+      // Load editing cuts queue
+      const storedEditCuts = localStorage.getItem(STORAGE_EDIT_CUTS_KEY);
+      if (storedEditCuts !== null) {
+        const parsedEditCuts = JSON.parse(storedEditCuts);
+        if (Array.isArray(parsedEditCuts)) {
+          setViralCuts(parsedEditCuts);
+          setSelectedCut(parsedEditCuts[0] || null);
+        }
+      }
+
       const stored = localStorage.getItem(STORAGE_SAVED_CUTS_KEY);
-      if (stored) {
+      if (stored !== null) {
         const parsed = JSON.parse(stored).filter((c: any) => !isLegacyRandomCut(c));
         setSavedCuts(parsed);
       } else {
@@ -449,12 +476,12 @@ export default function App() {
 
       // Load queue
       const storedQueue = localStorage.getItem(STORAGE_QUEUE_KEY);
-      if (storedQueue) {
+      if (storedQueue !== null) {
         const parsedQ = JSON.parse(storedQueue).filter((q: any) => q.status === 'published' || !isLegacyRandomCut(q));
         setQueue(parsedQ);
       } else {
         const nowMs = Date.now();
-        const defaultSeqQueue: QueueItem[] = viralCuts.map((c, idx) => ({
+        const defaultSeqQueue: QueueItem[] = DEFAULT_VIRAL_CUTS.map((c, idx) => ({
           id: `sample-seq-queue-${idx + 1}`,
           cutId: c.id,
           videoTitle: 'O PODER DA DISCIPLINA (COM RENATO CARIANI) | Joel Jota',
@@ -524,15 +551,25 @@ export default function App() {
             if (res.state.lastUpdated) {
               setLastSavedAt(res.state.lastUpdated);
             }
-            if (Array.isArray(res.state.savedCuts) && res.state.savedCuts.length > 0) {
+            if (Array.isArray(res.state.savedCuts)) {
               const cleanSaved = res.state.savedCuts.filter((c: any) => !isLegacyRandomCut(c));
-              if (cleanSaved.length > 0) setSavedCuts(cleanSaved);
+              if (cleanSaved.length > 0 || stored === '[]') {
+                setSavedCuts(cleanSaved);
+              }
             }
-            if (Array.isArray(res.state.queue) && res.state.queue.length > 0) {
+            if (Array.isArray(res.state.queue)) {
               const cleanQueue = res.state.queue.filter(
                 (q: any) => q.status === 'published' || !isLegacyRandomCut(q)
               );
-              if (cleanQueue.length > 0) setQueue(cleanQueue);
+              if (cleanQueue.length > 0 || storedQueue === '[]') {
+                setQueue(cleanQueue);
+              }
+            }
+            if (Array.isArray(res.state.viralCuts)) {
+              if (res.state.viralCuts.length > 0 || storedEditCuts === '[]') {
+                setViralCuts(res.state.viralCuts);
+                setSelectedCut(res.state.viralCuts[0] || null);
+              }
             }
             if (res.state.autoPostSettings) {
               const loadedSettings = { ...res.state.autoPostSettings };
@@ -556,13 +593,6 @@ export default function App() {
         .finally(() => {
           initialLoadDone.current = true;
         });
-
-      // Sync with backend
-      authFetch('/api/settings/credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credentials: mergedCreds }),
-      }).catch(() => {});
     } catch (e) {
       console.warn('Failed to load storage items:', e);
       initialLoadDone.current = true;
@@ -574,6 +604,8 @@ export default function App() {
     if (!initialLoadDone.current) return;
     try {
       localStorage.setItem(STORAGE_SAVED_CUTS_KEY, JSON.stringify(savedCuts));
+      localStorage.setItem(STORAGE_EDIT_CUTS_KEY, JSON.stringify(viralCuts));
+      localStorage.setItem(STORAGE_QUEUE_KEY, JSON.stringify(queue));
     } catch (e) {}
 
     const timer = setTimeout(() => {
@@ -581,7 +613,7 @@ export default function App() {
       authFetch('/api/storage/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials }),
+        body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials, viralCuts }),
       })
         .then((r) => r.json())
         .then((res) => {
@@ -591,22 +623,23 @@ export default function App() {
         })
         .catch((e) => console.warn('Auto-save error:', e))
         .finally(() => setIsSaving(false));
-    }, 1200);
+    }, 1000);
 
     return () => clearTimeout(timer);
-  }, [savedCuts, queue, autoPostSettings, credentials]);
+  }, [savedCuts, queue, autoPostSettings, credentials, viralCuts]);
 
   const handleForceSync = () => {
     setIsSaving(true);
     authFetch('/api/storage/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials }),
+      body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials, viralCuts }),
     })
       .then((r) => r.json())
       .then((res) => {
         if (res.success) {
           setLastSavedAt(res.lastUpdated || new Date().toISOString());
+          showToast('☁️ Sincronizado com o servidor com sucesso!');
         }
       })
       .catch((e) => console.warn('Manual sync error:', e))
@@ -802,10 +835,121 @@ export default function App() {
     queueRef.current = [];
     setQueue([]);
     try {
-      localStorage.removeItem(STORAGE_QUEUE_KEY);
+      localStorage.setItem(STORAGE_QUEUE_KEY, '[]');
     } catch (e) {
       console.warn('Failed to clear queue:', e);
     }
+    showToast('🗑️ Fila de postagem automática limpa com sucesso!');
+  };
+
+  // Editing Queue (viralCuts) Management Functions
+  const handleClearEditQueue = () => {
+    setViralCuts([]);
+    setSelectedCut(null);
+    try {
+      localStorage.setItem(STORAGE_EDIT_CUTS_KEY, '[]');
+    } catch (e) {
+      console.warn('Failed to clear edit queue:', e);
+    }
+    showToast('🧹 Fila de edição limpa! Todos os cortes foram removidos.');
+  };
+
+  const handleDeleteEditCut = (cutId: string) => {
+    setViralCuts((prev) => {
+      const updated = prev.filter((c) => c.id !== cutId);
+      setSelectedCut((curr) => {
+        if (curr?.id === cutId) {
+          return updated[0] || null;
+        }
+        return curr;
+      });
+      try {
+        localStorage.setItem(STORAGE_EDIT_CUTS_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    showToast('✂️ Corte removido da fila de edição.');
+  };
+
+  const handleAddManualCut = (partial?: Partial<ViralCut>) => {
+    const parseSec = (t: string, fb: number) => {
+      const parts = t.split(':').map(Number);
+      if (parts.some(isNaN)) return fb;
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      return fb;
+    };
+    const startStr = partial?.startTime || '00:00';
+    const endStr = partial?.endTime || '00:45';
+    const startSec = parseSec(startStr, 0);
+    const endSec = Math.max(startSec + 5, parseSec(endStr, 45));
+    const durSec = Math.max(5, endSec - startSec);
+    const nextIndex = viralCuts.length + 1;
+    const defaultTitle = partial?.title || `✂️ [CORTE MANUAL #${nextIndex}] ${videoInfo?.title?.slice(0, 42) || 'Trecho Personalizado'}`;
+
+    const newCut: ViralCut = {
+      id: `cut-manual-${Date.now()}`,
+      title: defaultTitle,
+      partBadge: `CORTE ${nextIndex}`,
+      startTime: startStr,
+      endTime: endStr,
+      startSeconds: startSec,
+      endSeconds: endSec,
+      durationSeconds: durSec,
+      viralityScore: partial?.viralityScore || 95,
+      hook: partial?.hook || defaultTitle,
+      payoff: partial?.payoff || 'Conclusão personalizada definida no editor.',
+      teaserOffsetSec: Math.min(10, Math.floor(durSec / 2)),
+      teaserDurationSec: 4,
+      retentionStrategyOption: 3,
+      neuromarketingTrigger: 'Corte Manual Personalizado (9:16)',
+      viralityAnalysis: 'Trecho adicionado manualmente na Fila de Edição.',
+      recommendedFormat: partial?.recommendedFormat || 'speaker_center',
+      activeSpeaker: 'Orador Principal (Centralizado)',
+      subtitleTheme: 'none',
+      framing: {
+        speaker1X: 50,
+        speaker1Y: 30,
+        speaker2X: 50,
+        speaker2Y: 30,
+        zoom: 1.0,
+        detectedFacesCount: 1,
+      },
+      caption: {
+        youtube: `${defaultTitle}\n\n#Shorts #Cortes #Viral`,
+        instagram: `${defaultTitle}\n\n#Reels #Cortes #Viral`,
+        tiktok: `${defaultTitle} #cortes #viral #fyp`,
+      },
+      hashtags: ['#Shorts', '#Cortes', '#Viral'],
+      overlaySubtitlesSample: ['DESTAQUE', 'MOMENTO CHAVE', 'ASSISTA AGORA', 'FOCO TOTAL'],
+    };
+
+    setViralCuts((prev) => {
+      const updated = [...prev, newCut];
+      try {
+        localStorage.setItem(STORAGE_EDIT_CUTS_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    setSelectedCut(newCut);
+    showToast('✨ Novo corte manual adicionado à fila de edição!');
+  };
+
+  const handleRestoreDefaultCuts = () => {
+    setViralCuts(DEFAULT_VIRAL_CUTS);
+    setSelectedCut(DEFAULT_VIRAL_CUTS[0]);
+    try {
+      localStorage.setItem(STORAGE_EDIT_CUTS_KEY, JSON.stringify(DEFAULT_VIRAL_CUTS));
+    } catch (e) {}
+    showToast('🔄 Cortes de demonstração restaurados na fila de edição!');
+  };
+
+  const handleClearAllSavedCuts = () => {
+    setSavedCuts([]);
+    try {
+      localStorage.setItem(STORAGE_SAVED_CUTS_KEY, '[]');
+    } catch (e) {}
+    showToast('🗑️ Biblioteca de cortes salvos limpa com sucesso!');
   };
 
   // Immediate or Automated Post Execution for a Queue Item
@@ -1105,7 +1249,7 @@ export default function App() {
       let generatedCuts: ViralCut[] =
         cutsRes.ok && Array.isArray(cutsRes.data?.cuts) && cutsRes.data.cuts.length > 0
           ? cutsRes.data.cuts
-          : viralCuts;
+          : DEFAULT_VIRAL_CUTS;
 
       if (framingData && typeof framingData.speaker1X === 'number') {
         generatedCuts = generatedCuts.map((c) => ({
@@ -1219,6 +1363,7 @@ export default function App() {
     } catch (e) {
       console.warn('Failed to save to localStorage:', e);
     }
+    showToast('💾 Corte salvo na Biblioteca de Cortes!');
   };
 
   const handleDeleteSavedCut = (id: string) => {
@@ -1413,7 +1558,12 @@ export default function App() {
                 userPrompt={userPrompt}
                 setUserPrompt={setUserPrompt}
                 viralCuts={viralCuts}
-                setViralCuts={setViralCuts}
+                setViralCuts={(cuts) => {
+                  setViralCuts(cuts);
+                  if (cuts.length > 0 && !selectedCut) {
+                    setSelectedCut(cuts[0]);
+                  }
+                }}
                 onOpenCutInEditor={handleOpenCutInEditor}
                 autoPostSettings={autoPostSettings}
                 onUpdateAutoPostSettings={handleUpdateAutoPostSettings}
@@ -1421,6 +1571,8 @@ export default function App() {
                 onEnqueueSingleCut={handleEnqueueSingleCut}
                 onNavigateToPublish={() => setActiveTab('publish')}
                 queueCount={queue.filter((q) => q.status === 'pending').length}
+                onClearEditQueue={handleClearEditQueue}
+                onDeleteEditCut={handleDeleteEditCut}
               />
             )}
 
@@ -1434,6 +1586,10 @@ export default function App() {
                 onSaveCut={handleSaveCut}
                 onNavigateToPublish={handleNavigateToPublish}
                 onEnqueueCut={handleEnqueueSingleCut}
+                onClearEditQueue={handleClearEditQueue}
+                onDeleteEditCut={handleDeleteEditCut}
+                onAddManualCut={handleAddManualCut}
+                onRestoreDefaultCuts={handleRestoreDefaultCuts}
               />
             )}
 
@@ -1444,6 +1600,7 @@ export default function App() {
                 currentCut={selectedCut}
                 savedCuts={savedCuts}
                 onDeleteSavedCut={handleDeleteSavedCut}
+                onClearAllSavedCuts={handleClearAllSavedCuts}
                 onLoadSavedCut={handleLoadSavedCut}
                 queue={queue}
                 autoPostSettings={autoPostSettings}
@@ -1533,6 +1690,14 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-[#161824]/95 border border-purple-500/40 text-white text-xs font-bold shadow-2xl shadow-purple-900/40 backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* PWA Offline Indicator */}
       <OfflineIndicator />

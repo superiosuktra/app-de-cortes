@@ -149,8 +149,10 @@ cutRouter.post('/upload-and-cut-short', renderRateLimiter, upload.single('video'
       return res.status(400).json({ error: intervalCheck.error });
     }
 
-    const serverCreds = stateManager.getCredentials();
-    const tokenToUse = (token || serverCreds.youtube.accessToken || '').trim();
+    const serverCreds = stateManager.getCredentials(req.userId || 'default');
+    const rawToken = (token || '').trim();
+    const isMasked = !rawToken || rawToken.startsWith('***') || rawToken.includes('••••');
+    const tokenToUse = (isMasked ? serverCreds.youtube.accessToken : rawToken || '').trim();
     if (!tokenToUse) {
       return res.status(400).json({ error: 'Token de autorização do YouTube não configurado.' });
     }

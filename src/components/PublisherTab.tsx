@@ -30,7 +30,7 @@ import { ViralCut, SavedCut, QueueItem, AutoPostSettings, PlatformCredentials, V
 import { ShortsPhonePreview } from './ShortsPhonePreview';
 import { ApiSetupModal } from './ApiSetupModal';
 import { AutoPostQueueManager, AutoBotStatus } from './AutoPostQueueManager';
-import { fetchJson } from '../utils/api';
+import { fetchJson, authFetch } from '../utils/api';
 import confetti from 'canvas-confetti';
 
 const TOKENS_STORAGE_KEY = 'viral_shorts_platform_tokens_v1';
@@ -39,6 +39,7 @@ interface PublisherTabProps {
   currentCut: ViralCut | null;
   savedCuts: SavedCut[];
   onDeleteSavedCut: (id: string) => void;
+  onClearAllSavedCuts?: () => void;
   onLoadSavedCut: (cut: SavedCut) => void;
   queue: QueueItem[];
   autoPostSettings: AutoPostSettings;
@@ -66,6 +67,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   currentCut,
   savedCuts,
   onDeleteSavedCut,
+  onClearAllSavedCuts,
   onLoadSavedCut,
   queue,
   autoPostSettings,
@@ -118,6 +120,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
   const [isDownloadingCut, setIsDownloadingCut] = useState<boolean>(false);
   const [rightPanelTab, setRightPanelTab] = useState<'preview' | 'library'>('preview');
   const [previewPlatform, setPreviewPlatform] = useState<SocialPlatform>('youtube');
+  const [confirmClearLibrary, setConfirmClearLibrary] = useState<boolean>(false);
 
   // Sync previewPlatform whenever publisher platform changes
   useEffect(() => {
@@ -250,7 +253,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
         formData.append('format', currentCut?.recommendedFormat || 'vertical_blur');
         formData.append('title', title);
 
-        const res = await fetch('/api/render-download-cut', {
+        const res = await authFetch('/api/render-download-cut', {
           method: 'POST',
           body: formData,
         });
@@ -274,7 +277,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
         }
 
         setPostStatus('Baixando trecho real do YouTube e renderizando em 9:16 vertical via FFmpeg...');
-        const res = await fetch('/api/download-youtube-cut', {
+        const res = await authFetch('/api/download-youtube-cut', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -325,7 +328,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           ''
         ).trim();
 
-        if (!effectiveToken) {
+        if (!effectiveToken && credentials?.youtube?.status !== 'connected') {
           setPostStatus(
             '❌ Insira o Access Token da API do YouTube para autenticar o canal (ou clique em "Configurar APIs Oficiais" acima).'
           );
@@ -347,7 +350,7 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
           formData.append('token', effectiveToken);
           formData.append('hook', currentCut?.hook || '');
 
-          const uploadRes = await fetch('/api/upload-and-cut-short', {
+          const uploadRes = await authFetch('/api/upload-and-cut-short', {
             method: 'POST',
             body: formData,
           });
@@ -1194,14 +1197,50 @@ export const PublisherTab: React.FC<PublisherTabProps> = ({
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Bookmark className="w-4 h-4 text-pink-400" />
                   <h3 className="text-sm font-bold text-white">Biblioteca de Cortes Salvos</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300">
-                  {savedCuts.length} Salvos
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {savedCuts.length > 0 && onClearAllSavedCuts && (
+                    !confirmClearLibrary ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClearLibrary(true)}
+                        className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 text-[11px] font-bold transition"
+                        title="Limpar todos os cortes salvos da Biblioteca"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Limpar Biblioteca</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1 bg-red-950/70 border border-red-500/60 px-2 py-0.5 rounded-lg">
+                        <span className="text-[10px] font-bold text-red-200">Limpar?</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClearAllSavedCuts();
+                            setConfirmClearLibrary(false);
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[10px] font-extrabold"
+                        >
+                          Sim
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClearLibrary(false)}
+                          className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px] font-semibold"
+                        >
+                          Não
+                        </button>
+                      </div>
+                    )
+                  )}
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300">
+                    {savedCuts.length} Salvos
+                  </span>
+                </div>
               </div>
 
               {savedCuts.length === 0 ? (

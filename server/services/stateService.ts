@@ -42,24 +42,45 @@ function decryptSecret(cipherText?: string): string {
   }
 }
 
+function cleanDecryptedSecret(val?: string): string {
+  const s = decryptSecret(val);
+  if (s.startsWith('***')) return '';
+  return s;
+}
+
+function preserveRealSecret(incoming?: string, existing?: string, status?: string): string {
+  if (typeof incoming !== 'string') return existing || '';
+  const trimmed = incoming.trim();
+  if (trimmed.startsWith('***')) {
+    return existing || '';
+  }
+  if (!trimmed && status === 'connected' && existing) {
+    return existing;
+  }
+  return trimmed;
+}
+
 function decryptCredentialsObject(creds: any): PersistedCredentials {
   const yt = { ...DEFAULT_STATE.credentials.youtube, ...(creds?.youtube || {}) };
   const ig = { ...DEFAULT_STATE.credentials.instagram, ...(creds?.instagram || {}) };
   const tt = { ...DEFAULT_STATE.credentials.tiktok, ...(creds?.tiktok || {}) };
-  const gm = { ...(creds?.gemini || {}) };
+  const gm = { ...DEFAULT_STATE.credentials.gemini, ...(creds?.gemini || {}) };
 
-  yt.accessToken = decryptSecret(yt.accessToken);
-  yt.refreshToken = decryptSecret(yt.refreshToken);
-  yt.clientSecret = decryptSecret(yt.clientSecret);
+  yt.accessToken = cleanDecryptedSecret(yt.accessToken);
+  yt.refreshToken = cleanDecryptedSecret(yt.refreshToken);
+  yt.clientSecret = cleanDecryptedSecret(yt.clientSecret);
 
-  ig.accessToken = decryptSecret(ig.accessToken);
-  ig.appSecret = decryptSecret(ig.appSecret);
+  ig.accessToken = cleanDecryptedSecret(ig.accessToken);
+  ig.appSecret = cleanDecryptedSecret(ig.appSecret);
 
-  tt.accessToken = decryptSecret(tt.accessToken);
-  tt.clientSecret = decryptSecret(tt.clientSecret);
+  tt.accessToken = cleanDecryptedSecret(tt.accessToken);
+  tt.clientSecret = cleanDecryptedSecret(tt.clientSecret);
 
   if (gm.apiKey) {
-    gm.apiKey = decryptSecret(gm.apiKey);
+    gm.apiKey = cleanDecryptedSecret(gm.apiKey);
+  }
+  if (!gm.model || gm.model.includes('gemini-2.5') || gm.model.includes('gemini-1.5') || gm.model.includes('gemini-2.0')) {
+    gm.model = 'gemini-3.8-flash';
   }
 
   return { youtube: yt, instagram: ig, tiktok: tt, gemini: gm };
@@ -136,6 +157,7 @@ export interface PersistedCredentials {
 export interface PersistedState {
   credentials: PersistedCredentials;
   savedCuts: any[];
+  viralCuts?: any[];
   queue: any[];
   autoPostSettings: any;
   lastUpdated: string;
@@ -180,6 +202,7 @@ const DEFAULT_STATE: PersistedState = {
     },
   },
   savedCuts: [],
+  viralCuts: undefined,
   queue: [],
   autoPostSettings: null,
   lastUpdated: new Date().toISOString(),
@@ -203,10 +226,17 @@ class StateManager {
           : JSON.parse(JSON.stringify(DEFAULT_STATE.credentials));
         const savedCuts = row.saved_cuts_json ? JSON.parse(row.saved_cuts_json) : [];
         const queue = row.queue_json ? JSON.parse(row.queue_json) : [];
-        const autoPostSettings = row.settings_json ? JSON.parse(row.settings_json) : null;
+        const rawSettings = row.settings_json ? JSON.parse(row.settings_json) : null;
+        const autoPostSettings = rawSettings?.__wrapped
+          ? rawSettings.autoPostSettings
+          : rawSettings;
+        const viralCuts = rawSettings?.__wrapped && Array.isArray(rawSettings.viralCuts)
+          ? rawSettings.viralCuts
+          : undefined;
         return {
           credentials: creds,
           savedCuts,
+          viralCuts,
           queue,
           autoPostSettings,
           lastUpdated: row.updated_at || new Date().toISOString(),
@@ -225,6 +255,7 @@ class StateManager {
           return {
             credentials: decryptCredentialsObject(parsed.credentials),
             savedCuts: Array.isArray(parsed.savedCuts) ? parsed.savedCuts : [],
+            viralCuts: Array.isArray(parsed.viralCuts) ? parsed.viralCuts : undefined,
             queue: Array.isArray(parsed.queue) ? parsed.queue : [],
             autoPostSettings: parsed.autoPostSettings || null,
             lastUpdated: parsed.lastUpdated || new Date().toISOString(),
@@ -255,16 +286,48 @@ class StateManager {
     const key = userId || 'default';
     const state = this.getState(key);
     if (creds.youtube) {
-      state.credentials.youtube = { ...state.credentials.youtube, ...creds.youtube };
+      const prevYt = state.credentials.youtube;
+      const nextStatus = creds.youtube.status || prevYt.status;
+      state.credentials.youtube = {
+        ...prevYt,
+        ...creds.youtube,
+        accessToken: preserveRealSecret(creds.youtube.accessToken, prevYt.accessToken, nextStatus),
+        refreshToken: preserveRealSecret(creds.youtube.refreshToken, prevYt.refreshToken, nextStatus),
+        clientSecret: preserveRealSecret(creds.youtube.clientSecret, prevYt.clientSecret, nextStatus),
+      };
     }
     if (creds.instagram) {
-      state.credentials.instagram = { ...state.credentials.instagram, ...creds.instagram };
+      const prevIg = state.credentials.instagram;
+      const nextStatus = creds.instagram.status || prevIg.status;
+      state.credentials.instagram = {
+        ...prevIg,
+        ...creds.instagram,
+        accessToken: preserveRealSecret(creds.instagram.accessToken, prevIg.accessToken, nextStatus),
+        appSecret: preserveRealSecret(creds.instagram.appSecret, prevIg.appSecret, nextStatus),
+      };
     }
     if (creds.tiktok) {
-      state.credentials.tiktok = { ...state.credentials.tiktok, ...creds.tiktok };
+      const prevTt = state.credentials.tiktok;
+      const nextStatus = creds.tiktok.status || prevTt.status;
+      state.credentials.tiktok = {
+        ...prevTt,
+        ...creds.tiktok,
+        accessToken: preserveRealSecret(creds.tiktok.accessToken, prevTt.accessToken, nextStatus),
+        clientSecret: preserveRealSecret(creds.tiktok.clientSecret, prevTt.clientSecret, nextStatus),
+      };
     }
     if (creds.gemini) {
-      state.credentials.gemini = { ...(state.credentials.gemini || DEFAULT_STATE.credentials.gemini), ...creds.gemini };
+      const prevGm = state.credentials.gemini || DEFAULT_STATE.credentials.gemini!;
+      const nextStatus = creds.gemini.status || prevGm.status;
+      state.credentials.gemini = {
+        ...prevGm,
+        ...creds.gemini,
+        apiKey: preserveRealSecret(creds.gemini.apiKey, prevGm.apiKey, nextStatus),
+        model:
+          !creds.gemini.model || creds.gemini.model.includes('gemini-2.5')
+            ? 'gemini-3.8-flash'
+            : creds.gemini.model,
+      };
     }
     this.scheduleSave(key);
   }
@@ -285,6 +348,9 @@ class StateManager {
     const state = this.getState(key);
     if (Array.isArray(partial.savedCuts)) {
       state.savedCuts = partial.savedCuts;
+    }
+    if (Array.isArray(partial.viralCuts)) {
+      state.viralCuts = partial.viralCuts;
     }
     if (Array.isArray(partial.queue)) {
       state.queue = partial.queue;
@@ -337,7 +403,11 @@ class StateManager {
         JSON.stringify(encryptedCreds),
         JSON.stringify(state.savedCuts),
         JSON.stringify(state.queue),
-        JSON.stringify(state.autoPostSettings),
+        JSON.stringify({
+          __wrapped: true,
+          autoPostSettings: state.autoPostSettings,
+          viralCuts: state.viralCuts,
+        }),
         state.lastUpdated
       );
     } catch (err) {

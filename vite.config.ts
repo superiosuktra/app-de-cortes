@@ -28,5 +28,23 @@ export default defineConfig(() => {
         ],
       },
     },
+    build: {
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+              return 'react-vendor';
+            }
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons-vendor';
+            }
+            if (id.includes('node_modules/canvas-confetti')) {
+              return 'effects-vendor';
+            }
+          },
+        },
+      },
+    },
   };
 });

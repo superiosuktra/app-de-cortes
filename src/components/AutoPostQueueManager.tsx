@@ -78,6 +78,7 @@ export const AutoPostQueueManager: React.FC<AutoPostQueueManagerProps> = ({
   const [isProcessingManual, setIsProcessingManual] = useState<string | null>(null);
   const [botNiche, setBotNiche] = useState<string>('Podcasts & Cortes Virais em Alta');
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [confirmClearAll, setConfirmClearAll] = useState<boolean>(false);
 
   // Real-time 1-second ticker so the 5-minute countdown clock ticks live!
   useEffect(() => {
@@ -602,17 +603,38 @@ export const AutoPostQueueManager: React.FC<AutoPostQueueManagerProps> = ({
             )}
 
             {queue.length > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm('Tem certeza que deseja limpar toda a fila?')) {
-                    onClearAll();
-                  }
-                }}
-                className="p-1.5 rounded-xl bg-zinc-900 hover:bg-red-950/50 border border-zinc-800 text-zinc-400 hover:text-red-400 text-xs transition"
-                title="Limpar toda a fila"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              !confirmClearAll ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearAll(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 text-red-300 text-xs font-bold transition"
+                  title="Limpar toda a fila"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Limpar Fila ({queue.length})</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-red-950/70 border border-red-500/60 px-2.5 py-1 rounded-xl animate-fadeIn">
+                  <span className="text-[11px] font-bold text-red-200">Limpar fila?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearAll();
+                      setConfirmClearAll(false);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[11px] font-extrabold transition"
+                  >
+                    Sim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearAll(false)}
+                    className="px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-semibold transition"
+                  >
+                    Não
+                  </button>
+                </div>
+              )
             )}
           </div>
         </div>

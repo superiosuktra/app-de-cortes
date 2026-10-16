@@ -1,7 +1,9 @@
+import { authFetch } from '../utils/api';
+
 export const apiClient = {
   // Buscar informações do vídeo do YouTube
   fetchVideoInfo: async (url: string) => {
-    const response = await fetch('/api/video-info', { // O Vite geralmente redireciona /api para o Backend
+    const response = await authFetch('/api/video-info', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
@@ -12,11 +14,12 @@ export const apiClient = {
 
   // Enviar vídeo para processamento/corte
   requestCut: async (formData: FormData) => {
-    const response = await fetch('/api/render-download-cut', {
+    const response = await authFetch('/api/render-download-cut', {
       method: 'POST',
-      body: formData, // FormData é usado porque o backend espera um arquivo via Multer
+      body: formData,
     });
     if (!response.ok) throw new Error('Erro ao solicitar corte');
-    return response.blob(); // Atualmente o backend retorna o arquivo de vídeo para download
-  }
+    return response.blob();
+  },
 };
+

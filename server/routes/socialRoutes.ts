@@ -17,6 +17,7 @@ export const socialRouter = Router();
 // 1. Unified Social Media Post Endpoint (YouTube, Instagram, TikTok)
 socialRouter.post('/post-social', async (req: Request, res: Response) => {
   try {
+    const userId = req.userId || 'default';
     const {
       platform,
       token,
@@ -42,14 +43,25 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Plataforma não especificada.' });
     }
 
-    if (!token || !token.trim()) {
+    const serverCreds = stateManager.getCredentials(userId);
+    const rawIncomingToken = (token || '').trim();
+    const isMaskedToken = !rawIncomingToken || rawIncomingToken.startsWith('***') || rawIncomingToken.includes('••••');
+    const platformVaultToken =
+      platform === 'youtube'
+        ? serverCreds.youtube.accessToken
+        : platform === 'instagram'
+          ? serverCreds.instagram.accessToken
+          : platform === 'tiktok'
+            ? serverCreds.tiktok.accessToken
+            : '';
+
+    let cleanToken = (isMaskedToken ? platformVaultToken : rawIncomingToken || '').trim();
+
+    if (!cleanToken && !(platform === 'youtube' && (refreshToken || serverCreds.youtube.refreshToken))) {
       return res.status(400).json({
         error: `Token de acesso não fornecido para ${platform}. Configure na aba 'APIs & Conexões'.`,
       });
     }
-
-    let cleanToken = token.trim();
-    const serverCreds = stateManager.getCredentials();
 
     if (platform === 'youtube') {
       const yaMatch = cleanToken.match(/(ya29\.[a-zA-Z0-9_\-\.]+)/);
@@ -68,7 +80,9 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
         });
       }
 
-      const useRefreshToken = (refreshToken || serverCreds.youtube.refreshToken || '').trim();
+      const rawRt = (refreshToken || '').trim();
+      const cleanRt = rawRt.startsWith('***') || rawRt.includes('••••') ? '' : rawRt;
+      const useRefreshToken = (cleanRt || serverCreds.youtube.refreshToken || '').trim();
 
       // If token is a refresh token starting with 1// or empty
       if (cleanToken.startsWith('1//') || !cleanToken) {
@@ -77,6 +91,7 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
             refreshToken: useRefreshToken,
             clientId,
             clientSecret,
+            userId,
           });
           if (refreshed.success && refreshed.accessToken) {
             cleanToken = refreshed.accessToken;
@@ -133,6 +148,7 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
           refreshToken: useRefreshToken,
           clientId,
           clientSecret,
+          userId,
         });
         if (refreshed.success && refreshed.accessToken) {
           cleanToken = refreshed.accessToken;
@@ -207,11 +223,17 @@ socialRouter.post('/post-social', async (req: Request, res: Response) => {
 // 2. Direct Post to YouTube Shorts
 socialRouter.post('/post-youtube', async (req: Request, res: Response) => {
   try {
+    const userId = req.userId || 'default';
     const { accessToken, refreshToken, clientId, clientSecret, title, description, privacy = 'private', hook, videoUrl, startTime, endTime, format } = req.body;
-    const serverCreds = stateManager.getCredentials();
+    const serverCreds = stateManager.getCredentials(userId);
 
-    let tokenToUse = (accessToken || '').trim();
-    const useRefreshToken = (refreshToken || serverCreds.youtube.refreshToken || '').trim();
+    const rawAt = (accessToken || '').trim();
+    const isMaskedAt = !rawAt || rawAt.startsWith('***') || rawAt.includes('••••');
+    let tokenToUse = (isMaskedAt ? serverCreds.youtube.accessToken : rawAt || '').trim();
+
+    const rawRt = (refreshToken || '').trim();
+    const cleanRt = rawRt.startsWith('***') || rawRt.includes('••••') ? '' : rawRt;
+    const useRefreshToken = (cleanRt || serverCreds.youtube.refreshToken || '').trim();
 
     const yaMatch = tokenToUse.match(/(ya29\.[a-zA-Z0-9_\-\.]+)/);
     if (yaMatch) {
@@ -223,6 +245,7 @@ socialRouter.post('/post-youtube', async (req: Request, res: Response) => {
         refreshToken: useRefreshToken,
         clientId,
         clientSecret,
+        userId,
       });
       if (refreshResult.success && refreshResult.accessToken) {
         tokenToUse = refreshResult.accessToken;
@@ -260,15 +283,21 @@ socialRouter.post('/post-youtube', async (req: Request, res: Response) => {
 // 3. Verify YouTube Token (with automatic 4/ Auth Code exchange and 1// Refresh Token renewal)
 socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) => {
   try {
+    const userId = req.userId || 'default';
     const { token, refreshToken, clientId, clientSecret } = req.body;
-    const serverCreds = stateManager.getCredentials();
-    const effectiveRefresh = (refreshToken || serverCreds.youtube.refreshToken || '').trim();
+    const serverCreds = stateManager.getCredentials(userId);
+    const rawRt = (refreshToken || '').trim();
+    const cleanRt = rawRt.startsWith('***') || rawRt.includes('••••') ? '' : rawRt;
+    const effectiveRefresh = (cleanRt || serverCreds.youtube.refreshToken || '').trim();
 
-    if (!token?.trim() && !effectiveRefresh) {
+    const rawToken = (token || '').trim();
+    const isMaskedToken = !rawToken || rawToken.startsWith('***') || rawToken.includes('••••');
+    let tokenToUse = (isMaskedToken ? serverCreds.youtube.accessToken : rawToken || '').trim();
+
+    if (!tokenToUse && !effectiveRefresh) {
       return res.status(400).json({ error: 'Token não fornecido. Clique em "Entrar com o Google" para conectar.' });
     }
 
-    let tokenToUse = (token || '').trim();
     let updatedRefreshToken = effectiveRefresh;
 
     // Clean wrapping quotes or Bearer
@@ -297,7 +326,10 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
         const parsed = JSON.parse(tokenToUse);
         if (parsed.refresh_token) {
           updatedRefreshToken = parsed.refresh_token;
-          stateManager.updateCredentials({ youtube: { ...serverCreds.youtube, refreshToken: parsed.refresh_token } });
+          stateManager.updateCredentials(
+            { youtube: { ...serverCreds.youtube, refreshToken: parsed.refresh_token } },
+            userId
+          );
         }
         if (parsed.access_token) {
           tokenToUse = parsed.access_token;
@@ -313,6 +345,7 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
         code: tokenToUse,
         clientId,
         clientSecret,
+        userId,
       });
 
       if (authResult.success && authResult.accessToken) {
@@ -333,19 +366,23 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
     if (tokenToUse.startsWith('1//') || (!tokenToUse && updatedRefreshToken)) {
       const rtToUse = tokenToUse.startsWith('1//') ? tokenToUse : updatedRefreshToken;
       updatedRefreshToken = rtToUse;
-      stateManager.updateCredentials({
-        youtube: {
-          ...serverCreds.youtube,
-          refreshToken: rtToUse,
-          clientId: clientId?.trim() || serverCreds.youtube.clientId,
-          clientSecret: clientSecret?.trim() || serverCreds.youtube.clientSecret,
+      stateManager.updateCredentials(
+        {
+          youtube: {
+            ...serverCreds.youtube,
+            refreshToken: rtToUse,
+            clientId: clientId?.trim() || serverCreds.youtube.clientId,
+            clientSecret: clientSecret?.trim() || serverCreds.youtube.clientSecret,
+          },
         },
-      });
+        userId
+      );
 
       const refreshed = await refreshYouTubeToken({
         refreshToken: rtToUse,
         clientId,
         clientSecret,
+        userId,
       });
       if (refreshed.success && refreshed.accessToken) {
         tokenToUse = refreshed.accessToken;
@@ -359,14 +396,17 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
     }
 
     if (tokenToUse.startsWith('demo_') || tokenToUse === 'demo-youtube-token') {
-      stateManager.updateCredentials({
-        youtube: {
-          ...serverCreds.youtube,
-          accessToken: tokenToUse,
-          status: 'connected',
-          verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+      stateManager.updateCredentials(
+        {
+          youtube: {
+            ...serverCreds.youtube,
+            accessToken: tokenToUse,
+            status: 'connected',
+            verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+          },
         },
-      });
+        userId
+      );
       return res.json({
         valid: true,
         accessToken: tokenToUse,
@@ -390,6 +430,7 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
         refreshToken: updatedRefreshToken,
         clientId,
         clientSecret,
+        userId,
       });
       if (refreshedResult.success && refreshedResult.accessToken) {
         response = await fetch(
@@ -419,20 +460,23 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
     const customUrl = item?.snippet?.customUrl;
     const avatar = item?.snippet?.thumbnails?.default?.url;
 
-    const latestCreds = stateManager.getCredentials();
-    stateManager.updateCredentials({
-      youtube: {
-        ...latestCreds.youtube,
-        accessToken: tokenToUse,
-        refreshToken: updatedRefreshToken || latestCreds.youtube.refreshToken,
-        status: 'connected',
-        accountName,
-        channelTitle: accountName,
-        customUrl,
-        avatar,
-        verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+    const latestCreds = stateManager.getCredentials(userId);
+    stateManager.updateCredentials(
+      {
+        youtube: {
+          ...latestCreds.youtube,
+          accessToken: tokenToUse,
+          refreshToken: updatedRefreshToken || latestCreds.youtube.refreshToken,
+          status: 'connected',
+          accountName,
+          channelTitle: accountName,
+          customUrl,
+          avatar,
+          verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+        },
       },
-    });
+      userId
+    );
 
     res.json({
       valid: true,
@@ -455,7 +499,7 @@ socialRouter.post('/verify-token/youtube', async (req: Request, res: Response) =
 socialRouter.post('/verify-token/instagram', async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
-    const result = await verifyInstagramToken(token);
+    const result = await verifyInstagramToken(token, req.userId || 'default');
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ valid: false, error: error.message || 'Erro de conexão.' });
@@ -466,7 +510,7 @@ socialRouter.post('/verify-token/instagram', async (req: Request, res: Response)
 socialRouter.post('/verify-token/tiktok', async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
-    const result = await verifyTikTokToken(token);
+    const result = await verifyTikTokToken(token, req.userId || 'default');
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ valid: false, error: error.message || 'Erro de conexão.' });
@@ -475,11 +519,12 @@ socialRouter.post('/verify-token/tiktok', async (req: Request, res: Response) =>
 
 // 6. Refresh YouTube Token Endpoint
 socialRouter.post('/refresh-token/youtube', async (req: Request, res: Response) => {
+  const userId = req.userId || 'default';
   const { refreshToken, clientId, clientSecret } = req.body || {};
-  const result = await refreshYouTubeToken({ refreshToken, clientId, clientSecret });
+  const result = await refreshYouTubeToken({ refreshToken, clientId, clientSecret, userId });
 
   if (result.success && result.accessToken) {
-    const serverCreds = stateManager.getCredentials();
+    const serverCreds = stateManager.getCredentials(userId);
     res.json({
       success: true,
       accessToken: result.accessToken,
@@ -502,12 +547,13 @@ socialRouter.post('/refresh-token/youtube', async (req: Request, res: Response) 
 // 7. Exchange Code Endpoint
 socialRouter.post('/exchange-code/youtube', async (req: Request, res: Response) => {
   try {
+    const userId = req.userId || 'default';
     const { code, clientId, clientSecret, redirectUri } = req.body || {};
     if (!code?.trim()) {
       return res.status(400).json({ error: 'Código de autorização não informado.' });
     }
 
-    const result = await exchangeYouTubeAuthCode({ code, clientId, clientSecret, redirectUri });
+    const result = await exchangeYouTubeAuthCode({ code, clientId, clientSecret, redirectUri, userId });
     if (result.success) {
       return res.json(result);
     }
@@ -517,127 +563,22 @@ socialRouter.post('/exchange-code/youtube', async (req: Request, res: Response) 
   }
 });
 
-// 8. 1-Click Google Login Popup Redirect (/api/auth/google/login)
-socialRouter.get('/auth/google/login', (req: Request, res: Response) => {
-  const serverCreds = stateManager.getCredentials();
-  const customClientId = (
-    (req.query.clientId as string) ||
-    process.env.GOOGLE_CLIENT_ID ||
-    serverCreds.youtube.clientId ||
-    ''
-  ).trim();
-  const customClientSecret = (
-    (req.query.clientSecret as string) ||
-    process.env.GOOGLE_CLIENT_SECRET ||
-    serverCreds.youtube.clientSecret ||
-    ''
-  ).trim();
-
-  const isCustomOAuth =
-    Boolean(customClientId) &&
-    customClientId !== 'demo-client-id.apps.googleusercontent.com' &&
-    customClientId !== '407408718192.apps.googleusercontent.com' &&
-    Boolean(customClientSecret) &&
-    customClientSecret !== 'demo-client-secret';
-
-  const host = req.get('host') || 'localhost:3000';
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const callbackUri = isCustomOAuth
-    ? `${protocol}://${host}/api/auth/google/callback`
-    : 'https://developers.google.com/oauthplayground';
-
-  const clientIdToUse = isCustomOAuth
-    ? customClientId
-    : '407408718192.apps.googleusercontent.com';
-
-  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  authUrl.searchParams.set('client_id', clientIdToUse);
-  authUrl.searchParams.set('redirect_uri', callbackUri);
-  authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set(
-    'scope',
-    'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly'
-  );
-  authUrl.searchParams.set('access_type', 'offline');
-  authUrl.searchParams.set('prompt', 'consent select_account');
-
-  res.redirect(authUrl.toString());
-});
-
-// 9. Google OAuth 2.0 Automatic Callback (/api/auth/google/callback)
-socialRouter.get('/auth/google/callback', async (req: Request, res: Response) => {
-  const code = (req.query.code as string) || '';
-  const host = req.get('host') || 'localhost:3000';
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const callbackUri = `${protocol}://${host}/api/auth/google/callback`;
-
-  if (!code) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(`
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-        <body style="background:#0f101a;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-          <div style="text-align:center;max-width:400px;padding:24px;background:#161827;border-radius:16px;border:1px solid #ef4444;">
-            <h3 style="color:#f87171;">Autorização Cancelada</h3>
-            <p style="font-size:13px;color:#a1a1aa;">Nenhum código de autorização foi recebido do Google.</p>
-            <button onclick="window.close()" style="margin-top:12px;padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">Fechar Janela</button>
-          </div>
-        </body>
-      </html>
-    `);
-  }
-
-  const result = await exchangeYouTubeAuthCode({
-    code,
-    redirectUri: callbackUri,
-  });
-
-  const updatedCreds = stateManager.getCredentials().youtube;
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  return res.send(`
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-      <body style="background:#0f101a;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-        <div style="text-align:center;max-width:420px;padding:28px;background:#161827;border-radius:20px;border:1px solid ${result.success ? '#10b981' : '#ef4444'};">
-          <h2 style="color:${result.success ? '#34d399' : '#f87171'};margin-top:0;">
-            ${result.success ? '✅ Canal Conectado com Sucesso!' : '❌ Falha na Autorização'}
-          </h2>
-          <p style="font-size:14px;color:#d4d4d8;">
-            ${result.success ? `Canal <strong>${result.channelName}</strong> vinculado permanentemente.` : result.error}
-          </p>
-          <p style="font-size:12px;color:#71717a;">Esta janela fechará automaticamente...</p>
-        </div>
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({
-              type: 'GOOGLE_OAUTH_SUCCESS',
-              success: ${Boolean(result.success)},
-              youtube: ${JSON.stringify(updatedCreds)},
-              message: ${JSON.stringify(result.message || result.error || '')}
-            }, '*');
-            setTimeout(() => window.close(), 1200);
-          }
-        </script>
-      </body>
-    </html>
-  `);
-});
-
-// 10. 1-Click Quick Connect / Auto-Heal Endpoint (/api/auth/google/quick-connect)
+// 8. 1-Click Quick Connect / Auto-Heal Endpoint (/api/auth/google/quick-connect)
 socialRouter.post('/auth/google/quick-connect', async (req: Request, res: Response) => {
   try {
+    const userId = req.userId || 'default';
     const { input } = req.body || {};
-    const serverCreds = stateManager.getCredentials();
+    const serverCreds = stateManager.getCredentials(userId);
     const rawInput = (input || '').trim();
 
     // Case 1: No input passed, but server already has a permanent Refresh Token (1//...) -> Auto-connect in 1 click!
     if (!rawInput && serverCreds.youtube.refreshToken?.startsWith('1//')) {
       const refreshed = await refreshYouTubeToken({
         refreshToken: serverCreds.youtube.refreshToken,
+        userId,
       });
       if (refreshed.success) {
-        const latest = stateManager.getCredentials().youtube;
+        const latest = stateManager.getCredentials(userId).youtube;
         return res.json({
           success: true,
           youtube: latest,
@@ -660,9 +601,9 @@ socialRouter.post('/auth/google/quick-connect', async (req: Request, res: Respon
       }
 
       if (codeOrToken.startsWith('4/')) {
-        const exchanged = await exchangeYouTubeAuthCode({ code: codeOrToken });
+        const exchanged = await exchangeYouTubeAuthCode({ code: codeOrToken, userId });
         if (exchanged.success) {
-          const latest = stateManager.getCredentials().youtube;
+          const latest = stateManager.getCredentials(userId).youtube;
           return res.json({
             success: true,
             youtube: latest,
@@ -679,9 +620,9 @@ socialRouter.post('/auth/google/quick-connect', async (req: Request, res: Respon
       }
 
       if (codeOrToken.startsWith('1//')) {
-        const refreshed = await refreshYouTubeToken({ refreshToken: codeOrToken });
+        const refreshed = await refreshYouTubeToken({ refreshToken: codeOrToken, userId });
         if (refreshed.success) {
-          const latest = stateManager.getCredentials().youtube;
+          const latest = stateManager.getCredentials(userId).youtube;
           return res.json({
             success: true,
             youtube: latest,
@@ -703,3 +644,4 @@ socialRouter.post('/auth/google/quick-connect', async (req: Request, res: Respon
     res.status(500).json({ success: false, error: err.message || 'Erro ao conectar com o Google.' });
   }
 });
+

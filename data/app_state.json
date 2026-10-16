@@ -1,11 +1,11 @@
 {
   "credentials": {
     "youtube": {
-      "accessToken": "enc:v1:b718fbf3be0b0d14645abdaf:50e38ac4d4787c5df55a3df6f6d445ef:d972dcec16f4935d60328dd185dd606670f467094c1fd2fcab287db8564ee9dcb7e167e3b85155c7670bd00ac75b409c0a8277b49ebb3872ed5ab7b4bf5ca47f0627850a919a42446d2c5168a2e2d83955582b1c3f0028ec743b0c161633f16513a54d6eacff1bdefb7df9237bba106900b67cc0215e7981f249b92287089f9b4fab8d81955f85826210ea903fc1a7735731f7958ac0dcf85d52df810e5351c8c01950ca1cf2060d732cf71161c84b85b4470d6a63f5b9f79856fa2737c809177651f0f4f4705c45bfe7ca2bbd74aff4dcd1bc33ca3d1338c9ae06ad934e1f2c072aa12bbb1b46a048685fc26c2b811ce46fa758f4c90ff39486a697e5",
-      "refreshToken": "enc:v1:1af4057f594199609ee8d83b:76895f9eea7af30b16c316acc3ac62f5:c149dbe07126134d5c9d72dfb489bba77409d9ffa6f4b07efff7c258c351bf814bc87b292c42163fd56a3b14dbd76bfdc4fd31cdc027939620b1e82ed6167180be54a22c21a02ff42fb6b308783040e8d1f63af379985b8cb3e64a5a8a6d42f7fc5941c0d675",
+      "accessToken": "",
+      "refreshToken": "enc:v1:4c712b6f957176f528633251:2f9b7dfef9e9fcee93d147afe01d73b3:d7478d965079126fdd9b033da1ab4a0566d8fa59a0109d1a060233b00f3680f0d4f4f4ff0c0fe724671b2a02213b074badd1a79053205a5a6cd28dc0d50665494748582d5f5ad32ed2616abe4674d46a8d75dbfcc2c5122743545bdc3379eddada41bb948ebe",
       "clientId": "",
       "clientSecret": "",
-      "status": "connected",
+      "status": "disconnected",
       "channelTitle": "ABNER_CORTES",
       "avatar": "https://i.ytimg.com/vi/lsWTOWpzTFI/hqdefault.jpg",
       "verifiedAt": "13:43:24",
@@ -31,6 +31,9 @@
       "displayName": "",
       "avatar": "",
       "verifiedAt": ""
+    },
+    "gemini": {
+      "apiKey": ""
     }
   },
   "savedCuts": [
@@ -533,8 +536,12 @@
         "youtube"
       ],
       "scheduledFor": "2026-10-13T16:13:35.770Z",
-      "status": "pending",
-      "createdAt": "2026-10-13T15:53:35.777Z"
+      "status": "failed",
+      "createdAt": "2026-10-13T15:53:35.777Z",
+      "error": "Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token.",
+      "logs": [
+        "❌ [YOUTUBE] Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token."
+      ]
     },
     {
       "id": "queue-cut-seq-5-1791906815426-4-1791906815777-4",
@@ -565,8 +572,12 @@
         "youtube"
       ],
       "scheduledFor": "2026-10-13T16:18:35.770Z",
-      "status": "pending",
-      "createdAt": "2026-10-13T15:53:35.777Z"
+      "status": "failed",
+      "createdAt": "2026-10-13T15:53:35.777Z",
+      "error": "Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token.",
+      "logs": [
+        "❌ [YOUTUBE] Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token."
+      ]
     },
     {
       "id": "queue-cut-seq-6-1791906815426-5-1791906815777-5",
@@ -597,8 +608,12 @@
         "youtube"
       ],
       "scheduledFor": "2026-10-13T16:23:35.770Z",
-      "status": "pending",
-      "createdAt": "2026-10-13T15:53:35.777Z"
+      "status": "failed",
+      "createdAt": "2026-10-13T15:53:35.777Z",
+      "error": "Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token.",
+      "logs": [
+        "❌ [YOUTUBE] Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token."
+      ]
     },
     {
       "id": "queue-cut-seq-7-1791906815426-6-1791906815777-6",
@@ -629,8 +644,12 @@
         "youtube"
       ],
       "scheduledFor": "2026-10-13T16:28:35.770Z",
-      "status": "pending",
-      "createdAt": "2026-10-13T15:53:35.777Z"
+      "status": "failed",
+      "createdAt": "2026-10-13T15:53:35.777Z",
+      "error": "Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token.",
+      "logs": [
+        "❌ [YOUTUBE] Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token."
+      ]
     },
     {
       "id": "queue-cut-seq-8-1791906815426-7-1791906815777-7",
@@ -661,8 +680,12 @@
         "youtube"
       ],
       "scheduledFor": "2026-10-13T16:33:35.770Z",
-      "status": "pending",
-      "createdAt": "2026-10-13T15:53:35.777Z"
+      "status": "failed",
+      "createdAt": "2026-10-13T15:53:35.777Z",
+      "error": "Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token.",
+      "logs": [
+        "❌ [YOUTUBE] Access Token do YouTube (ya29...) expirou. No OAuth Playground (Passo 2), gere um novo Access token ou renove com o Refresh Token."
+      ]
     }
   ],
   "autoPostSettings": {
@@ -676,5 +699,5 @@
     },
     "defaultPrivacy": "public"
   },
-  "lastUpdated": "2026-10-13T17:42:42.571Z"
+  "lastUpdated": "2026-10-16T22:12:11.590Z"
 }

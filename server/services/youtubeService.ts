@@ -66,9 +66,13 @@ export async function refreshYouTubeToken(customCreds?: {
   refreshToken?: string;
   clientId?: string;
   clientSecret?: string;
+  userId?: string;
 }): Promise<RefreshTokenResult> {
-  const serverCreds = stateManager.getCredentials();
-  const refreshToken = (customCreds?.refreshToken || serverCreds.youtube.refreshToken || '').trim();
+  const userKey = customCreds?.userId || 'default';
+  const serverCreds = stateManager.getCredentials(userKey);
+  const rawPassedRt = (customCreds?.refreshToken || '').trim();
+  const cleanPassedRt = rawPassedRt.startsWith('***') || rawPassedRt.includes('••••') ? '' : rawPassedRt;
+  const refreshToken = (cleanPassedRt || serverCreds.youtube.refreshToken || '').trim();
 
   if (!refreshToken) {
     return {
@@ -78,7 +82,9 @@ export async function refreshYouTubeToken(customCreds?: {
   }
 
   const clientId = (customCreds?.clientId || process.env.GOOGLE_CLIENT_ID || serverCreds.youtube.clientId || '').trim();
-  const clientSecret = (customCreds?.clientSecret || process.env.GOOGLE_CLIENT_SECRET || serverCreds.youtube.clientSecret || '').trim();
+  const rawSecret = (customCreds?.clientSecret || '').trim();
+  const cleanSecret = rawSecret.startsWith('***') || rawSecret.includes('••••') ? '' : rawSecret;
+  const clientSecret = (cleanSecret || process.env.GOOGLE_CLIENT_SECRET || serverCreds.youtube.clientSecret || '').trim();
 
   let newAccessToken = '';
   let newRefreshToken = refreshToken;
@@ -138,22 +144,25 @@ export async function refreshYouTubeToken(customCreds?: {
     const avatar = profile.avatar || serverCreds.youtube.avatar || '';
     const customUrl = profile.customUrl || serverCreds.youtube.customUrl || '';
 
-    stateManager.updateCredentials({
-      youtube: {
-        ...serverCreds.youtube,
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-        clientId: clientId || serverCreds.youtube.clientId,
-        clientSecret: clientSecret || serverCreds.youtube.clientSecret,
-        status: 'connected',
-        channelTitle: channelName,
-        accountName: channelName,
-        displayName: channelName,
-        customUrl,
-        avatar,
-        verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+    stateManager.updateCredentials(
+      {
+        youtube: {
+          ...serverCreds.youtube,
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          clientId: clientId || serverCreds.youtube.clientId,
+          clientSecret: clientSecret || serverCreds.youtube.clientSecret,
+          status: 'connected',
+          channelTitle: channelName,
+          accountName: channelName,
+          displayName: channelName,
+          customUrl,
+          avatar,
+          verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+        },
       },
-    });
+      userKey
+    );
 
     return {
       success: true,
@@ -181,13 +190,16 @@ export async function exchangeYouTubeAuthCode({
   clientId,
   clientSecret,
   redirectUri,
+  userId,
 }: {
   code: string;
   clientId?: string;
   clientSecret?: string;
   redirectUri?: string;
+  userId?: string;
 }) {
-  const serverCreds = stateManager.getCredentials();
+  const userKey = userId || 'default';
+  const serverCreds = stateManager.getCredentials(userKey);
   let cleanCode = (code || '').trim();
 
   // Extract ?code=... if user pasted the entire redirect URL
@@ -205,7 +217,9 @@ export async function exchangeYouTubeAuthCode({
   }
 
   const useClientId = (clientId || process.env.GOOGLE_CLIENT_ID || serverCreds.youtube.clientId || '').trim();
-  const useClientSecret = (clientSecret || process.env.GOOGLE_CLIENT_SECRET || serverCreds.youtube.clientSecret || '').trim();
+  const rawSecret = (clientSecret || '').trim();
+  const cleanSecret = rawSecret.startsWith('***') || rawSecret.includes('••••') ? '' : rawSecret;
+  const useClientSecret = (cleanSecret || process.env.GOOGLE_CLIENT_SECRET || serverCreds.youtube.clientSecret || '').trim();
 
   let accessToken = '';
   let refreshToken = '';
@@ -264,22 +278,25 @@ export async function exchangeYouTubeAuthCode({
     const avatar = profile.avatar || '';
     const customUrl = profile.customUrl || '';
 
-    stateManager.updateCredentials({
-      youtube: {
-        ...serverCreds.youtube,
-        accessToken,
-        refreshToken: refreshToken || serverCreds.youtube.refreshToken,
-        clientId: useClientId || serverCreds.youtube.clientId,
-        clientSecret: useClientSecret || serverCreds.youtube.clientSecret,
-        status: 'connected',
-        channelTitle: channelName,
-        displayName: channelName,
-        accountName: channelName,
-        customUrl,
-        avatar,
-        verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+    stateManager.updateCredentials(
+      {
+        youtube: {
+          ...serverCreds.youtube,
+          accessToken,
+          refreshToken: refreshToken || serverCreds.youtube.refreshToken,
+          clientId: useClientId || serverCreds.youtube.clientId,
+          clientSecret: useClientSecret || serverCreds.youtube.clientSecret,
+          status: 'connected',
+          channelTitle: channelName,
+          displayName: channelName,
+          accountName: channelName,
+          customUrl,
+          avatar,
+          verifiedAt: new Date().toLocaleTimeString('pt-BR'),
+        },
       },
-    });
+      userKey
+    );
 
     return {
       success: true,

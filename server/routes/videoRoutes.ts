@@ -9,7 +9,9 @@ import {
   analyzeViralCuts,
   analyzeVideoFraming,
   generateCaption,
+  resolveGeminiApiKey,
 } from '../services/geminiService.js';
+import { stateManager } from '../services/stateService.js';
 import { generateFfmpegCommand } from '../services/ffmpegService.js';
 import { createRateLimiter, normalizeSafeYouTubeUrl, sanitizeTimestamp } from '../middleware/security.js';
 
@@ -60,7 +62,7 @@ videoRouter.post('/transcript', async (req: Request, res: Response) => {
 async function handleTrending(req: Request, res: Response) {
   try {
     const niche = String(req.body?.niche || req.query?.niche || 'geral').slice(0, 40);
-    const trending = await fetchTrendingVideos(niche);
+    const trending = await fetchTrendingVideos(niche, req.userId);
     res.json({ trending, videos: trending });
   } catch (error: any) {
     console.error('[VideoRoutes] Trending error:', error);
@@ -84,6 +86,7 @@ async function handleAnalyze(req: Request, res: Response) {
       videoTitle,
       channelName,
       cutsCount: cutsCount ? Number(cutsCount) : 6,
+      userId: req.userId,
     });
 
     res.json({
@@ -108,6 +111,7 @@ videoRouter.post('/analyze-framing', aiRateLimiter, async (req: Request, res: Re
       videoUrl: safeYt?.canonicalUrl || videoUrl,
       videoId: safeYt?.videoId || extractVideoId(videoId || videoUrl || '') || 'B57eOqeLVfc',
       videoTitle: videoTitle || title,
+      userId: req.userId,
     });
     res.json({
       success: true,
@@ -130,6 +134,7 @@ videoRouter.post('/generate-caption', aiRateLimiter, async (req: Request, res: R
       platform,
       trigger,
       customTone,
+      userId: req.userId,
     });
 
     res.json({ caption });
@@ -161,7 +166,9 @@ videoRouter.post('/ffmpeg-command', (req: Request, res: Response) => {
 videoRouter.post('/gemini/verify', async (req: Request, res: Response) => {
   try {
     const { apiKey } = req.body;
-    const keyToTest = (apiKey || process.env.GEMINI_API_KEY || '').trim();
+    const incomingKey = String(apiKey || '').trim();
+    const isMasked = !incomingKey || incomingKey.startsWith('***') || incomingKey.includes('••••');
+    const keyToTest = isMasked ? resolveGeminiApiKey(req.userId) : incomingKey;
     if (!keyToTest) {
       return res.status(400).json({
         valid: false,
@@ -197,6 +204,16 @@ videoRouter.post('/gemini/verify', async (req: Request, res: Response) => {
 
     if (response?.text) {
       process.env.GEMINI_API_KEY = keyToTest;
+      stateManager.updateCredentials(
+        {
+          gemini: {
+            apiKey: keyToTest,
+            status: 'connected',
+            model: modelToUse,
+          },
+        },
+        req.userId || 'default'
+      );
       return res.json({
         valid: true,
         model: modelToUse,
@@ -214,12 +231,14 @@ videoRouter.post('/gemini/verify', async (req: Request, res: Response) => {
 });
 
 // 8. Get Google AI Studio Status
-videoRouter.get('/gemini/status', (_req: Request, res: Response) => {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY?.trim());
+videoRouter.get('/gemini/status', (req: Request, res: Response) => {
+  const activeKey = resolveGeminiApiKey(req.userId);
+  const hasKey = Boolean(activeKey);
   res.json({
     configured: hasKey,
     model: GEMINI_TEXT_MODEL,
     hasEnvKey: hasKey,
   });
 });
+
 
