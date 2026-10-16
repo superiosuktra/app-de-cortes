@@ -176,17 +176,31 @@ videoRouter.post('/gemini/verify', async (req: Request, res: Response) => {
       },
     });
 
-    const response = await testAi.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
-      contents: 'Responda apenas: OK',
-    });
+    let modelToUse = GEMINI_TEXT_MODEL;
+    let response;
+    try {
+      response = await testAi.models.generateContent({
+        model: modelToUse,
+        contents: 'Responda apenas: OK',
+      });
+    } catch (modelErr: any) {
+      if (modelErr?.message?.includes('is no longer available') || modelErr?.message?.includes('404')) {
+        modelToUse = 'gemini-3.8-flash';
+        response = await testAi.models.generateContent({
+          model: modelToUse,
+          contents: 'Responda apenas: OK',
+        });
+      } else {
+        throw modelErr;
+      }
+    }
 
-    if (response.text) {
+    if (response?.text) {
       process.env.GEMINI_API_KEY = keyToTest;
       return res.json({
         valid: true,
-        model: GEMINI_TEXT_MODEL,
-        message: 'Chave do Google AI Studio validada com sucesso! Todos os recursos de IA foram ativados.',
+        model: modelToUse,
+        message: 'Chave do Google AI Studio validada com sucesso! Todos os recursos de IA foram ativados com Gemini 3.8 Flash.',
       });
     }
 

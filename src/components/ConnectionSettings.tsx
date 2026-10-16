@@ -87,7 +87,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
   const [geminiStatus, setGeminiStatus] = useState<{ configured: boolean; model: string; testing: boolean; message?: string }>({
     configured: false,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     testing: false,
   });
 
@@ -98,7 +98,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
         setGeminiStatus((prev) => ({
           ...prev,
           configured: Boolean(res.configured),
-          model: res.model || 'gemini-2.5-flash',
+          model: res.model || 'gemini-3.8-flash',
         }));
       })
       .catch(() => {});
@@ -115,7 +115,7 @@ export const ConnectionSettings: React.FC<ConnectionSettingsProps> = ({
       if (res.ok && res.data?.valid) {
         setGeminiStatus({
           configured: true,
-          model: res.data.model || 'gemini-2.5-flash',
+          model: res.data.model || 'gemini-3.8-flash',
           testing: false,
           message: '✅ Conectado com sucesso ao seu Google AI Studio!',
         });

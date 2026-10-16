@@ -24,8 +24,17 @@ export const STATE_FILE = path.join(DATA_DIR, 'app_state.json');
 // Environment Configuration
 export const PORT = Number(process.env.PORT) || 3000;
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-export const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
-export const GEMINI_VISION_MODEL = process.env.GEMINI_VISION_MODEL || 'gemini-2.5-flash';
+// Normalize and auto-upgrade deprecated Gemini models (e.g., gemini-2.5-flash -> gemini-3.8-flash)
+function normalizeGeminiModel(modelName: string | undefined, defaultModel = 'gemini-3.8-flash'): string {
+  const clean = (modelName || '').trim();
+  if (!clean || clean.includes('gemini-2.5') || clean.includes('gemini-1.5') || clean.includes('gemini-2.0')) {
+    return defaultModel;
+  }
+  return clean;
+}
+
+export const GEMINI_TEXT_MODEL = normalizeGeminiModel(process.env.GEMINI_TEXT_MODEL, 'gemini-3.8-flash');
+export const GEMINI_VISION_MODEL = normalizeGeminiModel(process.env.GEMINI_VISION_MODEL, 'gemini-3.8-flash');
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 
 /**
