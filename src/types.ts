@@ -168,3 +168,9 @@ export interface AutoPostSettings {
   defaultPrivacy: 'public' | 'unlisted' | 'private';
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}

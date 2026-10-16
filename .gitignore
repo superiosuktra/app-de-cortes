@@ -17,6 +17,7 @@ data/temp/
 *.tmp
 *.sqlite
 *.sqlite3
+data/app_state.json
 
 # Editor & OS settings
 .vscode/

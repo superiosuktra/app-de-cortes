@@ -1,7 +1,8 @@
 import React from 'react';
-import { Flame, Sparkles, Scissors, Share2, Compass, Film, Zap, Bot, RefreshCw } from 'lucide-react';
+import { Flame, Sparkles, Scissors, Share2, Compass, Film, Zap, Bot, RefreshCw, LogOut, User } from 'lucide-react';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { PWAInstallButton } from './PWAInstallButton';
+import { AuthUser } from '../types';
 
 interface HeaderProps {
   activeTab: 'trending' | 'analyze' | 'editor' | 'publish' | 'settings';
@@ -16,6 +17,8 @@ interface HeaderProps {
   onManualSync?: () => void;
   onStartAutoBot?: () => void;
   isAutoBotRunning?: boolean;
+  user?: AuthUser | null;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   onManualSync,
   onStartAutoBot,
   isAutoBotRunning = false,
+  user,
+  onLogout,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#0e0f14]/90 backdrop-blur-md border-b border-zinc-800/80 shadow-2xl">
@@ -85,6 +90,15 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               <AutoSaveIndicator lastSavedAt={lastSavedAt} isSaving={isSaving} onManualSync={onManualSync} />
               <PWAInstallButton />
+              {user && onLogout && (
+                <button
+                  onClick={onLogout}
+                  title={`Desconectar (${user.name})`}
+                  className="p-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-red-400 border border-zinc-800"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -193,10 +207,46 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </nav>
 
-            {/* Desktop Quick Actions: AutoSave Status & PWA Install Button */}
-            <div className="hidden lg:flex items-center gap-2">
+            {/* Desktop Quick Actions: AutoSave Status, PWA Install & User Profile */}
+            <div className="hidden lg:flex items-center gap-2.5">
               <AutoSaveIndicator lastSavedAt={lastSavedAt} isSaving={isSaving} onManualSync={onManualSync} />
               <PWAInstallButton />
+
+              {user && (
+                <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
+                  <div
+                    onClick={() => setActiveTab('settings')}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800/80 border border-zinc-800 transition cursor-pointer"
+                    title="Ver perfil e conexões de API"
+                  >
+                    {user.picture ? (
+                      <img
+                        src={user.picture}
+                        alt={user.name}
+                        className="w-7 h-7 rounded-full object-cover border border-purple-500/50"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#7000ff] to-[#ff0055] flex items-center justify-center text-white text-xs font-bold">
+                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    <div className="flex flex-col text-left max-w-[120px]">
+                      <span className="text-xs font-bold text-white truncate">{user.name}</span>
+                      <span className="text-[10px] text-zinc-400 truncate">{user.email}</span>
+                    </div>
+                  </div>
+
+                  {onLogout && (
+                    <button
+                      onClick={onLogout}
+                      title="Desconectar do Perfil"
+                      className="p-2 rounded-xl bg-zinc-900/80 hover:bg-red-950/40 text-zinc-400 hover:text-red-400 border border-zinc-800 hover:border-red-500/30 transition"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import os from 'os';
 import { STATE_FILE, GEMINI_API_KEY } from '../config.js';
+import db from '../db.js';
 
 // Derive 32-byte AES-256-GCM key for encrypting OAuth tokens at rest
 const VAULT_SECRET =
@@ -45,6 +46,7 @@ function decryptCredentialsObject(creds: any): PersistedCredentials {
   const yt = { ...DEFAULT_STATE.credentials.youtube, ...(creds?.youtube || {}) };
   const ig = { ...DEFAULT_STATE.credentials.instagram, ...(creds?.instagram || {}) };
   const tt = { ...DEFAULT_STATE.credentials.tiktok, ...(creds?.tiktok || {}) };
+  const gm = { ...(creds?.gemini || {}) };
 
   yt.accessToken = decryptSecret(yt.accessToken);
   yt.refreshToken = decryptSecret(yt.refreshToken);
@@ -56,7 +58,11 @@ function decryptCredentialsObject(creds: any): PersistedCredentials {
   tt.accessToken = decryptSecret(tt.accessToken);
   tt.clientSecret = decryptSecret(tt.clientSecret);
 
-  return { youtube: yt, instagram: ig, tiktok: tt };
+  if (gm.apiKey) {
+    gm.apiKey = decryptSecret(gm.apiKey);
+  }
+
+  return { youtube: yt, instagram: ig, tiktok: tt, gemini: gm };
 }
 
 function encryptCredentialsObject(creds: PersistedCredentials): PersistedCredentials {
@@ -77,6 +83,12 @@ function encryptCredentialsObject(creds: PersistedCredentials): PersistedCredent
       accessToken: encryptSecret(creds.tiktok.accessToken),
       clientSecret: encryptSecret(creds.tiktok.clientSecret),
     },
+    gemini: creds.gemini
+      ? {
+          ...creds.gemini,
+          apiKey: encryptSecret(creds.gemini.apiKey),
+        }
+      : undefined,
   };
 }
 
@@ -111,6 +123,12 @@ export interface PersistedCredentials {
     status: 'connected' | 'disconnected' | 'error';
     displayName?: string;
     avatar?: string;
+    verifiedAt?: string;
+  };
+  gemini?: {
+    apiKey?: string;
+    status?: 'connected' | 'disconnected' | 'error';
+    model?: string;
     verifiedAt?: string;
   };
 }
@@ -154,6 +172,12 @@ const DEFAULT_STATE: PersistedState = {
       avatar: '',
       verifiedAt: '',
     },
+    gemini: {
+      apiKey: '',
+      status: 'disconnected',
+      model: 'gemini-2.5-flash',
+      verifiedAt: '',
+    },
   },
   savedCuts: [],
   queue: [],
@@ -162,99 +186,177 @@ const DEFAULT_STATE: PersistedState = {
 };
 
 class StateManager {
-  private state: PersistedState;
-  private saveTimeout: NodeJS.Timeout | null = null;
+  private userStates = new Map<string, PersistedState>();
+  private saveTimeouts = new Map<string, NodeJS.Timeout>();
 
   constructor() {
-    this.state = this.loadState();
+    this.getState('default');
   }
 
-  private loadState(): PersistedState {
+  private loadUserState(userId: string): PersistedState {
+    // 1. Try SQLite user_states first
     try {
-      if (fs.existsSync(STATE_FILE)) {
-        const content = fs.readFileSync(STATE_FILE, 'utf-8');
-        const parsed = JSON.parse(content);
+      const row = db.prepare('SELECT * FROM user_states WHERE user_id = ?').get(userId) as any;
+      if (row) {
+        const creds = row.credentials_json
+          ? decryptCredentialsObject(JSON.parse(row.credentials_json))
+          : JSON.parse(JSON.stringify(DEFAULT_STATE.credentials));
+        const savedCuts = row.saved_cuts_json ? JSON.parse(row.saved_cuts_json) : [];
+        const queue = row.queue_json ? JSON.parse(row.queue_json) : [];
+        const autoPostSettings = row.settings_json ? JSON.parse(row.settings_json) : null;
         return {
-          credentials: decryptCredentialsObject(parsed.credentials),
-          savedCuts: Array.isArray(parsed.savedCuts) ? parsed.savedCuts : [],
-          queue: Array.isArray(parsed.queue) ? parsed.queue : [],
-          autoPostSettings: parsed.autoPostSettings || null,
-          lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+          credentials: creds,
+          savedCuts,
+          queue,
+          autoPostSettings,
+          lastUpdated: row.updated_at || new Date().toISOString(),
         };
       }
-    } catch (err) {
-      console.warn('[StateService] Falha ao carregar estado persistente, utilizando valores padrão:', err);
+    } catch (e) {
+      console.warn(`[StateService] Aviso ao carregar SQLite para usuário ${userId}:`, e);
     }
+
+    // 2. If 'default' user, fall back to STATE_FILE
+    if (userId === 'default') {
+      try {
+        if (fs.existsSync(STATE_FILE)) {
+          const content = fs.readFileSync(STATE_FILE, 'utf-8');
+          const parsed = JSON.parse(content);
+          return {
+            credentials: decryptCredentialsObject(parsed.credentials),
+            savedCuts: Array.isArray(parsed.savedCuts) ? parsed.savedCuts : [],
+            queue: Array.isArray(parsed.queue) ? parsed.queue : [],
+            autoPostSettings: parsed.autoPostSettings || null,
+            lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+          };
+        }
+      } catch (err) {
+        console.warn('[StateService] Falha ao carregar estado do arquivo JSON:', err);
+      }
+    }
+
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
 
-  public getState(): PersistedState {
-    return this.state;
+  public getState(userId: string = 'default'): PersistedState {
+    const key = userId || 'default';
+    if (!this.userStates.has(key)) {
+      const state = this.loadUserState(key);
+      this.userStates.set(key, state);
+    }
+    return this.userStates.get(key)!;
   }
 
-  public getCredentials(): PersistedCredentials {
-    return this.state.credentials;
+  public getCredentials(userId: string = 'default'): PersistedCredentials {
+    return this.getState(userId).credentials;
   }
 
-  public updateCredentials(creds: Partial<PersistedCredentials>): void {
+  public updateCredentials(creds: Partial<PersistedCredentials>, userId: string = 'default'): void {
+    const key = userId || 'default';
+    const state = this.getState(key);
     if (creds.youtube) {
-      this.state.credentials.youtube = { ...this.state.credentials.youtube, ...creds.youtube };
+      state.credentials.youtube = { ...state.credentials.youtube, ...creds.youtube };
     }
     if (creds.instagram) {
-      this.state.credentials.instagram = { ...this.state.credentials.instagram, ...creds.instagram };
+      state.credentials.instagram = { ...state.credentials.instagram, ...creds.instagram };
     }
     if (creds.tiktok) {
-      this.state.credentials.tiktok = { ...this.state.credentials.tiktok, ...creds.tiktok };
+      state.credentials.tiktok = { ...state.credentials.tiktok, ...creds.tiktok };
     }
-    this.scheduleSave();
+    if (creds.gemini) {
+      state.credentials.gemini = { ...(state.credentials.gemini || DEFAULT_STATE.credentials.gemini), ...creds.gemini };
+    }
+    this.scheduleSave(key);
   }
 
-  public clearCredentials(platform?: 'youtube' | 'instagram' | 'tiktok'): void {
-    if (platform && this.state.credentials[platform]) {
-      this.state.credentials[platform] = { ...DEFAULT_STATE.credentials[platform] } as any;
+  public clearCredentials(platform?: 'youtube' | 'instagram' | 'tiktok' | 'gemini', userId: string = 'default'): void {
+    const key = userId || 'default';
+    const state = this.getState(key);
+    if (platform && state.credentials[platform]) {
+      state.credentials[platform] = { ...DEFAULT_STATE.credentials[platform] } as any;
     } else {
-      this.state.credentials = JSON.parse(JSON.stringify(DEFAULT_STATE.credentials));
+      state.credentials = JSON.parse(JSON.stringify(DEFAULT_STATE.credentials));
     }
-    this.scheduleSave();
+    this.scheduleSave(key);
   }
 
-  public updateFullState(partial: Partial<PersistedState>): void {
+  public updateFullState(partial: Partial<PersistedState>, userId: string = 'default'): void {
+    const key = userId || 'default';
+    const state = this.getState(key);
     if (Array.isArray(partial.savedCuts)) {
-      this.state.savedCuts = partial.savedCuts;
+      state.savedCuts = partial.savedCuts;
     }
     if (Array.isArray(partial.queue)) {
-      this.state.queue = partial.queue;
+      state.queue = partial.queue;
     }
     if (partial.autoPostSettings !== undefined) {
-      this.state.autoPostSettings = partial.autoPostSettings;
+      state.autoPostSettings = partial.autoPostSettings;
     }
     if (partial.credentials) {
-      this.updateCredentials(partial.credentials);
+      this.updateCredentials(partial.credentials, key);
     }
-    this.scheduleSave();
+    this.scheduleSave(key);
   }
 
-  private scheduleSave(): void {
-    this.state.lastUpdated = new Date().toISOString();
-    if (this.saveTimeout) {
-      clearTimeout(this.saveTimeout);
+  private scheduleSave(userId: string = 'default'): void {
+    const key = userId || 'default';
+    const state = this.getState(key);
+    state.lastUpdated = new Date().toISOString();
+
+    const existingTimeout = this.saveTimeouts.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
     }
-    this.saveTimeout = setTimeout(() => {
-      this.saveToDisk();
+
+    const timeout = setTimeout(() => {
+      this.saveToDisk(key);
+      this.saveTimeouts.delete(key);
     }, 300);
+
+    this.saveTimeouts.set(key, timeout);
   }
 
-  public saveToDisk(): void {
+  public saveToDisk(userId: string = 'default'): void {
+    const key = userId || 'default';
+    const state = this.getState(key);
+    const encryptedCreds = encryptCredentialsObject(state.credentials);
+
+    // 1. Save to SQLite user_states
     try {
-      const stateToPersist: PersistedState = {
-        ...this.state,
-        credentials: encryptCredentialsObject(this.state.credentials),
-      };
-      const tempPath = `${STATE_FILE}.tmp`;
-      fs.writeFileSync(tempPath, JSON.stringify(stateToPersist, null, 2), 'utf-8');
-      fs.renameSync(tempPath, STATE_FILE);
+      db.prepare(`
+        INSERT INTO user_states (user_id, credentials_json, saved_cuts_json, queue_json, settings_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          credentials_json = excluded.credentials_json,
+          saved_cuts_json = excluded.saved_cuts_json,
+          queue_json = excluded.queue_json,
+          settings_json = excluded.settings_json,
+          updated_at = excluded.updated_at
+      `).run(
+        key,
+        JSON.stringify(encryptedCreds),
+        JSON.stringify(state.savedCuts),
+        JSON.stringify(state.queue),
+        JSON.stringify(state.autoPostSettings),
+        state.lastUpdated
+      );
     } catch (err) {
-      console.error('[StateService] Erro ao gravar arquivo de estado no disco:', err);
+      console.error(`[StateService] Erro ao gravar estado do usuário ${key} no SQLite:`, err);
+    }
+
+    // 2. If 'default', also write to STATE_FILE for backwards compatibility
+    if (key === 'default') {
+      try {
+        const stateToPersist: PersistedState = {
+          ...state,
+          credentials: encryptedCreds,
+        };
+        const tempPath = `${STATE_FILE}.tmp`;
+        fs.writeFileSync(tempPath, JSON.stringify(stateToPersist, null, 2), 'utf-8');
+        fs.renameSync(tempPath, STATE_FILE);
+      } catch (err) {
+        console.error('[StateService] Erro ao gravar arquivo de estado no disco:', err);
+      }
     }
   }
 }

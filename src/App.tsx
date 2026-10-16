@@ -6,10 +6,11 @@ import { EditorTab } from './components/EditorTab';
 import { PublisherTab } from './components/PublisherTab';
 import { ConnectionSettings } from './components/ConnectionSettings';
 import { AutoBotStatus } from './components/AutoPostQueueManager';
-import { VideoInfo, ViralCut, SavedCut, PlatformCredentials, QueueItem, AutoPostSettings, SocialPlatform } from './types';
-import { fetchJson } from './utils/api';
+import { VideoInfo, ViralCut, SavedCut, PlatformCredentials, QueueItem, AutoPostSettings, SocialPlatform, AuthUser } from './types';
+import { fetchJson, getAuthToken, setAuthToken, authFetch } from './utils/api';
 import { Flame, Sparkles, Scissors, Share2, Compass, ShieldCheck, Key, Zap } from 'lucide-react';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { GoogleLoginGate } from './components/GoogleLoginGate';
 import confetti from 'canvas-confetti';
 
 const STORAGE_SAVED_CUTS_KEY = 'viral_shorts_saved_cuts_v2';
@@ -56,6 +57,8 @@ export default function App() {
   const [legalView, setLegalView] = useState<'privacy' | 'terms' | null>(
     initialPath === '/privacy' ? 'privacy' : initialPath === '/terms' ? 'terms' : null
   );
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'trending' | 'analyze' | 'editor' | 'publish' | 'settings'>('trending');
   const [credentials, setCredentials] = useState<PlatformCredentials>(INITIAL_CREDENTIALS);
   const [videoUrl, setVideoUrl] = useState<string>('https://www.youtube.com/watch?v=B57eOqeLVfc');
@@ -338,6 +341,76 @@ export default function App() {
     autoPostSettingsRef.current = autoPostSettings;
   }, [autoPostSettings]);
 
+  // 1. Check active user session on startup
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = getAuthToken();
+      if (!token) {
+        setIsCheckingAuth(false);
+        return;
+      }
+      try {
+        const res = await fetchJson<{ authenticated: boolean; user: AuthUser | null }>('/api/auth/me');
+        if (res.ok && res.data.authenticated && res.data.user) {
+          setCurrentUser(res.data.user);
+        } else {
+          setAuthToken(null);
+          setCurrentUser(null);
+        }
+      } catch {
+        // network issue
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleLoginSuccess = (user: AuthUser, token: string) => {
+    setCurrentUser(user);
+    setAuthToken(token);
+    // Fetch state for this user from backend
+    authFetch('/api/storage/state')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.state) {
+          if (res.state.lastUpdated) {
+            setLastSavedAt(res.state.lastUpdated);
+          }
+          if (Array.isArray(res.state.savedCuts) && res.state.savedCuts.length > 0) {
+            setSavedCuts(res.state.savedCuts);
+          }
+          if (Array.isArray(res.state.queue) && res.state.queue.length > 0) {
+            setQueue(res.state.queue);
+          }
+          if (res.state.autoPostSettings) {
+            setAutoPostSettings(res.state.autoPostSettings);
+          }
+          if (res.state.credentials) {
+            setCredentials((prev) => ({
+              ...prev,
+              ...res.state.credentials,
+              youtube: { ...prev.youtube, ...res.state.credentials.youtube },
+              instagram: { ...prev.instagram, ...res.state.credentials.instagram },
+              tiktok: { ...prev.tiktok, ...res.state.credentials.tiktok },
+            }));
+          }
+        }
+      })
+      .catch((err) => console.warn('Erro ao carregar estado do usuário:', err));
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetchJson('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    setAuthToken(null);
+    setCurrentUser(null);
+    localStorage.removeItem(STORAGE_CREDENTIALS_KEY);
+    localStorage.removeItem('viral_shorts_platform_tokens_v1');
+    setCredentials(INITIAL_CREDENTIALS);
+  };
+
   // Load saved cuts, queue, settings and credentials from localStorage AND disk backend
   useEffect(() => {
     const isLegacyRandomCut = (item: any): boolean => {
@@ -444,7 +517,7 @@ export default function App() {
       setCredentials(mergedCreds);
 
       // Fetch persistent backend storage to restore state across restarts/browsers
-      fetch('/api/storage/state')
+      authFetch('/api/storage/state')
         .then((r) => r.json())
         .then((res) => {
           if (res.success && res.state) {
@@ -485,7 +558,7 @@ export default function App() {
         });
 
       // Sync with backend
-      fetch('/api/settings/credentials', {
+      authFetch('/api/settings/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credentials: mergedCreds }),
@@ -505,7 +578,7 @@ export default function App() {
 
     const timer = setTimeout(() => {
       setIsSaving(true);
-      fetch('/api/storage/state', {
+      authFetch('/api/storage/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials }),
@@ -525,7 +598,7 @@ export default function App() {
 
   const handleForceSync = () => {
     setIsSaving(true);
-    fetch('/api/storage/state', {
+    authFetch('/api/storage/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ savedCuts, queue, autoPostSettings, credentials }),
@@ -565,7 +638,7 @@ export default function App() {
       localStorage.setItem(STORAGE_CREDENTIALS_KEY, JSON.stringify(safePublicCreds));
       localStorage.removeItem('viral_shorts_platform_tokens_v1');
 
-      fetch('/api/settings/credentials', {
+      authFetch('/api/settings/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credentials: newCreds }),
@@ -1199,6 +1272,27 @@ export default function App() {
     setActiveTab('editor');
   };
 
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-[#07080c] flex flex-col items-center justify-center text-white select-none">
+        <div className="relative mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#7000ff] via-[#b000ff] to-[#ff0055] p-[2.5px] shadow-2xl shadow-purple-500/40 animate-pulse">
+            <div className="w-full h-full bg-[#12131a] rounded-[13px] flex items-center justify-center">
+              <Flame className="w-9 h-9 text-[#ff0055]" />
+            </div>
+          </div>
+        </div>
+        <p className="text-xs font-bold tracking-widest text-zinc-400 animate-pulse uppercase">
+          Carregando perfil e credenciais seguras...
+        </p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <GoogleLoginGate onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0b0c12] text-zinc-100 flex flex-col selection:bg-[#ff0055] selection:text-white">
       {/* Global Header & Nav */}
@@ -1214,6 +1308,8 @@ export default function App() {
         onManualSync={handleForceSync}
         onStartAutoBot={() => handleStartAutoBot('geral')}
         isAutoBotRunning={autoBotStatus.isRunning}
+        user={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}

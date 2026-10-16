@@ -8,6 +8,8 @@ import { videoRouter } from './server/routes/videoRoutes.js';
 import { cutRouter } from './server/routes/cutRoutes.js';
 import { socialRouter } from './server/routes/socialRoutes.js';
 import { stateRouter } from './server/routes/stateRoutes.js';
+import { authRouter } from './server/routes/authRoutes.js';
+import { authMiddleware } from './server/middleware/auth.js';
 import { PRIVACY_POLICY_HTML, TERMS_OF_SERVICE_HTML } from './server/pages/legalPages.js';
 import {
   securityHeadersMiddleware,
@@ -26,6 +28,7 @@ app.disable('x-powered-by');
 app.use(securityHeadersMiddleware);
 app.use(express.json({ limit: '2mb' }));
 app.use(sanitizeRequestMiddleware);
+app.use(authMiddleware);
 
 const globalApiLimiter = createRateLimiter({
   windowMs: 60 * 1000,
@@ -46,6 +49,7 @@ app.get('/terms', (_req: Request, res: Response) => {
 });
 
 // 2. API Routes
+app.use('/api', authRouter);
 app.use('/api', videoRouter);
 app.use('/api', cutRouter);
 app.use('/api', socialRouter);

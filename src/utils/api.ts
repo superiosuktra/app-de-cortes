@@ -5,6 +5,44 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
+const AUTH_STORAGE_KEY = 'app_session_token';
+let cachedToken: string | null = typeof window !== 'undefined' ? localStorage.getItem(AUTH_STORAGE_KEY) : null;
+
+export function getAuthToken(): string | null {
+  if (typeof window !== 'undefined' && !cachedToken) {
+    cachedToken = localStorage.getItem(AUTH_STORAGE_KEY);
+  }
+  return cachedToken;
+}
+
+export function setAuthToken(token: string | null): void {
+  cachedToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem(AUTH_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }
+}
+
+/**
+ * Standard fetch with automatic authentication headers.
+ */
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getAuthToken();
+  const headers = new Headers(options.headers || {});
+  if (token) {
+    if (!headers.has('x-session-token')) {
+      headers.set('x-session-token', token);
+    }
+    if (!headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+  return fetch(url, { ...options, headers });
+}
+
 /**
  * Safely fetches an API endpoint and ensures JSON parsing never throws
  * "Unexpected token '<', '<html>' is not valid JSON".
@@ -14,7 +52,20 @@ export async function fetchJson<T = any>(
   options?: RequestInit
 ): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(url, options);
+    const token = getAuthToken();
+    const reqOptions = { ...options };
+    const headers = new Headers(reqOptions.headers || {});
+    if (token) {
+      if (!headers.has('x-session-token')) {
+        headers.set('x-session-token', token);
+      }
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+    }
+    reqOptions.headers = headers;
+
+    const res = await fetch(url, reqOptions);
     const rawText = await res.text();
     const trimmed = (rawText || '').trim();
 
